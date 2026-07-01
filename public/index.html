@@ -1,0 +1,1502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Teacher Toolkit — GBPS Pir Bhirkio</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Noto+Nastaliq+Urdu:wght@400;700&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════════════
+   DESIGN TOKENS
+═══════════════════════════════════════════════ */
+:root {
+  --ink:       #0f1f3d;
+  --ink-2:     #2d4169;
+  --ink-3:     #5a6e92;
+  --ink-4:     #9aaac6;
+  --gold:      #b8860b;
+  --gold-lt:   #e6ad1a;
+  --gold-pale: #fdf6e3;
+  --bg:        #f4f6fb;
+  --surface:   #ffffff;
+  --border:    #dde4f0;
+  --border-2:  #c6d0e4;
+  --green:     #0c7c5a;
+  --green-bg:  #e8f8f3;
+  --red:       #c0392b;
+  --red-bg:    #fdf0ee;
+  --blue:      #1e4db7;
+  --blue-bg:   #eef2ff;
+  --r:         8px;
+  --r-lg:      14px;
+  --r-xl:      20px;
+  --sh:        0 1px 4px rgba(15,31,61,.07), 0 4px 16px rgba(15,31,61,.06);
+  --sh-lg:     0 2px 8px rgba(15,31,61,.08), 0 12px 40px rgba(15,31,61,.12);
+}
+
+*,*::before,*::after { margin:0; padding:0; box-sizing:border-box }
+html { scroll-behavior:smooth }
+body { font-family:'Plus Jakarta Sans',sans-serif; background:var(--bg); color:var(--ink); font-size:15px; line-height:1.6; -webkit-font-smoothing:antialiased }
+button,input,select,textarea { font-family:inherit }
+button { cursor:pointer; border:none; background:none }
+::-webkit-scrollbar { width:4px } ::-webkit-scrollbar-thumb { background:var(--border-2); border-radius:4px }
+img { display:block }
+
+/* ═══ TOP HEADER ═══ */
+.header {
+  position: sticky; top: 0; z-index: 200;
+  background: var(--ink);
+  padding: 0 32px;
+  height: 62px;
+  display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 3px solid var(--gold);
+  box-shadow: 0 2px 20px rgba(15,31,61,.35);
+}
+.header-left { display:flex; align-items:center; gap:14px }
+.logo {
+  width: 40px; height: 40px; border-radius: var(--r);
+  background: linear-gradient(135deg, var(--gold), var(--gold-lt));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; font-weight: 800; color: var(--ink);
+  letter-spacing: -0.5px; flex-shrink: 0;
+}
+.header-title { color: #fff; font-size: 18px; font-weight: 800; letter-spacing: -.3px }
+.header-title span { color: var(--gold-lt) }
+.header-subtitle { color: rgba(255,255,255,.4); font-size: 11.5px; font-weight: 500; margin-top: 1px }
+.header-right { display:flex; align-items:center; gap:10px }
+.h-badge {
+  background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.12);
+  border-radius: 99px; padding: 4px 14px;
+  font-size: 11px; font-weight: 600; color: rgba(255,255,255,.5);
+}
+.h-badge em { color: var(--gold-lt); font-style: normal }
+.h-pill {
+  background: linear-gradient(135deg, var(--gold), var(--gold-lt));
+  border-radius: 99px; padding: 5px 16px;
+  font-size: 11px; font-weight: 700; color: var(--ink);
+  display: flex; align-items: center; gap: 5px;
+}
+
+/* ═══ LAYOUT ═══ */
+.layout { display: grid; grid-template-columns: 280px 1fr; min-height: calc(100vh - 62px); }
+
+/* ═══ SIDEBAR ═══ */
+.sidebar {
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  position: sticky; top: 62px;
+  height: calc(100vh - 62px);
+  overflow-y: auto;
+  display: flex; flex-direction: column;
+}
+.sidebar::-webkit-scrollbar { width: 3px }
+.sb-school {
+  padding: 20px 20px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--gold-pale);
+}
+.sb-school-name {
+  font-size: 13px; font-weight: 700; color: var(--ink); line-height: 1.3;
+}
+.sb-school-sub { font-size: 11px; color: var(--ink-3); margin-top: 3px }
+.sb-semis {
+  display: inline-flex; margin-top: 8px;
+  background: var(--ink); color: var(--gold-lt);
+  font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 99px;
+  letter-spacing: .3px;
+}
+
+.sb-section { padding: 20px 16px 8px }
+.sb-section-lbl {
+  font-size: 10px; font-weight: 700; color: var(--ink-4);
+  text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;
+  padding-left: 8px;
+}
+
+.sb-item {
+  display: flex; align-items: center; gap: 11px;
+  padding: 10px 12px; border-radius: var(--r);
+  font-size: 13.5px; font-weight: 600; color: var(--ink-2);
+  cursor: pointer; transition: all .15s; margin-bottom: 2px;
+  border: 1.5px solid transparent;
+}
+.sb-item:hover { background: var(--bg); color: var(--ink) }
+.sb-item.active {
+  background: var(--blue-bg); color: var(--blue);
+  border-color: rgba(30,77,183,.15);
+}
+.sb-item.active .sb-ico { opacity: 1 }
+.sb-ico { font-size: 17px; flex-shrink: 0; opacity: .7 }
+.sb-item-text { flex: 1 }
+.sb-item-name { display: block; font-size: 13px; font-weight: 700 }
+.sb-item-sub { display: block; font-size: 10.5px; color: var(--ink-3); margin-top: 1px; font-weight: 500 }
+.sb-item.active .sb-item-sub { color: rgba(30,77,183,.7) }
+.sb-no-ai {
+  font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 4px;
+  background: var(--green-bg); color: var(--green); flex-shrink: 0;
+}
+
+.sb-divider { height: 1px; background: var(--border); margin: 8px 16px }
+.sb-lang-area { padding: 16px }
+.sb-lang-lbl { font-size: 10px; font-weight: 700; color: var(--ink-4); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px }
+.lang-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px }
+.lang-btn {
+  padding: 7px 6px; border-radius: var(--r); font-size: 11px; font-weight: 600;
+  border: 1.5px solid var(--border); background: var(--bg); color: var(--ink-2);
+  cursor: pointer; transition: all .15s; text-align: center; line-height: 1.3;
+}
+.lang-btn:hover { border-color: var(--ink); background: var(--surface) }
+.lang-btn.active { border-color: var(--gold); background: var(--gold-pale); color: var(--gold) }
+
+/* ═══ MAIN CONTENT ═══ */
+.main { padding: 28px 32px 60px; max-width: 900px }
+
+/* ═══ SECTION HEADER ═══ */
+.section-head {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  margin-bottom: 22px; padding-bottom: 18px;
+  border-bottom: 2px solid var(--border);
+  flex-wrap: wrap; gap: 12px;
+}
+.section-icon {
+  width: 48px; height: 48px; border-radius: var(--r-lg);
+  background: linear-gradient(135deg, var(--ink), var(--ink-2));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px; flex-shrink: 0;
+}
+.section-title { font-size: 22px; font-weight: 800; color: var(--ink); letter-spacing: -.4px }
+.section-desc { font-size: 13px; color: var(--ink-3); margin-top: 3px }
+.section-badge {
+  padding: 5px 14px; border-radius: 99px;
+  font-size: 11px; font-weight: 700;
+}
+.badge-ai { background: var(--blue-bg); color: var(--blue) }
+.badge-offline { background: var(--green-bg); color: var(--green) }
+.badge-crq { background: linear-gradient(135deg,var(--gold),var(--gold-lt)); color: var(--ink) }
+
+/* ═══ FORM COMPONENTS ═══ */
+.form-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r-xl); box-shadow: var(--sh); padding: 24px;
+  margin-bottom: 16px;
+}
+.form-card-title {
+  font-size: 12px; font-weight: 700; color: var(--ink-3);
+  text-transform: uppercase; letter-spacing: .8px;
+  margin-bottom: 16px; padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 8px;
+}
+.form-card-title::before {
+  content: ''; width: 3px; height: 14px; border-radius: 2px;
+  background: var(--gold); display: block;
+}
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px }
+.form-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px }
+.form-grid-1 { display: grid; grid-template-columns: 1fr; gap: 16px }
+.fg { display: flex; flex-direction: column; gap: 6px }
+.fg label {
+  font-size: 12px; font-weight: 700; color: var(--ink-2);
+  letter-spacing: .2px;
+}
+.fg input, .fg select, .fg textarea {
+  padding: 11px 14px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--r); font-size: 14px; font-weight: 500;
+  color: var(--ink); background: var(--bg); outline: none;
+  transition: all .18s;
+}
+.fg input:focus, .fg select:focus, .fg textarea:focus {
+  border-color: var(--blue); background: var(--surface);
+  box-shadow: 0 0 0 3px rgba(30,77,183,.1);
+}
+.fg select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%235a6e92' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 13px center;
+  padding-right: 38px; background-color: var(--bg);
+}
+.fg textarea { resize: vertical; min-height: 72px; line-height: 1.6 }
+
+.btn-generate {
+  width: 100%; padding: 15px; border-radius: var(--r-lg);
+  background: linear-gradient(135deg, var(--ink), #1e3a6e);
+  color: #fff; font-size: 15px; font-weight: 800;
+  border: none; border-bottom: 3px solid var(--gold);
+  box-shadow: 0 4px 18px rgba(15,31,61,.3);
+  transition: all .2s; display: flex; align-items: center;
+  justify-content: center; gap: 10px; margin-top: 8px;
+}
+.btn-generate:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(15,31,61,.35) }
+.btn-generate:disabled { background: var(--border); box-shadow: none; border-bottom-color: var(--border-2); transform: none; color: var(--ink-3); cursor: not-allowed }
+
+/* ═══ UPLOAD ZONE ═══ */
+.upload-zone {
+  border: 2px dashed var(--border-2); border-radius: var(--r-lg);
+  padding: 28px 20px; text-align: center; cursor: pointer;
+  background: var(--bg); transition: all .2s;
+}
+.upload-zone:hover, .upload-zone.over { border-color: var(--green); background: var(--green-bg) }
+.uz-ico { font-size: 32px; margin-bottom: 10px }
+.uz-title { font-size: 15px; font-weight: 700; color: var(--ink) }
+.uz-sub { font-size: 12.5px; color: var(--ink-3); margin-top: 4px }
+.uz-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  margin-top: 12px; padding: 8px 20px; border-radius: 99px;
+  background: var(--ink); color: #fff; font-size: 12px;
+  font-weight: 700; transition: all .18s;
+}
+.uz-btn:hover { background: var(--ink-2); transform: translateY(-1px) }
+.file-chip {
+  display: none; margin-top: 10px; padding: 9px 16px;
+  background: var(--green-bg); border: 1px solid rgba(12,124,90,.2);
+  border-radius: var(--r); font-size: 12.5px; color: var(--green);
+  font-weight: 600; text-align: left;
+}
+
+/* ═══ LOADER ═══ */
+.loader-wrap {
+  display: none; text-align: center; padding: 56px 20px;
+  background: var(--surface); border-radius: var(--r-xl);
+  border: 1px solid var(--border); box-shadow: var(--sh);
+}
+.loader-ring {
+  width: 52px; height: 52px; margin: 0 auto 20px; border-radius: 50%; position: relative;
+}
+.loader-ring::before {
+  content: ''; position: absolute; inset: 0; border-radius: 50%;
+  border: 4px solid var(--border); border-top-color: var(--ink);
+  animation: spin .8s linear infinite;
+}
+.loader-ring::after {
+  content: ''; position: absolute; inset: 10px; border-radius: 50%;
+  border: 4px solid transparent; border-top-color: var(--gold);
+  animation: spin .5s linear infinite reverse;
+}
+@keyframes spin { to { transform: rotate(360deg) } }
+.loader-title { font-size: 17px; font-weight: 700; color: var(--ink) }
+.loader-sub { font-size: 13px; color: var(--ink-3); margin-top: 5px }
+.loader-dots { display: inline-flex; gap: 6px; margin-top: 16px }
+.loader-dots span { width: 7px; height: 7px; border-radius: 50%; background: var(--ink); animation: dot 1.4s ease-in-out infinite }
+.loader-dots span:nth-child(2) { animation-delay: .2s; background: var(--gold) }
+.loader-dots span:nth-child(3) { animation-delay: .4s; background: var(--green) }
+@keyframes dot { 0%,80%,100% { transform:scale(0) } 40% { transform:scale(1) } }
+
+/* ═══ RESULT ═══ */
+.result-wrap {
+  display: none; background: var(--surface);
+  border-radius: var(--r-xl); border: 1px solid var(--border);
+  box-shadow: var(--sh-lg); overflow: hidden; margin-top: 16px;
+}
+.result-top {
+  background: var(--ink); padding: 16px 22px;
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 12px;
+}
+.result-status {
+  display: flex; align-items: center; gap: 8px;
+}
+.result-dot { width: 8px; height: 8px; border-radius: 50%; background: #2ecc71; flex-shrink: 0 }
+.result-title { font-size: 14px; font-weight: 700; color: #fff }
+.result-btns { display: flex; gap: 8px; flex-wrap: wrap }
+.dl-btn {
+  display: flex; align-items: center; gap: 6px;
+  padding: 8px 16px; border-radius: var(--r);
+  font-size: 12px; font-weight: 700; font-family: inherit;
+  border: none; cursor: pointer; transition: all .18s;
+}
+.dl-word { background: rgba(30,77,183,.9); color: #fff }
+.dl-word:hover { background: var(--blue) }
+.dl-pdf { background: rgba(192,57,43,.9); color: #fff }
+.dl-pdf:hover { background: var(--red) }
+.dl-copy { background: rgba(255,255,255,.1); color: rgba(255,255,255,.8); border: 1px solid rgba(255,255,255,.15) }
+.dl-copy:hover { background: rgba(255,255,255,.18); color: #fff }
+.result-body {
+  padding: 22px; font-size: 13px; line-height: 1.9;
+  white-space: pre-wrap; max-height: 520px; overflow-y: auto;
+  color: var(--ink-2); font-family: 'Courier New', monospace;
+  background: #fafcff; border-top: 1px solid var(--border);
+}
+.result-footer {
+  padding: 10px 22px; background: var(--bg); border-top: 1px solid var(--border);
+  font-size: 11px; color: var(--ink-4); text-align: right;
+}
+.result-footer b { color: var(--ink-2) }
+
+/* ═══ STUDENT DATABASE ═══ */
+.db-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 18px; flex-wrap: wrap; gap: 12px;
+}
+.db-title-area .db-title { font-size: 20px; font-weight: 800; color: var(--ink) }
+.db-title-area .db-sub { font-size: 13px; color: var(--ink-3); margin-top: 2px }
+.db-stats-bar {
+  display: flex; gap: 10px;
+}
+.db-stat {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r-lg); padding: 10px 18px; text-align: center;
+}
+.db-stat-num { font-size: 22px; font-weight: 800; color: var(--ink) }
+.db-stat-lbl { font-size: 10px; color: var(--ink-3); text-transform: uppercase; letter-spacing: .6px; margin-top: 2px; font-weight: 600 }
+.db-toolbar {
+  display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; align-items: center;
+}
+.db-search {
+  flex: 1; min-width: 200px; padding: 10px 14px 10px 38px;
+  border: 1.5px solid var(--border); border-radius: var(--r);
+  font-size: 13.5px; font-weight: 500; color: var(--ink);
+  background: var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='15' height='15' viewBox='0 0 24 24' fill='none' stroke='%239aaac6' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.35-4.35'/%3E%3C/svg%3E") no-repeat 12px center;
+  outline: none; transition: all .18s;
+}
+.db-search:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(30,77,183,.1) }
+.db-action-btn {
+  display: flex; align-items: center; gap: 6px;
+  padding: 9px 16px; border-radius: var(--r);
+  font-size: 12.5px; font-weight: 700; font-family: inherit;
+  border: 1.5px solid; cursor: pointer; transition: all .18s; white-space: nowrap;
+}
+.btn-add { background: var(--ink); color: #fff; border-color: var(--ink) }
+.btn-add:hover { background: var(--ink-2) }
+.btn-import { background: var(--green-bg); color: var(--green); border-color: rgba(12,124,90,.25) }
+.btn-import:hover { background: #d1f5eb }
+.btn-export { background: var(--blue-bg); color: var(--blue); border-color: rgba(30,77,183,.2) }
+.btn-export:hover { background: #dde6ff }
+.btn-word-list { background: var(--gold-pale); color: var(--gold); border-color: rgba(184,134,11,.25) }
+.btn-word-list:hover { background: #fdedb0 }
+.btn-clear { background: var(--red-bg); color: var(--red); border-color: rgba(192,57,43,.2) }
+.btn-clear:hover { background: #fde0dc }
+
+.db-table-wrap {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r-xl); overflow: hidden; box-shadow: var(--sh);
+}
+.db-table { width: 100%; border-collapse: collapse }
+.db-table thead { background: var(--bg) }
+.db-table th {
+  padding: 12px 14px; text-align: left;
+  font-size: 11px; font-weight: 700; color: var(--ink-3);
+  text-transform: uppercase; letter-spacing: .6px;
+  border-bottom: 2px solid var(--border);
+}
+.db-table td {
+  padding: 12px 14px; font-size: 13.5px; color: var(--ink-2);
+  border-bottom: 1px solid var(--border);
+}
+.db-table tr:last-child td { border-bottom: none }
+.db-table tbody tr:hover td { background: var(--bg) }
+.gr-badge {
+  display: inline-flex; padding: 2px 8px; border-radius: 5px;
+  background: var(--gold-pale); color: var(--gold);
+  font-size: 11.5px; font-weight: 700; border: 1px solid rgba(184,134,11,.2);
+}
+.name-strong { font-weight: 700; color: var(--ink) }
+.db-empty {
+  text-align: center; padding: 48px 20px;
+  color: var(--ink-3); font-size: 14px;
+}
+.db-empty-ico { font-size: 36px; margin-bottom: 10px }
+.row-btn {
+  padding: 5px 11px; border-radius: 6px; font-size: 11.5px;
+  font-weight: 700; font-family: inherit; cursor: pointer;
+  border: 1.5px solid; transition: .15s; margin-right: 4px;
+}
+.row-fill { background: var(--blue-bg); color: var(--blue); border-color: rgba(30,77,183,.2) }
+.row-edit { background: var(--gold-pale); color: var(--gold); border-color: rgba(184,134,11,.2) }
+.row-del { background: var(--red-bg); color: var(--red); border-color: rgba(192,57,43,.2) }
+
+/* ═══ CRQ SECTION ═══ */
+.crq-card {
+  background: linear-gradient(145deg, var(--ink), #1c3560);
+  border-radius: var(--r-xl); border: 1px solid rgba(184,134,11,.2);
+  overflow: hidden; margin-bottom: 16px;
+}
+.crq-card-head {
+  padding: 24px 26px 20px; border-bottom: 1px solid rgba(255,255,255,.08);
+}
+.crq-label {
+  display: inline-flex; margin-bottom: 10px;
+  background: rgba(184,134,11,.15); border: 1px solid rgba(184,134,11,.25);
+  border-radius: 99px; padding: 3px 12px;
+  font-size: 10px; font-weight: 800; color: var(--gold-lt);
+  letter-spacing: 1px; text-transform: uppercase;
+}
+.crq-title { font-size: 20px; font-weight: 800; color: #fff }
+.crq-title em { color: var(--gold-lt); font-style: normal }
+.crq-desc { font-size: 12.5px; color: rgba(255,255,255,.45); margin-top: 6px; line-height: 1.7 }
+.crq-body { padding: 22px 26px }
+.crq-row-lbl { font-size: 11px; font-weight: 700; color: rgba(255,255,255,.4); text-transform: uppercase; letter-spacing: .8px; margin-bottom: 8px }
+.crq-divider { height: 1px; background: rgba(255,255,255,.08); margin: 18px 0 }
+
+.crq-upload-zone {
+  border: 1.5px dashed rgba(255,255,255,.15); border-radius: var(--r);
+  padding: 20px; text-align: center; cursor: pointer; background: rgba(255,255,255,.02);
+  transition: all .2s;
+}
+.crq-upload-zone:hover { border-color: rgba(12,124,90,.6); background: rgba(12,124,90,.06) }
+.crq-upload-ico { font-size: 26px; margin-bottom: 6px }
+.crq-upload-txt { font-size: 12.5px; font-weight: 700; color: rgba(255,255,255,.5) }
+.crq-upload-sub { font-size: 11px; color: rgba(255,255,255,.25); margin-top: 3px }
+.crq-file-chip {
+  display: none; margin-top: 10px; padding: 8px 14px;
+  background: rgba(12,124,90,.12); border: 1px solid rgba(12,124,90,.25);
+  border-radius: var(--r); font-size: 11.5px; color: #2ecc71; font-weight: 600;
+}
+
+.diff-pills { display: flex; gap: 8px; flex-wrap: wrap }
+.diff-pill {
+  padding: 7px 20px; border-radius: 99px; font-size: 12px; font-weight: 700;
+  border: 1.5px solid rgba(255,255,255,.12); color: rgba(255,255,255,.45);
+  background: transparent; cursor: pointer; font-family: inherit; transition: all .18s;
+}
+.diff-easy { border-color: #2ecc71; color: #2ecc71; background: rgba(46,204,113,.08) }
+.diff-medium { border-color: var(--gold-lt); color: var(--gold-lt); background: rgba(184,134,11,.08) }
+.diff-hard { border-color: #e74c3c; color: #e74c3c; background: rgba(231,76,60,.08) }
+
+.bloom-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px }
+.bloom-opt {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 13px; border-radius: var(--r); cursor: pointer;
+  border: 1.5px solid rgba(255,255,255,.08); background: rgba(255,255,255,.03);
+  transition: all .18s;
+}
+.bloom-opt:hover { border-color: rgba(255,255,255,.2) }
+.bloom-opt input { display: none }
+.bloom-check {
+  width: 16px; height: 16px; border-radius: 4px; flex-shrink: 0;
+  border: 1.5px solid rgba(255,255,255,.2); display: flex;
+  align-items: center; justify-content: center; transition: all .18s;
+  font-size: 10px; color: #fff; font-weight: 900;
+}
+.bloom-opt input:checked ~ .bloom-check { background: var(--blue); border-color: var(--blue) }
+.bloom-name { font-size: 12.5px; font-weight: 600; color: rgba(255,255,255,.65) }
+.bloom-sub { font-size: 10px; color: rgba(255,255,255,.3); display: block; margin-top: 1px }
+
+.q-count-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px }
+.q-count-lbl { font-size: 10px; font-weight: 700; color: rgba(255,255,255,.35); text-transform: uppercase; letter-spacing: .7px; margin-bottom: 6px }
+.q-count-inp {
+  width: 100%; padding: 10px; border-radius: var(--r);
+  border: 1.5px solid rgba(255,255,255,.12); background: rgba(255,255,255,.06);
+  color: #fff; font-size: 16px; font-weight: 700; text-align: center;
+  outline: none; font-family: inherit; transition: all .18s;
+}
+.q-count-inp:focus { border-color: var(--gold-lt); background: rgba(184,134,11,.08) }
+
+.ak-toggle-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 15px; border-radius: var(--r);
+  border: 1.5px solid rgba(255,255,255,.08); background: rgba(255,255,255,.03); cursor: pointer;
+}
+.ak-label { font-size: 13px; font-weight: 700; color: rgba(255,255,255,.7) }
+.ak-sub { font-size: 11px; color: rgba(255,255,255,.3); margin-top: 2px }
+.toggle-sw { width: 38px; height: 21px; border-radius: 99px; background: rgba(255,255,255,.12); position: relative; transition: .2s; flex-shrink: 0 }
+.toggle-sw.on { background: var(--green) }
+.toggle-sw::after { content:''; position:absolute; top:3px; left:3px; width:15px; height:15px; border-radius:50%; background:#fff; transition:.2s; box-shadow: 0 1px 4px rgba(0,0,0,.3) }
+.toggle-sw.on::after { transform: translateX(17px) }
+
+.crq-topic-inp {
+  width: 100%; padding: 12px 15px; border-radius: var(--r);
+  border: 1.5px solid rgba(255,255,255,.12); background: rgba(255,255,255,.06);
+  color: #fff; font-size: 14px; font-weight: 500; outline: none;
+  font-family: inherit; transition: all .18s;
+}
+.crq-topic-inp:focus { border-color: var(--gold-lt); background: rgba(184,134,11,.06) }
+.crq-topic-inp::placeholder { color: rgba(255,255,255,.25) }
+
+.btn-crq {
+  width: 100%; padding: 14px; border-radius: var(--r-lg);
+  background: linear-gradient(135deg, var(--gold), var(--gold-lt));
+  color: var(--ink); font-size: 14px; font-weight: 800;
+  border: none; font-family: inherit; cursor: pointer;
+  box-shadow: 0 4px 16px rgba(184,134,11,.3); transition: all .2s;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.btn-crq:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(184,134,11,.4) }
+.btn-crq:disabled { background: rgba(255,255,255,.1); color: rgba(255,255,255,.3); box-shadow: none; transform: none; cursor: not-allowed }
+
+/* ═══ AGE CALCULATOR ═══ */
+.age-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-xl); padding: 24px; box-shadow: var(--sh) }
+
+/* ═══ MODAL ═══ */
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(15,31,61,.6); backdrop-filter: blur(3px); z-index: 999; align-items: center; justify-content: center; padding: 20px }
+.modal-overlay.open { display: flex }
+.modal { background: var(--surface); border-radius: var(--r-xl); width: 100%; max-width: 540px; max-height: 90vh; overflow-y: auto; box-shadow: 0 24px 80px rgba(15,31,61,.4) }
+.modal-head { padding: 20px 24px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; background: var(--surface); z-index: 1 }
+.modal-title { font-size: 17px; font-weight: 800; color: var(--ink) }
+.modal-close { width: 30px; height: 30px; border-radius: var(--r); background: var(--bg); display: flex; align-items: center; justify-content: center; font-size: 16px; cursor: pointer; color: var(--ink-3); border: 1px solid var(--border); transition: .15s }
+.modal-close:hover { background: var(--red-bg); color: var(--red); border-color: rgba(192,57,43,.2) }
+.modal-body { padding: 22px 24px }
+.modal-foot { padding: 16px 24px; border-top: 1px solid var(--border); display: flex; gap: 10px; justify-content: flex-end; background: var(--bg) }
+.btn-cancel { padding: 10px 20px; border-radius: var(--r); background: var(--surface); border: 1.5px solid var(--border); color: var(--ink-2); font-size: 13px; font-weight: 700; cursor: pointer }
+.btn-save { padding: 10px 24px; border-radius: var(--r); background: var(--ink); color: #fff; font-size: 13px; font-weight: 700; border: none; cursor: pointer; transition: .15s }
+.btn-save:hover { background: var(--ink-2) }
+
+/* ═══ IMPORT NOTE ═══ */
+.import-note { padding: 10px 14px; border-radius: var(--r); font-size: 12.5px; font-weight: 600; margin-bottom: 12px; display: none }
+
+/* ═══ WELCOME ═══ */
+.welcome-card {
+  background: linear-gradient(135deg, var(--ink), #1c3560);
+  border-radius: var(--r-xl); padding: 28px 30px; margin-bottom: 22px;
+  border: 1px solid rgba(184,134,11,.2); position: relative; overflow: hidden;
+}
+.welcome-card::after { content: '﷽'; position: absolute; right: -10px; top: 50%; transform: translateY(-50%); font-size: 80px; color: rgba(184,134,11,.06); font-family: 'Noto Nastaliq Urdu'; pointer-events: none }
+.welcome-bismillah { font-family: 'Noto Nastaliq Urdu', serif; font-size: 20px; color: var(--gold-lt); margin-bottom: 14px; direction: rtl }
+.welcome-school { font-size: 18px; font-weight: 800; color: #fff; letter-spacing: -.3px }
+.welcome-info { font-size: 12.5px; color: rgba(255,255,255,.45); margin-top: 5px; line-height: 1.7 }
+.welcome-chips { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap }
+.w-chip { background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.12); border-radius: 99px; padding: 4px 14px; font-size: 11px; font-weight: 600; color: rgba(255,255,255,.6) }
+.w-chip strong { color: var(--gold-lt) }
+
+/* ═══ PANELS ═══ */
+.panel { display: none }
+.panel.active { display: block }
+
+@media (max-width: 900px) {
+  .layout { grid-template-columns: 1fr }
+  .sidebar { position: static; height: auto; border-right: none; border-bottom: 1px solid var(--border) }
+  .main { padding: 20px 16px 60px }
+  .form-grid, .form-grid-3 { grid-template-columns: 1fr }
+  .lang-grid { grid-template-columns: repeat(4,1fr) }
+}
+@media (max-width: 600px) {
+  .lang-grid { grid-template-columns: 1fr 1fr }
+  .db-toolbar { flex-direction: column }
+  .db-search { min-width: 100% }
+}
+.fade { animation: fadeIn .3s ease both }
+@keyframes fadeIn { from { opacity:0; transform: translateY(6px) } to { opacity:1; transform:translateY(0) } }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="header">
+  <div class="header-left">
+    <div class="logo">TT</div>
+    <div>
+      <div class="header-title">Teacher <span>Toolkit</span></div>
+      <div class="header-subtitle">GBPS Pir Bhirkio · Sindh Education Department</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="h-badge">by <em>aqkanhar</em></div>
+    <div class="h-pill">✦ AI Powered</div>
+  </div>
+</header>
+
+<div class="layout">
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sb-school">
+    <div class="sb-school-name">Govt. Boys Primary School<br>Pir Bhirkio</div>
+    <div class="sb-school-sub">Head Master: Abdul Qadeer Khan (PST BPS-14)</div>
+    <div class="sb-semis">SEMIS: 415040089</div>
+  </div>
+
+  <div class="sb-section">
+    <div class="sb-section-lbl">Academic Documents</div>
+    <div class="sb-item active" onclick="showPanel('lesson-plan',this)">
+      <span class="sb-ico">📚</span>
+      <div class="sb-item-text"><span class="sb-item-name">Lesson Plan</span><span class="sb-item-sub">PPP + Bloom's Taxonomy</span></div>
+    </div>
+    <div class="sb-item" onclick="showPanel('worksheet',this)">
+      <span class="sb-ico">✏️</span>
+      <div class="sb-item-text"><span class="sb-item-name">Worksheet</span><span class="sb-item-sub">Printable activity sheets</span></div>
+    </div>
+    <div class="sb-item" onclick="showPanel('exam-paper',this)">
+      <span class="sb-ico">📝</span>
+      <div class="sb-item-text"><span class="sb-item-name">Exam Paper</span><span class="sb-item-sub">Mid-term / Final</span></div>
+    </div>
+    <div class="sb-item" onclick="showPanel('crq',this)">
+      <span class="sb-ico">🔍</span>
+      <div class="sb-item-text"><span class="sb-item-name">CRQ Generator</span><span class="sb-item-sub">AI from textbook content</span></div>
+    </div>
+    <div class="sb-item" onclick="showPanel('rubric',this)">
+      <span class="sb-ico">📊</span>
+      <div class="sb-item-text"><span class="sb-item-name">Assessment Rubric</span><span class="sb-item-sub">3-level evaluation</span></div>
+    </div>
+    <div class="sb-item" onclick="showPanel('atp',this)">
+      <span class="sb-ico">📅</span>
+      <div class="sb-item-text"><span class="sb-item-name">Annual Teaching Plan</span><span class="sb-item-sub">Yearly schedule</span></div>
+    </div>
+  </div>
+
+  <div class="sb-divider"></div>
+
+  <div class="sb-section">
+    <div class="sb-section-lbl">Certificates & Letters</div>
+    <div class="sb-item" onclick="showPanel('character',this)">
+      <span class="sb-ico">🏅</span>
+      <div class="sb-item-text"><span class="sb-item-name">Character Certificate</span><span class="sb-item-sub">Conduct document</span></div>
+      <span class="sb-no-ai">No AI</span>
+    </div>
+    <div class="sb-item" onclick="showPanel('transfer',this)">
+      <span class="sb-ico">🔄</span>
+      <div class="sb-item-text"><span class="sb-item-name">Transfer Certificate</span><span class="sb-item-sub">TC document</span></div>
+      <span class="sb-no-ai">No AI</span>
+    </div>
+    <div class="sb-item" onclick="showPanel('bonafide',this)">
+      <span class="sb-ico">📜</span>
+      <div class="sb-item-text"><span class="sb-item-name">Bonafide Certificate</span><span class="sb-item-sub">Enrollment proof</span></div>
+      <span class="sb-no-ai">No AI</span>
+    </div>
+    <div class="sb-item" onclick="showPanel('prize',this)">
+      <span class="sb-ico">🏆</span>
+      <div class="sb-item-text"><span class="sb-item-name">Prize Certificate</span><span class="sb-item-sub">Achievement award</span></div>
+      <span class="sb-no-ai">No AI</span>
+    </div>
+    <div class="sb-item" onclick="showPanel('noc',this)">
+      <span class="sb-ico">✅</span>
+      <div class="sb-item-text"><span class="sb-item-name">NOC Letter</span><span class="sb-item-sub">No objection</span></div>
+      <span class="sb-no-ai">No AI</span>
+    </div>
+    <div class="sb-item" onclick="showPanel('experience',this)">
+      <span class="sb-ico">🎖️</span>
+      <div class="sb-item-text"><span class="sb-item-name">Experience Certificate</span><span class="sb-item-sub">Service record</span></div>
+      <span class="sb-no-ai">No AI</span>
+    </div>
+    <div class="sb-item" onclick="showPanel('official-letter',this)">
+      <span class="sb-ico">✉️</span>
+      <div class="sb-item-text"><span class="sb-item-name">Official Letter</span><span class="sb-item-sub">General correspondence</span></div>
+    </div>
+  </div>
+
+  <div class="sb-divider"></div>
+
+  <div class="sb-section">
+    <div class="sb-section-lbl">Student Records</div>
+    <div class="sb-item" onclick="showPanel('database',this)">
+      <span class="sb-ico">🗄️</span>
+      <div class="sb-item-text"><span class="sb-item-name">Student Database</span><span class="sb-item-sub">Import · Export · Auto-fill</span></div>
+    </div>
+    <div class="sb-item" onclick="showPanel('result-card',this)">
+      <span class="sb-ico">📋</span>
+      <div class="sb-item-text"><span class="sb-item-name">Result Card</span><span class="sb-item-sub">Annual result</span></div>
+      <span class="sb-no-ai">No AI</span>
+    </div>
+    <div class="sb-item" onclick="showPanel('attendance',this)">
+      <span class="sb-ico">✔️</span>
+      <div class="sb-item-text"><span class="sb-item-name">Attendance Sheet</span><span class="sb-item-sub">Monthly register</span></div>
+      <span class="sb-no-ai">No AI</span>
+    </div>
+    <div class="sb-item" onclick="showPanel('enrollment',this)">
+      <span class="sb-ico">📝</span>
+      <div class="sb-item-text"><span class="sb-item-name">Enrollment Form</span><span class="sb-item-sub">New admission</span></div>
+      <span class="sb-no-ai">No AI</span>
+    </div>
+  </div>
+
+  <div class="sb-divider"></div>
+
+  <div class="sb-section">
+    <div class="sb-section-lbl">Admin & Tools</div>
+    <div class="sb-item" onclick="showPanel('leave',this)">
+      <span class="sb-ico">📨</span>
+      <div class="sb-item-text"><span class="sb-item-name">Leave Application</span><span class="sb-item-sub">Official request</span></div>
+    </div>
+    <div class="sb-item" onclick="showPanel('sip',this)">
+      <span class="sb-ico">📈</span>
+      <div class="sb-item-text"><span class="sb-item-name">School Improvement Plan</span><span class="sb-item-sub">SIP document</span></div>
+    </div>
+    <div class="sb-item" onclick="showPanel('affidavit',this)">
+      <span class="sb-ico">⚖️</span>
+      <div class="sb-item-text"><span class="sb-item-name">Affidavit</span><span class="sb-item-sub">Legal declaration</span></div>
+      <span class="sb-no-ai">No AI</span>
+    </div>
+    <div class="sb-item" onclick="showPanel('age-calc',this)">
+      <span class="sb-ico">🎂</span>
+      <div class="sb-item-text"><span class="sb-item-name">Age Calculator</span><span class="sb-item-sub">Eligibility check</span></div>
+    </div>
+    <div class="sb-item" onclick="showPanel('upload',this)">
+      <span class="sb-ico">📸</span>
+      <div class="sb-item-text"><span class="sb-item-name">Upload & Generate</span><span class="sb-item-sub">From book photo/PDF</span></div>
+    </div>
+  </div>
+
+  <!-- LANGUAGE -->
+  <div class="sb-divider"></div>
+  <div class="sb-lang-area">
+    <div class="sb-lang-lbl">Output Language</div>
+    <div class="lang-grid">
+      <button class="lang-btn" onclick="setLang(this,'english')">English</button>
+      <button class="lang-btn" onclick="setLang(this,'urdu')">اردو</button>
+      <button class="lang-btn" onclick="setLang(this,'sindhi')">سنڌي</button>
+      <button class="lang-btn" onclick="setLang(this,'roman_urdu')">Roman</button>
+      <button class="lang-btn active" onclick="setLang(this,'bilingual_en_ur')" style="grid-column:span 2">EN + Urdu ✓</button>
+      <button class="lang-btn" onclick="setLang(this,'trilingual')" style="grid-column:span 2">Trilingual</button>
+    </div>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<main class="main">
+
+<!-- WELCOME CARD -->
+<div class="welcome-card fade">
+  <div class="welcome-bismillah">بِسْمِ اللهِ الرَّحْمٰنِ الرَّحِيْمِ</div>
+  <div class="welcome-school">Government Boys Primary School Pir Bhirkio</div>
+  <div class="welcome-info">UC Noor Pur · Taluka Kingri · District Khairpur · Sindh<br>Head Master: Abdul Qadeer Khan (PST BPS-14) · SEMIS: 415040089</div>
+  <div class="welcome-chips">
+    <div class="w-chip"><strong>28+</strong> Document Types</div>
+    <div class="w-chip"><strong>4</strong> Languages</div>
+    <div class="w-chip"><strong>Word · PDF · Excel</strong> Export</div>
+    <div class="w-chip">Student Database</div>
+  </div>
+</div>
+
+<!-- LOADER -->
+<div class="loader-wrap" id="loader">
+  <div class="loader-ring"></div>
+  <div class="loader-title" id="loaderMsg">Generating Document...</div>
+  <div class="loader-sub">AI is creating your professional document</div>
+  <div class="loader-dots"><span></span><span></span><span></span></div>
+</div>
+
+<!-- RESULT -->
+<div class="result-wrap" id="resultWrap">
+  <div class="result-top">
+    <div class="result-status">
+      <div class="result-dot"></div>
+      <div class="result-title" id="resultTitle">Document Ready</div>
+    </div>
+    <div class="result-btns">
+      <button class="dl-btn dl-word" onclick="dlDocx()">📄 Download Word</button>
+      <button class="dl-btn dl-pdf" onclick="dlPdf()">📕 Download PDF</button>
+      <button class="dl-btn dl-copy" onclick="copyText()">📋 Copy Text</button>
+    </div>
+  </div>
+  <div class="result-body" id="resultBody"></div>
+  <div class="result-footer">Generated by <b>Teacher Toolkit</b> · GBPS Pir Bhirkio · Powered by Claude AI</div>
+</div>
+
+<!-- ═══ PANELS ═══ -->
+
+<!-- STUDENT DATABASE -->
+<div class="panel" id="panel-database">
+  <div class="db-header">
+    <div class="db-title-area">
+      <div class="db-title">Student Database</div>
+      <div class="db-sub">All school records — stored on this device. Use Fill Form to auto-fill documents.</div>
+    </div>
+    <div class="db-stats-bar">
+      <div class="db-stat">
+        <div class="db-stat-num" id="dbCount">0</div>
+        <div class="db-stat-lbl">Students</div>
+      </div>
+    </div>
+  </div>
+  <div class="import-note" id="importNote"></div>
+  <div class="db-toolbar">
+    <input type="text" class="db-search" id="dbSearch" placeholder="Search by name, G.R number, class..." oninput="renderDB()">
+    <button class="db-action-btn btn-add" onclick="openModal()">➕ Add Student</button>
+    <label class="db-action-btn btn-import" style="cursor:pointer">
+      📥 Import Excel/CSV
+      <input type="file" id="importFile" accept=".csv,.xlsx,.xls" style="display:none" onchange="importCSV(event)">
+    </label>
+    <button class="db-action-btn btn-export" onclick="exportCSV()">📊 Export Excel</button>
+    <button class="db-action-btn btn-word-list" onclick="exportWordList()">📄 Word List</button>
+    <button class="db-action-btn btn-clear" onclick="clearAll()">🗑️ Clear All</button>
+  </div>
+  <div class="db-table-wrap">
+    <table class="db-table">
+      <thead><tr><th>#</th><th>G.R No</th><th>Roll No</th><th>Student Name</th><th>Father Name</th><th>Class</th><th>DOB</th><th>Actions</th></tr></thead>
+      <tbody id="dbBody">
+        <tr><td colspan="8"><div class="db-empty"><div class="db-empty-ico">🗄️</div>No students yet. Add a student or import from CSV/Excel.</div></td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- CRQ GENERATOR -->
+<div class="panel" id="panel-crq">
+  <div class="crq-card fade">
+    <div class="crq-card-head">
+      <div class="crq-label">✦ AI Premium Feature</div>
+      <div class="crq-title">CRQ <em>Paper Generator</em></div>
+      <div class="crq-desc">Upload any textbook page or PDF — AI reads the content and generates a complete, curriculum-aligned CRQ paper with full answer key and marking scheme.</div>
+    </div>
+    <div class="crq-body">
+      <div class="crq-row-lbl">Upload Source Material (Optional)</div>
+      <div class="crq-upload-zone" onclick="document.getElementById('crqFile').click()" ondrop="crqDrop(event)" ondragover="e=>e.preventDefault()">
+        <div class="crq-upload-ico">📄</div>
+        <div class="crq-upload-txt">Drop textbook page, PDF or image here</div>
+        <div class="crq-upload-sub">JPG · PNG · PDF · Max 50MB</div>
+      </div>
+      <input type="file" id="crqFile" accept="image/*,.pdf" style="display:none" onchange="setCrqFile(event)">
+      <div class="crq-file-chip" id="crqChip">✅ &nbsp;<span id="crqFileName"></span></div>
+
+      <div class="crq-divider"></div>
+      <div class="crq-row-lbl">Topic / Unit Name</div>
+      <input type="text" class="crq-topic-inp" id="crqTopic" placeholder="e.g. Family and Friends, Photosynthesis, Fractions...">
+
+      <div class="crq-divider"></div>
+      <div class="crq-row-lbl">Difficulty Level</div>
+      <div class="diff-pills">
+        <button class="diff-pill diff-easy" id="diff-easy" onclick="setDiff('easy')">Easy</button>
+        <button class="diff-pill" id="diff-medium" onclick="setDiff('medium')">Medium</button>
+        <button class="diff-pill" id="diff-hard" onclick="setDiff('hard')">Hard</button>
+      </div>
+
+      <div class="crq-divider"></div>
+      <div class="crq-row-lbl">Bloom's Taxonomy Levels</div>
+      <div class="bloom-grid">
+        <label class="bloom-opt"><input type="checkbox" name="bloom" value="Remember" checked><div class="bloom-check">✓</div><div><span class="bloom-name">Remember</span><span class="bloom-sub">Recall & recognize</span></div></label>
+        <label class="bloom-opt"><input type="checkbox" name="bloom" value="Understand" checked><div class="bloom-check">✓</div><div><span class="bloom-name">Understand</span><span class="bloom-sub">Explain & interpret</span></div></label>
+        <label class="bloom-opt"><input type="checkbox" name="bloom" value="Apply" checked><div class="bloom-check">✓</div><div><span class="bloom-name">Apply</span><span class="bloom-sub">Use in new situations</span></div></label>
+        <label class="bloom-opt"><input type="checkbox" name="bloom" value="Analyze"><div class="bloom-check">✓</div><div><span class="bloom-name">Analyze</span><span class="bloom-sub">Break down & compare</span></div></label>
+        <label class="bloom-opt"><input type="checkbox" name="bloom" value="Evaluate"><div class="bloom-check">✓</div><div><span class="bloom-name">Evaluate</span><span class="bloom-sub">Judge & critique</span></div></label>
+        <label class="bloom-opt"><input type="checkbox" name="bloom" value="Create"><div class="bloom-check">✓</div><div><span class="bloom-name">Create</span><span class="bloom-sub">Design & produce</span></div></label>
+      </div>
+
+      <div class="crq-divider"></div>
+      <div class="crq-row-lbl">Number of Questions</div>
+      <div class="q-count-grid">
+        <div><div class="q-count-lbl">MCQs</div><input type="number" class="q-count-inp" id="mcqCount" value="10" min="5" max="30"></div>
+        <div><div class="q-count-lbl">Short Qs</div><input type="number" class="q-count-inp" id="shortCount" value="5" min="2" max="15"></div>
+        <div><div class="q-count-lbl">Long Qs</div><input type="number" class="q-count-inp" id="longCount" value="2" min="1" max="8"></div>
+      </div>
+
+      <div class="crq-divider"></div>
+      <div class="ak-toggle-row" onclick="toggleAK()">
+        <div><div class="ak-label">Include Answer Key</div><div class="ak-sub">Complete model answers + marking scheme</div></div>
+        <div class="toggle-sw" id="akToggle"></div>
+      </div>
+
+      <div style="margin-top:18px">
+        <button class="btn-crq" id="crqBtn" onclick="genCRQ()">⚡ Generate CRQ Paper</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- UPLOAD & GENERATE -->
+<div class="panel" id="panel-upload">
+  <div class="section-head">
+    <div style="display:flex;align-items:center;gap:14px">
+      <div class="section-icon">📸</div>
+      <div><div class="section-title">Upload & Generate</div><div class="section-desc">Upload a textbook page or PDF — AI generates any document from it</div></div>
+    </div>
+    <span class="section-badge badge-ai">AI Required</span>
+  </div>
+  <div class="form-card fade">
+    <div class="upload-zone" id="dropZone" ondrop="handleDrop(event)" ondragover="e=>{e.preventDefault();document.getElementById('dropZone').classList.add('over')}" ondragleave="document.getElementById('dropZone').classList.remove('over')" onclick="document.getElementById('fileIn').click()">
+      <div class="uz-ico">📸</div>
+      <div class="uz-title">Drop your textbook page, PDF or image here</div>
+      <div class="uz-sub">Supported: JPG, PNG, PDF &nbsp;·&nbsp; Max: 50MB</div>
+      <div class="uz-btn" onclick="event.stopPropagation();document.getElementById('fileIn').click()">Browse File</div>
+    </div>
+    <input type="file" id="fileIn" accept="image/*,.pdf" style="display:none" onchange="setUploadFile(event)">
+    <div class="file-chip" id="fileChip">✅ &nbsp;<span id="fileName"></span></div>
+    <div style="margin-top:16px">
+      <button class="btn-generate" onclick="doUploadGen()">📸 Upload & Generate Document</button>
+    </div>
+  </div>
+</div>
+
+<!-- AGE CALCULATOR -->
+<div class="panel" id="panel-age-calc">
+  <div class="section-head">
+    <div style="display:flex;align-items:center;gap:14px">
+      <div class="section-icon">🎂</div>
+      <div><div class="section-title">Age Calculator</div><div class="section-desc">Check student eligibility for Class 1 admission</div></div>
+    </div>
+  </div>
+  <div class="age-card fade">
+    <div class="form-grid" style="margin-bottom:16px">
+      <div class="fg"><label>Date of Birth</label><input type="date" id="ageDob"></div>
+      <div class="fg"><label>Cutoff Date</label><input type="date" id="ageCutoff" value="2025-04-01"></div>
+    </div>
+    <button class="btn-generate" onclick="calcAge()">🎂 Calculate Age & Eligibility</button>
+    <div id="ageResult" style="margin-top:16px"></div>
+  </div>
+</div>
+
+<!-- AI DOCUMENT PANELS (Lesson Plan, Worksheet, etc.) -->
+<div class="panel active" id="panel-lesson-plan"><!-- default --></div>
+<div class="panel" id="panel-worksheet"></div>
+<div class="panel" id="panel-exam-paper"></div>
+<div class="panel" id="panel-rubric"></div>
+<div class="panel" id="panel-atp"></div>
+<div class="panel" id="panel-character"></div>
+<div class="panel" id="panel-transfer"></div>
+<div class="panel" id="panel-bonafide"></div>
+<div class="panel" id="panel-prize"></div>
+<div class="panel" id="panel-noc"></div>
+<div class="panel" id="panel-experience"></div>
+<div class="panel" id="panel-official-letter"></div>
+<div class="panel" id="panel-result-card"></div>
+<div class="panel" id="panel-attendance"></div>
+<div class="panel" id="panel-enrollment"></div>
+<div class="panel" id="panel-leave"></div>
+<div class="panel" id="panel-sip"></div>
+<div class="panel" id="panel-affidavit"></div>
+
+<!-- UNIVERSAL FORM — rendered inside each panel -->
+<template id="docFormTpl">
+  <div class="section-head">
+    <div style="display:flex;align-items:center;gap:14px">
+      <div class="section-icon" id="panelIcon">📄</div>
+      <div><div class="section-title" id="panelTitle">Document</div><div class="section-desc" id="panelDesc">Fill in the details below</div></div>
+    </div>
+    <span class="section-badge" id="panelBadge">AI</span>
+  </div>
+  <div class="form-card fade">
+    <div class="form-card-title">School & Teacher Details</div>
+    <div class="form-grid">
+      <div class="fg"><label>School Name</label><input type="text" id="schoolName" value="GBPS Pir Bhirkio"></div>
+      <div class="fg"><label>Teacher / Head Master</label><input type="text" id="teacherName" value="Abdul Qadeer Khan"></div>
+    </div>
+  </div>
+  <div class="form-card fade">
+    <div class="form-card-title">Class & Subject</div>
+    <div class="form-grid-3">
+      <div class="fg"><label>Class</label>
+        <select id="className">
+          <optgroup label="Primary"><option>Class 1</option><option>Class 2</option><option>Class 3</option><option>Class 4</option><option>Class 5</option></optgroup>
+          <optgroup label="Middle"><option>Class 6</option><option>Class 7</option><option>Class 8</option></optgroup>
+          <optgroup label="Secondary"><option>Class 9</option><option>Class 10 (SSC)</option></optgroup>
+        </select>
+      </div>
+      <div class="fg"><label>Subject</label>
+        <select id="subject">
+          <optgroup label="Languages"><option>English</option><option>Urdu</option><option>Sindhi</option></optgroup>
+          <optgroup label="Core"><option>Mathematics</option><option>General Science</option><option>General Knowledge</option></optgroup>
+          <optgroup label="Islamic"><option>Islamiyat</option><option>Social Studies</option></optgroup>
+        </select>
+      </div>
+      <div class="fg"><label>Unit No.</label>
+        <select id="unitNumber"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>7</option><option>8</option><option>9</option><option>10</option></select>
+      </div>
+    </div>
+    <div class="form-grid-1" style="margin-top:14px">
+      <div class="fg"><label>Unit / Topic Name</label><input type="text" id="unitName" placeholder="e.g. Family and Friends, Quadratic Equations..."></div>
+    </div>
+  </div>
+  <div class="form-card fade" id="studentCard">
+    <div class="form-card-title">Student Details (if applicable)</div>
+    <div class="form-grid">
+      <div class="fg"><label>G.R Number</label><input type="text" id="grNumber" placeholder="e.g. 101"></div>
+      <div class="fg"><label>Roll / Seat Number</label><input type="text" id="rollNumber" placeholder="e.g. 25"></div>
+    </div>
+    <div class="form-grid" style="margin-top:14px">
+      <div class="fg"><label>Student Name</label><input type="text" id="studentName" placeholder="Full name"></div>
+      <div class="fg"><label>Father Name</label><input type="text" id="fatherName" placeholder="Father / Guardian name"></div>
+    </div>
+    <div class="form-grid" style="margin-top:14px">
+      <div class="fg"><label>Date of Birth</label><input type="date" id="studentDob"></div>
+      <div class="fg"><label>CNIC / Personal ID (if needed)</label><input type="text" id="cnicNum" placeholder="e.g. 45302-1234567-1"></div>
+    </div>
+  </div>
+  <div class="form-card fade">
+    <div class="form-card-title">Extra Details</div>
+    <div class="form-grid-1">
+      <div class="fg"><label>Additional Information (Optional)</label><textarea id="extraData" placeholder="Letter subject, specific requirements, inward/outward number, any other details..."></textarea></div>
+    </div>
+    <button class="btn-generate" id="genBtn" onclick="generateDoc()">⚡ Generate Document</button>
+  </div>
+</template>
+
+</main>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modalOverlay" onclick="closeModalBg(event)">
+  <div class="modal">
+    <div class="modal-head">
+      <div class="modal-title" id="modalTitle">Add Student</div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="editId">
+      <div class="form-grid" style="margin-bottom:14px">
+        <div class="fg"><label>G.R Number *</label><input type="text" id="mGr" placeholder="e.g. 101"></div>
+        <div class="fg"><label>Roll / Seat No</label><input type="text" id="mRoll" placeholder="e.g. 25"></div>
+      </div>
+      <div class="form-grid-1" style="margin-bottom:14px">
+        <div class="fg"><label>Student Name *</label><input type="text" id="mName" placeholder="Full name"></div>
+      </div>
+      <div class="form-grid-1" style="margin-bottom:14px">
+        <div class="fg"><label>Father Name</label><input type="text" id="mFather" placeholder="Father / Guardian name"></div>
+      </div>
+      <div class="form-grid" style="margin-bottom:14px">
+        <div class="fg"><label>Class</label>
+          <select id="mClass"><option>Class 1</option><option>Class 2</option><option>Class 3</option><option>Class 4</option><option>Class 5</option><option>Class 6</option><option>Class 7</option><option>Class 8</option></select>
+        </div>
+        <div class="fg"><label>Date of Birth</label><input type="date" id="mDob"></div>
+      </div>
+      <div class="form-grid" style="margin-bottom:14px">
+        <div class="fg"><label>Address / Village</label><input type="text" id="mAddress" placeholder="Village / UC"></div>
+        <div class="fg"><label>Phone</label><input type="text" id="mPhone" placeholder="Father's contact"></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="btn-save" onclick="saveStudent()">Save Student</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ══════════════════════════════════════════════
+   STATE
+══════════════════════════════════════════════ */
+const S = {
+  doc: 'Lesson Plan',
+  lang: 'bilingual_en_ur',
+  content: '',
+  file: null,
+  crqFile: null,
+  diff: 'easy',
+  ak: false
+};
+
+const PANEL_META = {
+  'lesson-plan':    { title:'Lesson Plan', icon:'📚', desc:'PPP model + Bloom\'s Taxonomy aligned', ai:true },
+  'worksheet':      { title:'Worksheet', icon:'✏️', desc:'Printable activity worksheet', ai:true },
+  'exam-paper':     { title:'Exam Paper', icon:'📝', desc:'Mid-term or Final exam paper', ai:true },
+  'rubric':         { title:'Assessment Rubric', icon:'📊', desc:'3-level evaluation rubric', ai:true },
+  'atp':            { title:'Annual Teaching Plan', icon:'📅', desc:'Full year teaching schedule', ai:true },
+  'character':      { title:'Character Certificate', icon:'🏅', desc:'Student conduct certificate', ai:false },
+  'transfer':       { title:'Transfer Certificate', icon:'🔄', desc:'TC — school transfer document', ai:false },
+  'bonafide':       { title:'Bonafide Certificate', icon:'📜', desc:'Enrollment / bonafide proof', ai:false },
+  'prize':          { title:'Prize Certificate', icon:'🏆', desc:'Achievement award certificate', ai:false },
+  'noc':            { title:'NOC Letter', icon:'✅', desc:'No objection certificate', ai:false },
+  'experience':     { title:'Experience Certificate', icon:'🎖️', desc:'Teacher service certificate', ai:false },
+  'official-letter':{ title:'Official Letter', icon:'✉️', desc:'General official correspondence', ai:true },
+  'result-card':    { title:'Result Card', icon:'📋', desc:'Annual result card', ai:false },
+  'attendance':     { title:'Attendance Sheet', icon:'✔️', desc:'Monthly attendance register', ai:false },
+  'enrollment':     { title:'Enrollment Form', icon:'📝', desc:'New student admission form', ai:false },
+  'leave':          { title:'Leave Application', icon:'📨', desc:'Official leave request', ai:true },
+  'sip':            { title:'School Improvement Plan', icon:'📈', desc:'SIP strategic document', ai:true },
+  'affidavit':      { title:'Affidavit', icon:'⚖️', desc:'Legal declaration document', ai:false },
+};
+
+const DOC_TYPE_MAP = {
+  'lesson-plan':'Lesson Plan','worksheet':'Worksheet','exam-paper':'Exam Paper',
+  'rubric':'Assessment Rubric','atp':'Annual Teaching Plan','character':'Character Certificate',
+  'transfer':'Transfer Certificate','bonafide':'Bonafide Certificate','prize':'Prize Certificate',
+  'noc':'NOC Letter','experience':'Experience Certificate','official-letter':'Official Letter',
+  'result-card':'Result Card','attendance':'Attendance Sheet','enrollment':'Enrollment Form',
+  'leave':'Leave Application','sip':'School Improvement Plan','affidavit':'Affidavit'
+};
+
+const langLabels = {
+  english:'English', urdu:'اردو', sindhi:'سنڌي', roman_urdu:'Roman Urdu',
+  bilingual_en_ur:'English + Urdu', bilingual_en_sd:'English + Sindhi',
+  trilingual:'Trilingual', en_ur_roman:'EN + Urdu + Roman'
+};
+
+/* ══════════════════════════════════════════════
+   PANEL SYSTEM
+══════════════════════════════════════════════ */
+function showPanel(id, el) {
+  document.querySelectorAll('.sb-item').forEach(i => i.classList.remove('active'));
+  if(el) el.classList.add('active');
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  const panel = document.getElementById('panel-' + id);
+  if(!panel) return;
+  panel.classList.add('active');
+
+  // Inject form if it's a document panel
+  if(PANEL_META[id] && panel.children.length === 0) {
+    const meta = PANEL_META[id];
+    S.doc = DOC_TYPE_MAP[id] || meta.title;
+    const tpl = document.getElementById('docFormTpl').content.cloneNode(true);
+    tpl.getElementById('panelIcon').textContent = meta.icon;
+    tpl.getElementById('panelTitle').textContent = meta.title;
+    tpl.getElementById('panelDesc').textContent = meta.desc;
+    const badge = tpl.getElementById('panelBadge');
+    badge.textContent = meta.ai ? 'AI Required' : 'No AI — Instant';
+    badge.className = 'section-badge ' + (meta.ai ? 'badge-ai' : 'badge-offline');
+    panel.appendChild(tpl);
+  } else if(PANEL_META[id]) {
+    S.doc = DOC_TYPE_MAP[id] || PANEL_META[id].title;
+  }
+
+  document.getElementById('resultWrap').style.display = 'none';
+  document.getElementById('loader').style.display = 'none';
+  panel.scrollIntoView({ behavior:'smooth', block:'start' });
+}
+
+/* ══════════════════════════════════════════════
+   LANGUAGE
+══════════════════════════════════════════════ */
+function setLang(el, l) {
+  document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  S.lang = l;
+}
+
+/* ══════════════════════════════════════════════
+   GENERATE
+══════════════════════════════════════════════ */
+function getFormData() {
+  const g = id => { const el = document.getElementById(id); return el ? el.value : '' };
+  return {
+    schoolName: g('schoolName'), teacherName: g('teacherName'),
+    className: g('className'), subject: g('subject'),
+    unitNumber: g('unitNumber'), unitName: g('unitName'),
+    documentType: S.doc, extraData: g('extraData'),
+    language: S.lang, studentName: g('studentName'),
+    fatherName: g('fatherName'), grNumber: g('grNumber'),
+    rollNumber: g('rollNumber'), dob: g('studentDob'), cnic: g('cnicNum')
+  };
+}
+
+async function generateDoc() {
+  showLoader('Generating ' + S.doc + '...');
+  try {
+    const r = await fetch('/generate', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(getFormData())
+    });
+    const d = await r.json();
+    d.success ? showResult(d.content, S.doc) : (hideLoader(), alert('Error: ' + d.error));
+  } catch(e) { hideLoader(); alert('Server error: ' + e.message); }
+}
+
+/* ══════════════════════════════════════════════
+   CRQ
+══════════════════════════════════════════════ */
+function setDiff(d) {
+  S.diff = d;
+  ['easy','medium','hard'].forEach(x => {
+    const b = document.getElementById('diff-' + x);
+    if(b) b.className = 'diff-pill' + (d === x ? ' diff-' + x : '');
+  });
+}
+function toggleAK() { S.ak = !S.ak; document.getElementById('akToggle').classList.toggle('on', S.ak); }
+function setCrqFile(e) { if(e.target.files[0]) { S.crqFile = e.target.files[0]; document.getElementById('crqFileName').textContent = S.crqFile.name; document.getElementById('crqChip').style.display = 'block'; } }
+function crqDrop(e) { e.preventDefault(); if(e.dataTransfer.files[0]) { S.crqFile = e.dataTransfer.files[0]; document.getElementById('crqFileName').textContent = S.crqFile.name; document.getElementById('crqChip').style.display = 'block'; } }
+
+async function genCRQ() {
+  const t = document.getElementById('crqTopic').value;
+  if(!t) { alert('Topic / Unit name zaroor likhen!'); return; }
+  const bl = [...document.querySelectorAll('input[name="bloom"]:checked')].map(c => c.value);
+  if(!bl.length) { alert('Kam az kam ek Bloom level select karen!'); return; }
+  document.getElementById('crqBtn').disabled = true;
+  showLoader('Generating CRQ Paper...');
+  const fd = new FormData();
+  fd.append('schoolName', document.getElementById('schoolName') ? document.getElementById('schoolName').value : 'GBPS Pir Bhirkio');
+  fd.append('teacherName', document.getElementById('teacherName') ? document.getElementById('teacherName').value : 'Abdul Qadeer Khan');
+  fd.append('className', document.getElementById('className') ? document.getElementById('className').value : 'Class 1');
+  fd.append('subject', document.getElementById('subject') ? document.getElementById('subject').value : 'English');
+  fd.append('unitName', t);
+  fd.append('difficulty', S.diff);
+  fd.append('bloomLevels', JSON.stringify(bl));
+  fd.append('mcqCount', document.getElementById('mcqCount').value);
+  fd.append('shortCount', document.getElementById('shortCount').value);
+  fd.append('longCount', document.getElementById('longCount').value);
+  fd.append('includeAnswerKey', String(S.ak));
+  fd.append('language', S.lang);
+  if(S.crqFile) fd.append('file', S.crqFile);
+  try {
+    const r = await fetch('/generate-crq', { method:'POST', body:fd });
+    const d = await r.json();
+    document.getElementById('crqBtn').disabled = false;
+    d.success ? showResult(d.content, 'CRQ Paper — ' + t) : (hideLoader(), alert('Error: ' + d.error));
+  } catch(e) { document.getElementById('crqBtn').disabled = false; hideLoader(); alert('Server error!'); }
+}
+
+/* ══════════════════════════════════════════════
+   UPLOAD
+══════════════════════════════════════════════ */
+function setUploadFile(e) { if(e.target.files[0]) { S.file = e.target.files[0]; document.getElementById('fileName').textContent = S.file.name; document.getElementById('fileChip').style.display = 'block'; } }
+function handleDrop(e) { e.preventDefault(); document.getElementById('dropZone').classList.remove('over'); if(e.dataTransfer.files[0]) setUploadFile({ target: { files: e.dataTransfer.files } }); }
+
+async function doUploadGen() {
+  if(!S.file) { alert('Pehle file select karen!'); return; }
+  showLoader('Analyzing file and generating...');
+  const fd = new FormData();
+  fd.append('file', S.file); fd.append('documentType', S.doc);
+  fd.append('schoolName', 'GBPS Pir Bhirkio'); fd.append('teacherName', 'Abdul Qadeer Khan');
+  fd.append('language', S.lang);
+  try {
+    const r = await fetch('/upload-generate', { method:'POST', body:fd });
+    const d = await r.json();
+    d.success ? showResult(d.content, S.doc) : (hideLoader(), alert('Error: ' + d.error));
+  } catch(e) { hideLoader(); alert('Upload failed!'); }
+}
+
+/* ══════════════════════════════════════════════
+   LOADER / RESULT
+══════════════════════════════════════════════ */
+function showLoader(msg) {
+  document.getElementById('loader').style.display = 'block';
+  document.getElementById('loaderMsg').textContent = msg || 'Generating...';
+  document.getElementById('resultWrap').style.display = 'none';
+  const btn = document.getElementById('genBtn');
+  if(btn) btn.disabled = true;
+  document.getElementById('loader').scrollIntoView({ behavior:'smooth', block:'center' });
+}
+function hideLoader() {
+  document.getElementById('loader').style.display = 'none';
+  const btn = document.getElementById('genBtn');
+  if(btn) btn.disabled = false;
+}
+function showResult(c, t) {
+  S.content = c; hideLoader();
+  document.getElementById('resultWrap').style.display = 'block';
+  document.getElementById('resultBody').textContent = c;
+  document.getElementById('resultTitle').textContent = (t || S.doc) + ' — Ready';
+  document.getElementById('resultWrap').scrollIntoView({ behavior:'smooth', block:'start' });
+}
+
+/* ══════════════════════════════════════════════
+   DOWNLOADS
+══════════════════════════════════════════════ */
+function getFileName() {
+  return S.doc.replace(/ /g,'_') + '_' + new Date().toISOString().slice(0,10);
+}
+async function dlDocx() {
+  try {
+    const r = await fetch('/download-docx', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ content:S.content, fileName:getFileName(), language:S.lang }) });
+    const blob = await r.blob();
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = getFileName() + '.docx'; a.click();
+  } catch(e) { alert('Download error!'); }
+}
+async function dlPdf() {
+  try {
+    const r = await fetch('/download-pdf', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ content:S.content, fileName:getFileName() }) });
+    const blob = await r.blob();
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = getFileName() + '.html'; a.click();
+    alert('File download ho gayi. Browser mein kholein phir Ctrl+P → Save as PDF.');
+  } catch(e) { alert('PDF error!'); }
+}
+function copyText() { navigator.clipboard.writeText(S.content).then(() => alert('✅ Text copied!')); }
+
+/* ══════════════════════════════════════════════
+   AGE CALCULATOR
+══════════════════════════════════════════════ */
+function calcAge() {
+  const dv = document.getElementById('ageDob').value, cv = document.getElementById('ageCutoff').value;
+  if(!dv) { alert('Date of Birth darj karen!'); return; }
+  const d = new Date(dv), c = new Date(cv);
+  let y = c.getFullYear()-d.getFullYear(), m = c.getMonth()-d.getMonth(), dd = c.getDate()-d.getDate();
+  if(dd<0){m--;dd+=30;} if(m<0){y--;m+=12;}
+  const months = y*12+m;
+  const ok = months >= 60 && months <= 96;
+  document.getElementById('ageResult').innerHTML = `<div style="padding:20px;border-radius:var(--r-lg);background:${ok?'var(--green-bg)':'var(--red-bg)'};border:1.5px solid ${ok?'rgba(12,124,90,.2)':'rgba(192,57,43,.2)'};text-align:center">
+    <div style="font-size:28px;font-weight:800;color:${ok?'var(--green)':'var(--red)'};">${y} Years ${m} Months ${dd} Days</div>
+    <div style="font-size:14px;font-weight:700;margin-top:8px;color:${ok?'var(--green)':'var(--red)'};">${ok?'✅ ELIGIBLE for Class 1 Admission':'❌ NOT ELIGIBLE — Age must be 5 to 8 years'}</div>
+  </div>`;
+}
+
+/* ══════════════════════════════════════════════
+   STUDENT DATABASE
+══════════════════════════════════════════════ */
+function getStudents() { try { return JSON.parse(localStorage.getItem('ttStudents')||'[]'); } catch { return []; } }
+function saveStudents(arr) { localStorage.setItem('ttStudents', JSON.stringify(arr)); }
+
+function renderDB() {
+  const q = (document.getElementById('dbSearch')?.value||'').toLowerCase();
+  const all = getStudents();
+  const list = q ? all.filter(s => (s.name||'').toLowerCase().includes(q)||(s.grNumber||'').includes(q)||(s.className||'').toLowerCase().includes(q)||(s.fatherName||'').toLowerCase().includes(q)) : all;
+  const el = document.getElementById('dbCount');
+  if(el) el.textContent = all.length;
+  const body = document.getElementById('dbBody');
+  if(!body) return;
+  if(!list.length) {
+    body.innerHTML = `<tr><td colspan="8"><div class="db-empty"><div class="db-empty-ico">🗄️</div>${q?'No results found.':'No students yet. Click Add Student or Import CSV.'}</div></td></tr>`;
+    return;
+  }
+  body.innerHTML = list.map((s,i) => `<tr>
+    <td style="color:var(--ink-4);font-size:12px">${i+1}</td>
+    <td><span class="gr-badge">${s.grNumber||'—'}</span></td>
+    <td>${s.rollNumber||'—'}</td>
+    <td><span class="name-strong">${s.name||'—'}</span></td>
+    <td>${s.fatherName||'—'}</td>
+    <td>${s.className||'—'}</td>
+    <td>${s.dob||'—'}</td>
+    <td>
+      <button class="row-btn row-fill" onclick="fillForm('${s.id}')">Fill Form</button>
+      <button class="row-btn row-edit" onclick="editStudent('${s.id}')">Edit</button>
+      <button class="row-btn row-del" onclick="delStudent('${s.id}')">Delete</button>
+    </td>
+  </tr>`).join('');
+}
+
+function openModal(id) {
+  document.getElementById('editId').value = id || '';
+  document.getElementById('modalTitle').textContent = id ? 'Edit Student' : 'Add Student';
+  if(!id) ['mGr','mRoll','mName','mFather','mAddress','mPhone'].forEach(x => document.getElementById(x).value = '');
+  document.getElementById('modalOverlay').classList.add('open');
+}
+function closeModal() { document.getElementById('modalOverlay').classList.remove('open'); }
+function closeModalBg(e) { if(e.target === document.getElementById('modalOverlay')) closeModal(); }
+
+function saveStudent() {
+  const name = document.getElementById('mName').value.trim();
+  const gr = document.getElementById('mGr').value.trim();
+  if(!name || !gr) { alert('G.R Number aur Student Name zaroor likhen!'); return; }
+  const students = getStudents();
+  const editId = document.getElementById('editId').value;
+  const obj = {
+    id: editId || Date.now().toString(),
+    grNumber: gr, rollNumber: document.getElementById('mRoll').value.trim(),
+    name, fatherName: document.getElementById('mFather').value.trim(),
+    className: document.getElementById('mClass').value,
+    dob: document.getElementById('mDob').value,
+    address: document.getElementById('mAddress').value.trim(),
+    phone: document.getElementById('mPhone').value.trim()
+  };
+  if(editId) {
+    const idx = students.findIndex(s => s.id === editId);
+    if(idx > -1) students[idx] = obj;
+  } else {
+    const dup = students.find(s => s.grNumber === gr);
+    if(dup) { if(!confirm(`G.R ${gr} already exists (${dup.name}). Overwrite?`)) return; students.splice(students.findIndex(s=>s.id===dup.id),1); }
+    students.push(obj);
+  }
+  saveStudents(students); renderDB(); closeModal();
+}
+
+function editStudent(id) {
+  const s = getStudents().find(x => x.id === id); if(!s) return;
+  openModal(id);
+  document.getElementById('mGr').value = s.grNumber||'';
+  document.getElementById('mRoll').value = s.rollNumber||'';
+  document.getElementById('mName').value = s.name||'';
+  document.getElementById('mFather').value = s.fatherName||'';
+  document.getElementById('mClass').value = s.className||'Class 1';
+  document.getElementById('mDob').value = s.dob||'';
+  document.getElementById('mAddress').value = s.address||'';
+  document.getElementById('mPhone').value = s.phone||'';
+}
+
+function delStudent(id) { if(!confirm('Delete this student?')) return; saveStudents(getStudents().filter(s=>s.id!==id)); renderDB(); }
+function clearAll() { if(!confirm('ALL students delete ho jayenge!')) return; localStorage.removeItem('ttStudents'); renderDB(); }
+
+function fillForm(id) {
+  const s = getStudents().find(x => x.id === id); if(!s) return;
+  const set = (i,v) => { const el = document.getElementById(i); if(el) el.value = v||''; };
+  set('studentName',s.name); set('fatherName',s.fatherName);
+  set('grNumber',s.grNumber); set('rollNumber',s.rollNumber);
+  set('studentDob',s.dob); set('className',s.className);
+  alert('✅ Form mein student details fill ho gayi!');
+}
+
+/* ══════════════════════════════════════════════
+   IMPORT / EXPORT
+══════════════════════════════════════════════ */
+function importCSV(e) {
+  const file = e.target.files[0]; if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const text = ev.target.result;
+    // Split lines, handle both \r\n and \n
+    const allLines = text.split(/\r?\n/);
+    const lines = allLines.filter(l => l.replace(/,/g,'').trim() !== '');
+    if(lines.length < 2) { showNote('File mein data nahi mila! Kam az kam 2 rows chahiye (header + data)', false); return; }
+
+    // Parse CSV properly (handles quoted commas)
+    function parseRow(line) {
+      const result = []; let cur = ''; let inQ = false;
+      for(let i=0;i<line.length;i++) {
+        if(line[i]==='"') { inQ=!inQ; }
+        else if(line[i]===',' && !inQ) { result.push(cur.trim()); cur=''; }
+        else { cur+=line[i]; }
+      }
+      result.push(cur.trim());
+      return result.map(v=>v.replace(/^"|"$/g,'').trim());
+    }
+
+    const headers = parseRow(lines[0]).map(h=>h.toLowerCase());
+    
+    // Flexible column matching — works with ANY header names
+    const col = {};
+    headers.forEach((h,i) => {
+      const clean = h.replace(/[^a-z0-9]/g,'');
+      if((clean.includes('name') || clean==='nm') && !clean.includes('father') && !clean.includes('school')) col.name=i;
+      if(clean.includes('father') || clean.includes('guardian') || clean.includes('walid')) col.fatherName=i;
+      if(clean.includes('gr') || clean.includes('generalregister') || clean.includes('regno') || clean==='gr') col.grNumber=i;
+      if(clean.includes('roll') || clean.includes('seat') || clean.includes('seatno')) col.rollNumber=i;
+      if(clean.includes('class') || clean.includes('grade') || clean.includes('drjah')) col.className=i;
+      if(clean.includes('dob') || clean.includes('birth') || clean.includes('dateofbirth')) col.dob=i;
+      if(clean.includes('address') || clean.includes('village') || clean.includes('uc')) col.address=i;
+      if(clean.includes('phone') || clean.includes('mobile') || clean.includes('contact')) col.phone=i;
+    });
+
+    // If no headers matched at all — treat first 4 cols as: gr, name, father, class
+    const anyMatched = Object.keys(col).length > 0;
+    if(!anyMatched) {
+      col.grNumber=0; col.name=1; col.fatherName=2; col.className=3;
+    }
+
+    const existing = getStudents(); let added=0, updated=0, skipped=0;
+    for(let i=1;i<lines.length;i++) {
+      const c = parseRow(lines[i]);
+      if(!c.length || c.every(x=>!x)) continue;
+      const name = col.name!==undefined ? c[col.name]||'' : '';
+      const gr   = col.grNumber!==undefined ? c[col.grNumber]||'' : String(i);
+      if(!name && !gr) { skipped++; continue; }
+      const s = {
+        id: Date.now()+i+'',
+        grNumber:   gr,
+        rollNumber: col.rollNumber!==undefined  ? c[col.rollNumber]||''  : '',
+        name:       name || 'Student '+i,
+        fatherName: col.fatherName!==undefined  ? c[col.fatherName]||''  : '',
+        className:  col.className!==undefined   ? c[col.className]||''   : 'Class 1',
+        dob:        col.dob!==undefined         ? c[col.dob]||''         : '',
+        address:    col.address!==undefined     ? c[col.address]||''     : '',
+        phone:      col.phone!==undefined       ? c[col.phone]||''       : ''
+      };
+      const dup = existing.find(x=>x.grNumber && x.grNumber===s.grNumber);
+      if(dup) { Object.assign(dup,s,{id:dup.id}); updated++; }
+      else { existing.push(s); added++; }
+    }
+    saveStudents(existing); renderDB();
+    if(added===0 && updated===0) {
+      showNote(`⚠️ 0 students added. Check: (1) File CSV format mein save ki? (2) Headers English mein hain? Detected headers: ${headers.join(' | ')}`, false);
+    } else {
+      showNote(`✅ Import ho gaya! Added: ${added}, Updated: ${updated}, Skipped: ${skipped}`, true);
+    }
+  };
+  reader.readAsText(file,'UTF-8');
+  e.target.value='';
+}
+
+function showNote(msg, ok) {
+  const n = document.getElementById('importNote');
+  n.textContent = msg; n.style.display = 'block';
+  n.style.background = ok ? 'var(--green-bg)' : 'var(--red-bg)';
+  n.style.color = ok ? 'var(--green)' : 'var(--red)';
+  n.style.border = `1px solid ${ok?'rgba(12,124,90,.2)':'rgba(192,57,43,.2)'}`;
+  setTimeout(() => n.style.display='none', 5000);
+}
+
+async function exportCSV() {
+  const s = getStudents();
+  if(!s.length) { alert('Database mein koi student nahi!'); return; }
+  const h = ['G.R Number','Roll/Seat No','Student Name','Father Name','Class','Date of Birth','Address','Phone'];
+  const rows = [h, ...s.map(x=>[x.grNumber,x.rollNumber,x.name,x.fatherName,x.className,x.dob,x.address,x.phone])];
+  const csv = rows.map(r=>r.map(c=>`"${String(c||'').replace(/"/g,'""')}"`).join(',')).join('\r\n');
+  try {
+    const r = await fetch('/download-excel',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({students:s,fileName:'Students_GBPS_Pir_Bhirkio'})});
+    const blob = await r.blob();
+    const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='Students_GBPS.xlsx'; a.click();
+  } catch(e) {
+    const a = document.createElement('a'); a.href='data:text/csv;charset=utf-8,\uFEFF'+encodeURIComponent(csv); a.download='Students_GBPS.xlsx'; a.click();
+  }
+}
+
+async function exportWordList() {
+  const s = getStudents();
+  if(!s.length) { alert('Database mein koi student nahi!'); return; }
+  const content = `STUDENT LIST\nGBPS Pir Bhirkio | SEMIS: 415040089 | Date: ${new Date().toLocaleDateString('en-PK')}\nTotal Students: ${s.length}\n\n${'─'.repeat(60)}\n\n`+s.map((x,i)=>`${i+1}. ${x.name||'—'}\n   G.R: ${x.grNumber||'—'} | Roll: ${x.rollNumber||'—'} | Class: ${x.className||'—'}\n   Father: ${x.fatherName||'—'} | DOB: ${x.dob||'—'}`).join('\n\n');
+  const r = await fetch('/download-docx',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({content,fileName:'Student_List_GBPS'})});
+  const blob = await r.blob();
+  const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='Student_List.docx'; a.click();
+}
+
+/* ══════════════════════════════════════════════
+   INIT
+══════════════════════════════════════════════ */
+// Inject form into default panel
+showPanel('lesson-plan', document.querySelector('.sb-item'));
+renderDB();
+</script>
+</body>
+</html>
