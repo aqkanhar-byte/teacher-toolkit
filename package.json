@@ -22,5 +22,14 @@
     "multer": "^2.2.0",
     "pdf-lib": "^1.17.1",
     "xlsx": "^0.18.5"
-  }
+  },
+  "devDependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/aqkanhar-byte/teacher-toolkit.git"
+  },
+  "bugs": {
+    "url": "https://github.com/aqkanhar-byte/teacher-toolkit/issues"
+  },
+  "homepage": "https://github.com/aqkanhar-byte/teacher-toolkit#readme"
 }
