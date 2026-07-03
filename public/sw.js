@@ -1,7 +1,7 @@
 /* Teacher Toolkit — PWA Service Worker
    App shell cache: baar baar kholne par foran khulta hai, weak internet par bhi.
    API/generation routes hamesha network se (fresh data). */
-const CACHE = 'tt-shell-v2';
+const CACHE = 'tt-shell-v3';
 const SHELL = ['/', '/index.html', '/shared-data.js', '/manifest.json', '/icon-192.png', '/icon-512.png'];
 
 self.addEventListener('install', e => {

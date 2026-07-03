@@ -4,10 +4,88 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Teacher Toolkit — Sindh Education Department</title>
+<meta name="description" content="Free AI-powered Teacher Toolkit for Sindh government school teachers — instantly generate lesson plans, worksheets, exam papers, result cards, certificates and school documents in English, Urdu &amp; Sindhi. ECCE to Class 12.">
+<meta name="keywords" content="teacher toolkit, sindh teacher toolkit, lesson plan generator, worksheet generator, result card maker, school certificate generator, sindh education department, AI lesson plan, exam paper generator pakistan">
+<meta name="author" content="Teacher Toolkit — Sindh Education">
+<link rel="canonical" href="https://teachertoolkitsindh.com/">
+<!-- Open Graph — WhatsApp/Facebook share preview card -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Teacher Toolkit">
+<meta property="og:title" content="Teacher Toolkit — Sindh Education Department">
+<meta property="og:description" content="Free AI-powered lesson plans, worksheets, exam papers, result cards &amp; certificates for Sindh government school teachers. ECCE to Class 12 — English, Urdu &amp; Sindhi.">
+<meta property="og:image" content="https://teachertoolkitsindh.com/icon-512.png">
+<meta property="og:image:width" content="512">
+<meta property="og:image:height" content="512">
+<meta property="og:url" content="https://teachertoolkitsindh.com/">
+<meta property="og:locale" content="en_PK">
+
+<!-- Twitter/X share card -->
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Teacher Toolkit — Sindh Education Department">
+<meta name="twitter:description" content="Free AI-powered lesson plans, worksheets, exam papers, result cards &amp; certificates for Sindh government school teachers.">
+<meta name="twitter:image" content="https://teachertoolkitsindh.com/icon-512.png">
+
+<!-- Google Search Console — GSC se milne wala verification code yahan paste karen (Settings > Ownership verification > HTML tag) -->
+<meta name="google-site-verification" content="PASTE_YOUR_GOOGLE_SEARCH_CONSOLE_CODE_HERE">
+
+<!-- Structured data — rich snippets ke liye (schema.org) -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "Teacher Toolkit",
+  "alternateName": "Teacher Toolkit Sindh",
+  "url": "https://teachertoolkitsindh.com/",
+  "description": "Free AI-powered lesson plans, worksheets, exam papers, result cards and certificates for Sindh government school teachers, ECCE to Class 12, in English, Urdu and Sindhi.",
+  "applicationCategory": "EducationalApplication",
+  "operatingSystem": "Any (Web, Android, iOS via PWA)",
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "PKR", "description": "Free tier with pay-per-document credits and monthly plans" },
+  "inLanguage": ["en", "ur", "sd"],
+  "audience": { "@type": "EducationalAudience", "educationalRole": "teacher" },
+  "publisher": { "@type": "Organization", "name": "Teacher Toolkit", "url": "https://teachertoolkitsindh.com/" }
+}
+</script>
+
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#0f1a2e">
 <link rel="apple-touch-icon" href="/icon-192.png">
+<!-- iOS/Android PWA install behavior -->
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Teacher Toolkit">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Noto+Nastaliq+Urdu:wght@400;600&family=Amiri:wght@400;700&display=swap" rel="stylesheet">
+
+<!-- ═══ ANALYTICS CONFIG — sirf yahan apni real IDs daalen, neeche kuch edit karne ki zaroorat nahi ═══
+     GA4 Measurement ID GA4 property > Admin > Data Streams mein milta hai (jaisa G-ABC1234XYZ)
+     Clarity Project ID clarity.microsoft.com > Settings > Setup mein milta hai (jaisa abc123xyz0) -->
+<script>
+  window.TT_ANALYTICS = { GA4_ID: '', CLARITY_ID: '' }; /* TODO: yahan '' ke andar apni real IDs daalen */
+</script>
+<script>
+(function () {
+  var cfg = window.TT_ANALYTICS || {};
+  // Google Analytics (GA4) — sirf tab load hota hai jab real ID di gayi ho
+  if (cfg.GA4_ID) {
+    var s = document.createElement('script');
+    s.async = true;
+    s.src = 'https://www.googletagmanager.com/gtag/js?id=' + encodeURIComponent(cfg.GA4_ID);
+    document.head.appendChild(s);
+    window.dataLayer = window.dataLayer || [];
+    window.gtag = function () { dataLayer.push(arguments); };
+    gtag('js', new Date());
+    gtag('config', cfg.GA4_ID);
+  }
+  // Microsoft Clarity — sirf tab load hota hai jab real ID di gayi ho
+  if (cfg.CLARITY_ID) {
+    (function (c, l, a, r, i, t, y) {
+      c[a] = c[a] || function () { (c[a].q = c[a].q || []).push(arguments); };
+      t = l.createElement(r); t.async = 1; t.src = 'https://www.clarity.ms/tag/' + i;
+      y = l.getElementsByTagName(r)[0]; y.parentNode.insertBefore(t, y);
+    })(window, document, 'clarity', 'script', cfg.CLARITY_ID);
+  }
+})();
+</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -352,6 +430,7 @@ button{cursor:pointer;border:none;background:none}
     </div>
   </div>
   <div class="tb-right">
+    <button class="dev-badge" id="installBtn" onclick="installApp()" style="cursor:pointer;display:none">⬇️ Install App</button>
     <button class="theme-btn" id="themeBtn" onclick="toggleTheme()" aria-label="Switch to dark mode" title="Switch theme"></button>
     <button class="dev-badge" id="credChip" onclick="creditChipClick()" style="cursor:pointer;display:none">💳 <em id="credCount">0</em> credits</button>
     <button class="dev-badge" id="authBtn" onclick="openAuth()" style="cursor:pointer">👤 Login</button>
@@ -2386,6 +2465,41 @@ function endTour(){
 }
 
 /* ═══════════ INIT ═══════════ */
+/* ═══════════ INSTALLABLE PWA — capture the browser's install prompt, show our own button ═══════════ */
+let deferredInstallPrompt = null;
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  const btn = document.getElementById('installBtn');
+  if (btn) btn.style.display = 'inline-block';
+});
+window.addEventListener('appinstalled', () => {
+  deferredInstallPrompt = null;
+  const btn = document.getElementById('installBtn');
+  if (btn) btn.style.display = 'none';
+  toast('🎉 Teacher Toolkit installed! Open it anytime from your home screen.');
+});
+async function installApp() {
+  if (!deferredInstallPrompt) return;
+  deferredInstallPrompt.prompt();
+  const { outcome } = await deferredInstallPrompt.userChoice;
+  if (outcome === 'accepted') document.getElementById('installBtn').style.display = 'none';
+  deferredInstallPrompt = null;
+}
+function isRunningInstalled() {
+  return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+}
+
+/* ═══════════ PWA SHORTCUTS — ?doc=X or ?view=X from manifest.json "shortcuts" ═══════════ */
+function applyShortcutParams() {
+  const params = new URLSearchParams(location.search);
+  const doc = params.get('doc'), view = params.get('view');
+  if (!doc && !view) return;
+  const key = doc ? 'doc:' + doc : 'view:' + view;
+  const item = [...document.querySelectorAll('.sb-item')].find(e => e.dataset.key === key);
+  if (item) sbClick(item);
+}
+
 (function init(){
   initTheme();
   renderSidebar();
@@ -2400,6 +2514,8 @@ function endTour(){
   const first=document.querySelector('.sb-item');if(first)first.classList.add('active');
   renderForm();
   renderDB();
+  applyShortcutParams();
+  if (isRunningInstalled()) { const b=document.getElementById('installBtn'); if(b) b.style.display='none'; }
   loadCfg().then(()=>updateAuthUI());
   if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});
   authTab('login');

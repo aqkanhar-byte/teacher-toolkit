@@ -15,6 +15,18 @@ app.use(require('compression')());
 app.use(require('cors')());
 app.use(express.json({ limit: '25mb' }));
 app.use(express.urlencoded({ limit: '25mb', extended: true }));
+/* ── Canonical host + HTTPS enforcement (SEO: avoid duplicate content across www/apex and http/https) ── */
+app.use((req, res, next) => {
+  const host = req.headers.host || '';
+  if (/^(localhost|127\.0\.0\.1)(:\d+)?$/.test(host)) return next(); // local dev — never redirect
+  const proto = req.headers['x-forwarded-proto'] || req.protocol;
+  const isWww = host.startsWith('www.');
+  if (isWww || proto !== 'https') {
+    const cleanHost = isWww ? host.slice(4) : host;
+    return res.redirect(301, `https://${cleanHost}${req.originalUrl}`);
+  }
+  next();
+});
 app.use(express.static('public'));
 
 /* ── Lightweight in-memory rate limiter (no extra deps) ── */
@@ -497,7 +509,20 @@ app.post('/documents/delete', async (req, res) => {
 });
 
 /* ─── Version (frontend isse check karta hai ke server nayi hai ya nahi) ── */
-app.get('/version', (req, res) => res.json({ v: '3.3', features: ['generate-with-file', 'streaming', 'pdf-books', 'paid-system', 'book-bank', 'slo-bank', 'verify', 'documents', 'assistant', 'premium-tools'] }));
+app.get('/version', (req, res) => res.json({ v: '3.4', features: ['generate-with-file', 'streaming', 'pdf-books', 'paid-system', 'book-bank', 'slo-bank', 'verify', 'documents', 'assistant', 'premium-tools', 'seo-pwa'] }));
+
+/* ─── SITEMAP — dynamic (lastmod hamesha aaj ki date, deploy hote hi taaza signal) ─────────── */
+const SITE_URL = 'https://teachertoolkitsindh.com';
+app.get('/sitemap.xml', (req, res) => {
+  const today = new Date().toISOString().slice(0, 10);
+  const urls = [{ loc: '/', changefreq: 'weekly', priority: '1.0' }];
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${urls.map(u => `  <url><loc>${SITE_URL}${u.loc}</loc><lastmod>${today}</lastmod><changefreq>${u.changefreq}</changefreq><priority>${u.priority}</priority></url>`).join('\n')}
+</urlset>`;
+  res.setHeader('Content-Type', 'application/xml');
+  res.send(xml);
+});
 
 /* ─── Streaming: AI jo likhta jaye foran bhejo — Render ki 100s timeout kabhi nahi lagegi ─── */
 function friendlyError(msg) {
@@ -1266,6 +1291,15 @@ app.post('/download-excel', async (req, res) => {
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
+});
+
+/* ─── 404 — koi bhi na-mili route/file yahan aati hai (sab routes/static ke baad) ───────────
+   Asal 404 status code deta hai (SEO ke liye zaroori — Google "soft 404" ko pasand nahi karta) */
+app.use((req, res) => {
+  res.status(404);
+  if (req.accepts('html')) return res.sendFile(path.join(__dirname, 'public', '404.html'));
+  if (req.accepts('json')) return res.json({ success: false, error: 'Not found' });
+  res.type('txt').send('Not found');
 });
 
 /* ─── GLOBAL ERROR HANDLER — HTML 500 ki jagah hamesha friendly JSON ─────── */
