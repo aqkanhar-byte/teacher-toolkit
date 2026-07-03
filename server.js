@@ -111,6 +111,41 @@ function buildDetailLines(fields) {
     .join('\n');
 }
 
+/* ─── Version (frontend isse check karta hai ke server nayi hai ya nahi) ── */
+app.get('/version', (req, res) => res.json({ v: '2.2', features: ['generate-with-file', 'streaming', 'pdf-books'] }));
+
+/* ─── Streaming: AI jo likhta jaye foran bhejo — Render ki 100s timeout kabhi nahi lagegi ─── */
+function friendlyError(msg) {
+  msg = msg || 'Unknown error';
+  if (/request_too_large|exceeds|too large|maximum/i.test(msg)) return 'File AI ki limit se bari hai — Resizer tool se sirf relevant unit/chapter ke pages nikaal kar upload karein.';
+  if (/overloaded/i.test(msg)) return 'AI abhi busy hai — 30 second baad dobara try karein.';
+  if (/authentication|invalid.*key|401/i.test(msg)) return 'API key ghalat ya missing hai — Render ke Environment mein ANTHROPIC_API_KEY check karein.';
+  if (/credit|billing|insufficient/i.test(msg)) return 'API credits khatam hain — console.anthropic.com par balance check karein.';
+  return msg;
+}
+async function streamToRes(res, params) {
+  let started = false;
+  try {
+    const s = client.messages.stream(params);
+    s.on('text', (t) => {
+      if (!started) {
+        res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+        res.setHeader('X-Content-Stream', '1');
+        res.setHeader('Cache-Control', 'no-cache');
+        started = true;
+      }
+      res.write(t);
+    });
+    await s.finalMessage();
+    if (!started) { res.json({ success: false, error: 'AI ne khaali jawab diya — dobara try karein.' }); return; }
+    res.end();
+  } catch (error) {
+    const msg = friendlyError(error.message);
+    if (!started) res.json({ success: false, error: msg });
+    else res.end('\n[[GENERATION-ERROR]] ' + msg);
+  }
+}
+
 /* ─── GENERATE ───────────────────────────────────────────────────────────── */
 app.post('/generate', async (req, res) => {
   const { documentType, language } = req.body;
@@ -145,16 +180,11 @@ RULES:
 - Use markdown headings (#, ##, ###) and pipe tables (| col | col |) where a table improves clarity.
 - Generate COMPLETE content — no placeholders like [insert here].`;
 
-  try {
-    const response = await client.messages.create({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 8000,
-      messages: [{ role: 'user', content: prompt }]
-    });
-    res.json({ success: true, content: response.content[0].text });
-  } catch (error) {
-    res.json({ success: false, error: error.message });
-  }
+  await streamToRes(res, {
+    model: 'claude-sonnet-4-6',
+    max_tokens: 8000,
+    messages: [{ role: 'user', content: prompt }]
+  });
 });
 
 /* ─── GENERATE WITH UPLOADED BOOK/DOCUMENT ─────────────────────────────────
@@ -186,18 +216,15 @@ RULES:
 - Use markdown headings (#, ##, ###) and pipe tables (| col | col |) where a table improves clarity.
 - Generate COMPLETE content — no placeholders.`;
 
-    const response = await client.messages.create({
+    await streamToRes(res, {
       model: 'claude-sonnet-4-6',
       max_tokens: 8000,
       messages: [{ role: 'user', content: [block, { type: 'text', text: prompt }] }]
     });
     try { fs.unlinkSync(req.file.path); } catch (e) {}
-    res.json({ success: true, content: response.content[0].text });
   } catch (error) {
     try { fs.unlinkSync(req.file.path); } catch (e) {}
-    let msg = error.message || 'Unknown error';
-    if (/request_too_large|exceeds|too large|maximum/i.test(msg)) msg = 'File AI ki limit se bari hai — poori book ki bajaye sirf relevant unit/chapter ke pages (PDF ya photos) upload karein.';
-    res.json({ success: false, error: msg });
+    res.json({ success: false, error: friendlyError(error.message) });
   }
 });
 
@@ -227,15 +254,12 @@ Generate a complete, professional exam paper with all sections and marks distrib
 
   try {
     const content = srcBlock ? [srcBlock, { type: 'text', text: prompt }] : prompt;
-    const response = await client.messages.create({
+    await streamToRes(res, {
       model: 'claude-sonnet-4-6', max_tokens: 8000,
       messages: [{ role: 'user', content }]
     });
-    res.json({ success: true, content: response.content[0].text });
   } catch (error) {
-    let msg = error.message || 'Unknown error';
-    if (/request_too_large|exceeds|too large|maximum/i.test(msg)) msg = 'File AI ki limit se bari hai — sirf relevant chapters upload karein.';
-    res.json({ success: false, error: msg });
+    res.json({ success: false, error: friendlyError(error.message) });
   }
 });
 
@@ -245,7 +269,7 @@ app.post('/upload-generate', upload.single('file'), async (req, res) => {
   const { documentType, schoolName, teacherName, className, subject, language } = req.body;
   try {
     const block = fileToBlock(req.file.path, req.file.originalname);
-    const response = await client.messages.create({
+    await streamToRes(res, {
       model: 'claude-sonnet-4-6', max_tokens: 8000,
       messages: [{ role: 'user', content: [
         block,
@@ -253,12 +277,9 @@ app.post('/upload-generate', upload.single('file'), async (req, res) => {
       ]}]
     });
     try { fs.unlinkSync(req.file.path); } catch(e) {}
-    res.json({ success: true, content: response.content[0].text });
   } catch (error) {
     try { fs.unlinkSync(req.file.path); } catch(e) {}
-    let msg = error.message || 'Unknown error';
-    if (/request_too_large|exceeds|too large|maximum/i.test(msg)) msg = 'File AI ki limit se bari hai — sirf relevant chapters upload karein.';
-    res.json({ success: false, error: msg });
+    res.json({ success: false, error: friendlyError(error.message) });
   }
 });
 

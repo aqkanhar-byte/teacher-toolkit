@@ -6,6 +6,9 @@
 <title>Teacher Toolkit — Sindh Education Department</title>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Noto+Nastaliq+Urdu:wght@400;600&family=Amiri:wght@400;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
 :root{
   --navy:#1a2744;--navy-dark:#0f1a2e;--navy-mid:#243257;
@@ -413,6 +416,58 @@ button{cursor:pointer;border:none;background:none}
     </div>
   </div>
 
+  <!-- ══ VIEW: PDF / IMAGE RESIZER ══ -->
+  <div class="view" id="view-resize">
+    <div class="doc-head">
+      <div class="dh-ico">🗜️</div>
+      <div class="dh-txt"><div class="dh-name">PDF / Image Resizer</div><div class="dh-sub">Bari files ko toolkit ki AI limit (PDF 20MB · Image 5MB) ke andar layein</div></div>
+      <div class="dh-right"><span class="mode-badge off">⚡ Instant · Offline</span></div>
+    </div>
+
+    <div class="sec-card">
+      <div class="sec-head"><div class="sec-bar"></div><div class="sec-title">1 · PDF Pages Nikaalen <span style="text-transform:none;font-weight:600;color:var(--green)">(Best tareeqa — zero quality loss)</span></div></div>
+      <div class="sec-body">
+        <div style="font-size:12px;color:var(--g600);margin-bottom:12px;line-height:1.6">200MB ki poori book ki zaroorat nahi — jis <b>unit/chapter</b> ka document banana hai sirf uske pages nikaal lein. 2 second mein chhota crisp PDF milega.</div>
+        <div class="upload-zone" onclick="document.getElementById('exFile').click()"><div class="uz-ico">📖</div><div class="uz-title">PDF book select karein</div><div class="uz-sub">Koi bhi size — 200MB+ bhi chalega</div></div>
+        <input type="file" id="exFile" accept=".pdf" style="display:none" onchange="exFileSel(event)">
+        <div class="f-chip" id="exChip">✅ &nbsp;<span id="exInfo">-</span></div>
+        <div class="form-row" style="margin-top:12px">
+          <div class="fg"><label>Page From</label><input type="number" id="exFrom" min="1" value="1"></div>
+          <div class="fg"><label>Page To</label><input type="number" id="exTo" min="1" value="15"></div>
+        </div>
+        <button class="btn-gen" style="margin-top:12px;font-size:12.5px;padding:12px" onclick="extractPages()">✂️ Pages Nikaal Kar Download Karein</button>
+        <div id="exStatus" style="margin-top:10px;font-size:12px;font-weight:700"></div>
+      </div>
+    </div>
+
+    <div class="sec-card">
+      <div class="sec-head"><div class="sec-bar"></div><div class="sec-title">2 · Poori PDF Compress Karein</div></div>
+      <div class="sec-body">
+        <div style="font-size:12px;color:var(--g600);margin-bottom:12px;line-height:1.6">Poori PDF ka size chhota karein (pages images ban kar dobara judte hain). <b>⚠️ 80MB+ files phone par slow/crash ho sakti hain — laptop par karein, ya upar wala Pages tool use karein.</b></div>
+        <div class="upload-zone" onclick="document.getElementById('cpFile').click()"><div class="uz-ico">🗜️</div><div class="uz-title">PDF select karein</div><div class="uz-sub">Compress ho kar 20MB ke andar aane ki koshish karega</div></div>
+        <input type="file" id="cpFile" accept=".pdf" style="display:none" onchange="cpFileSel(event)">
+        <div class="f-chip" id="cpChip">✅ &nbsp;<span id="cpInfo">-</span></div>
+        <div class="form-row" style="margin-top:12px">
+          <div class="fg"><label>Quality</label><select id="cpQuality"><option value="high">High — behtar text, bara size</option><option value="medium" selected>Medium — balanced (recommended)</option><option value="low">Low — sab se chhota size</option></select></div>
+        </div>
+        <button class="btn-gen" style="margin-top:12px;font-size:12.5px;padding:12px" onclick="compressPdf()">🗜️ Compress Kar Ke Download Karein</button>
+        <div id="cpStatus" style="margin-top:10px;font-size:12px;font-weight:700"></div>
+      </div>
+    </div>
+
+    <div class="sec-card">
+      <div class="sec-head"><div class="sec-bar"></div><div class="sec-title">3 · Image Resize / Compress</div></div>
+      <div class="sec-body">
+        <div style="font-size:12px;color:var(--g600);margin-bottom:12px;line-height:1.6">Koi bhi image (20MB+ bhi) → 5MB se kam. <b>Note:</b> toolkit mein image upload karte waqt ye <b>khud-ba-khud</b> bhi ho jata hai — ye tool alag se file save karne ke liye hai.</div>
+        <div class="upload-zone" onclick="document.getElementById('imFile').click()"><div class="uz-ico">🖼️</div><div class="uz-title">Image select karein</div><div class="uz-sub">JPG · PNG · koi bhi size</div></div>
+        <input type="file" id="imFile" accept="image/*" style="display:none" onchange="imFileSel(event)">
+        <div class="f-chip" id="imChip">✅ &nbsp;<span id="imInfo">-</span></div>
+        <button class="btn-gen" style="margin-top:12px;font-size:12.5px;padding:12px" onclick="resizeImage()">🖼️ Resize Kar Ke Download Karein</button>
+        <div id="imStatus" style="margin-top:10px;font-size:12px;font-weight:700"></div>
+      </div>
+    </div>
+  </div>
+
   <!-- ══ VIEW: UPLOAD & GENERATE ══ -->
   <div class="view" id="view-upload">
     <div class="doc-head">
@@ -650,6 +705,7 @@ const SIDEBAR=[
   {d:'Inspection Report',i:'🔎',s:'DEO visit'},
   {d:'Affidavit',i:'⚖️',s:'Legal declaration'},
   {d:'Event Content',i:'🎉',s:'Program announcement'},
+  {v:'resize',n:'PDF / Image Resizer',i:'🗜️',s:'Compress · Pages nikaalen · Resize'},
   {v:'age',n:'Age Calculator',i:'🎂',s:'Eligibility check'}
  ]}
 ];
@@ -998,22 +1054,54 @@ function dbFillFields(s){
   if(s.dob)onDobChange();
 }
 
+/* ═══════════ SMART FETCH — streaming, JSON, purane-server 404, sab handle ═══════════ */
+async function fetchGen(url,opts){
+  try{
+    const r=await fetch(url,opts);
+    if(r.headers.get('X-Content-Stream')){
+      const reader=r.body.getReader();const dec=new TextDecoder();let txt='';
+      const ls=document.querySelector('.loader-sub');
+      while(true){
+        const{done,value}=await reader.read();
+        if(done)break;
+        txt+=dec.decode(value,{stream:true});
+        if(ls)ls.textContent='✍️ Likha ja raha hai... '+txt.length+' characters';
+      }
+      const ei=txt.indexOf('[[GENERATION-ERROR]]');
+      if(ei>=0)return{success:false,error:txt.slice(ei+20).trim()||'Generation error'};
+      return{success:true,content:txt};
+    }
+    const ct=r.headers.get('content-type')||'';
+    if(ct.includes('application/json'))return await r.json();
+    const body=await r.text();
+    if(r.status===404)return{success:false,error:'⚠️ Server par PURANI server.js chal rahi hai — root wali server.js bhi nayi file se replace kar ke dobara deploy karein.'};
+    return{success:false,error:'HTTP '+r.status+' — '+body.replace(/<[^>]*>/g,'').slice(0,140)};
+  }catch(e){return{success:false,error:'Network/connection error: '+e.message+' — internet aur server check karein.'};}
+}
+
 /* ═══════════ PER-DOC BOOK UPLOAD + STUDENT PHOTO ═══════════ */
 function docFileSel(e){if(e.target.files[0])setDocFile(e.target.files[0]);}
 function docDropFn(e){e.preventDefault();document.getElementById('docDrop').classList.remove('over');if(e.dataTransfer.files[0])setDocFile(e.dataTransfer.files[0]);}
 function docOver(e){e.preventDefault();document.getElementById('docDrop').classList.add('over');}
 function docLeave(){document.getElementById('docDrop').classList.remove('over');}
-/* AI ki asal reading capacity: PDF ~20MB / 100 pages, image 5MB */
-function checkAILimit(f){
+/* AI ki asal reading capacity: PDF ~20MB / 100 pages, image 5MB
+   Images AUTO-compress hoti hain; bari PDF ko Resizer tool ka rasta dikhaya jata hai */
+async function prepareUpload(f){
   const mb=f.size/1024/1024;
   const isPdf=(f.name.split('.').pop()||'').toLowerCase()==='pdf';
-  if(isPdf&&mb>20){alert('❌ PDF '+mb.toFixed(0)+'MB hai — AI max 20MB (~100 pages) tak parh sakta hai.\n\n💡 Behtar tareeqa: poori book ki bajaye sirf us unit/chapter ke pages ka chhota PDF banao jiska document banana hai. Thora thora upload karo — result bhi zyada accurate aayega.');return false;}
-  if(!isPdf&&mb>5){alert('❌ Image '+mb.toFixed(1)+'MB hai — AI max 5MB per image parh sakta hai.\n\n💡 Photo compress karein ya screenshot lein.');return false;}
-  if(isPdf&&mb>10)alert('⚠️ File '+mb.toFixed(0)+'MB hai — chal jayegi, lekin best result ke liye thore pages (ek unit/chapter) upload karna behtar hai.');
-  return true;
+  if(!isPdf&&mb>5){
+    try{
+      const out=await compressImageFile(f,4.5);
+      alert('🖼️ Image '+mb.toFixed(1)+'MB thi — automatically resize kar di ('+(out.size/1024/1024).toFixed(1)+'MB). Ab AI ke liye ready hai. ✅');
+      return out;
+    }catch(e){alert('❌ Image '+mb.toFixed(1)+'MB hai aur auto-resize fail hui — sidebar ke "PDF / Image Resizer" tool se compress karein.');return null;}
+  }
+  if(isPdf&&mb>20){alert('❌ PDF '+mb.toFixed(0)+'MB hai — AI max 20MB (~100 pages) tak parh sakta hai.\n\n🗜️ Sidebar mein "PDF / Image Resizer" tool kholo:\n• Pages Nikaalen — sirf zaroori unit ke pages (best)\n• Ya poori PDF Compress karein');return null;}
+  if(isPdf&&mb>10)alert('⚠️ File '+mb.toFixed(0)+'MB hai — chal jayegi, lekin best result ke liye thore pages (ek unit/chapter) upload karna behtar hai. Resizer tool se pages nikaal sakte ho.');
+  return f;
 }
-function setDocFile(f){
-  if(!checkAILimit(f))return;
+async function setDocFile(f){
+  f=await prepareUpload(f);if(!f)return;
   S.docFile=f;document.getElementById('docFName').textContent=f.name+' ('+(f.size/1024/1024).toFixed(1)+' MB)';document.getElementById('docChip').style.display='block';
 }
 function clearDocFile(){S.docFile=null;document.getElementById('docChip').style.display='none';document.getElementById('docFile').value='';}
@@ -1039,15 +1127,13 @@ async function generateDoc(){
       fd.append('documentType',S.doc);
       fd.append('language',lang());
       fd.append('fieldsJson',JSON.stringify(fields));
-      const r=await fetch('/generate-with-file',{method:'POST',body:fd});
-      d=await r.json();
+      d=await fetchGen('/generate-with-file',{method:'POST',body:fd});
     }else{
       showLoader(NO_AI.includes(S.doc)?'Building instantly — no AI needed...':'AI is crafting your document...');
-      const r=await fetch('/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({documentType:S.doc,language:lang(),fields,marks,studentsList})});
-      d=await r.json();
+      d=await fetchGen('/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({documentType:S.doc,language:lang(),fields,marks,studentsList})});
     }
     d.success?showResult(d.content,S.doc):(hideLoader(),alert('Error: '+d.error));
-  }catch(e){hideLoader();alert('Server error!');}
+  }catch(e){hideLoader();alert('Error: '+e.message);}
 }
 function fileBase(){
   const f=S.lastFields||{};
@@ -1085,7 +1171,7 @@ function crqFileSel(e){if(e.target.files[0])setCrqFile(e.target.files[0]);}
 function crqDropFn(e){e.preventDefault();document.getElementById('crqDrop').classList.remove('over');if(e.dataTransfer.files[0])setCrqFile(e.dataTransfer.files[0]);}
 function crqOver(e){e.preventDefault();document.getElementById('crqDrop').classList.add('over');}
 function crqLeave(){document.getElementById('crqDrop').classList.remove('over');}
-function setCrqFile(f){if(!checkAILimit(f))return;S.crqFile=f;document.getElementById('crqFName').textContent=f.name+' ('+(f.size/1024).toFixed(1)+' KB)';document.getElementById('crqChip').style.display='block';}
+async function setCrqFile(f){f=await prepareUpload(f);if(!f)return;S.crqFile=f;document.getElementById('crqFName').textContent=f.name+' ('+(f.size/1024).toFixed(1)+' KB)';document.getElementById('crqChip').style.display='block';}
 async function genCRQ(){
   const t=val('crqTopic');
   if(!t){alert('Unit / Lessons zaroor bharein (e.g. Unit 3 ya Lessons 3-7)!');return;}
@@ -1101,11 +1187,11 @@ async function genCRQ(){
   fd.append('includeAnswerKey',String(S.ak));fd.append('language',lang());
   if(S.crqFile)fd.append('file',S.crqFile);
   try{
-    const r=await fetch('/generate-crq',{method:'POST',body:fd});const d=await r.json();
+    const d=await fetchGen('/generate-crq',{method:'POST',body:fd});
     document.getElementById('crqBtn').disabled=false;
     if(d.success){S.doc='CRQ Paper';S.lastFields={className:val('crqClass')};showResult(d.content,'CRQ Paper — '+t);}
     else{hideLoader();alert('Error: '+d.error);}
-  }catch(e){document.getElementById('crqBtn').disabled=false;hideLoader();alert('Server error!');}
+  }catch(e){document.getElementById('crqBtn').disabled=false;hideLoader();alert('Error: '+e.message);}
 }
 
 /* ═══════════ UPLOAD & GENERATE ═══════════ */
@@ -1113,7 +1199,7 @@ function handleDrop(e){e.preventDefault();document.getElementById('dropZone').cl
 function handleOver(e){e.preventDefault();document.getElementById('dropZone').classList.add('over');}
 function handleLeave(){document.getElementById('dropZone').classList.remove('over');}
 function onFileSel(e){if(e.target.files[0])setFile(e.target.files[0]);}
-function setFile(f){if(!checkAILimit(f))return;S.file=f;document.getElementById('fName').textContent=f.name+' ('+(f.size/1024).toFixed(1)+' KB)';document.getElementById('fChip').style.display='block';}
+async function setFile(f){f=await prepareUpload(f);if(!f)return;S.file=f;document.getElementById('fName').textContent=f.name+' ('+(f.size/1024).toFixed(1)+' KB)';document.getElementById('fChip').style.display='block';}
 function upClassChange(keep){
   const cls=val('upClass');
   document.getElementById('upGroupWrap').style.display=SEC_MAP[cls]?'flex':'none';
@@ -1133,7 +1219,136 @@ async function uploadGen(){
   fd.append('schoolName',p.school||'');fd.append('teacherName',p.hm||'');
   fd.append('className',val('upClass'));fd.append('subject',val('upSubject'));
   fd.append('language',lang());
-  try{const r=await fetch('/upload-generate',{method:'POST',body:fd});const d=await r.json();d.success?showResult(d.content,val('upDocType')):(hideLoader(),alert('Error: '+d.error));}catch(e){hideLoader();alert('Upload failed!');}
+  try{const d=await fetchGen('/upload-generate',{method:'POST',body:fd});d.success?showResult(d.content,val('upDocType')):(hideLoader(),alert('Error: '+d.error));}catch(e){hideLoader();alert('Error: '+e.message);}
+}
+
+/* ═══════════ PDF / IMAGE RESIZER (sab client-side — server par zero load) ═══════════ */
+function dlBlob(blob,name){const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=name;a.click();URL.revokeObjectURL(url);}
+function mbOf(n){return (n/1024/1024).toFixed(1)+' MB';}
+let EX_FILE=null,CP_FILE=null,IM_FILE=null;
+
+/* --- Tool 1: lossless page extract (pdf-lib) --- */
+async function exFileSel(e){
+  const f=e.target.files[0];e.target.value='';if(!f)return;
+  EX_FILE=f;
+  document.getElementById('exInfo').textContent=f.name+' ('+mbOf(f.size)+')';
+  document.getElementById('exChip').style.display='block';
+  try{
+    const bytes=await f.arrayBuffer();
+    const doc=await PDFLib.PDFDocument.load(bytes,{ignoreEncryption:true});
+    const n=doc.getPageCount();
+    document.getElementById('exInfo').textContent=f.name+' ('+mbOf(f.size)+' · '+n+' pages)';
+    document.getElementById('exTo').max=n;document.getElementById('exFrom').max=n;
+    if(+document.getElementById('exTo').value>n)document.getElementById('exTo').value=n;
+    EX_FILE._bytes=bytes;EX_FILE._pages=n;
+  }catch(err){document.getElementById('exStatus').innerHTML='<span style="color:var(--red)">❌ PDF parh nahi saka: '+err.message+'</span>';}
+}
+async function extractPages(){
+  if(!EX_FILE||!EX_FILE._bytes){alert('Pehle PDF select karein!');return;}
+  let from=+val('exFrom'),to=+val('exTo');const n=EX_FILE._pages;
+  if(!from||!to||from<1||to>n||from>to){alert('Sahi page range likhein (1 se '+n+' tak)!');return;}
+  const st=document.getElementById('exStatus');
+  st.innerHTML='⏳ Pages nikal rahe hain...';
+  try{
+    const srcDoc=await PDFLib.PDFDocument.load(EX_FILE._bytes,{ignoreEncryption:true});
+    const out=await PDFLib.PDFDocument.create();
+    const idx=[];for(let i=from-1;i<to;i++)idx.push(i);
+    const pages=await out.copyPages(srcDoc,idx);
+    pages.forEach(p=>out.addPage(p));
+    const bytes=await out.save();
+    const name=EX_FILE.name.replace(/\.pdf$/i,'')+'_pages_'+from+'-'+to+'.pdf';
+    dlBlob(new Blob([bytes],{type:'application/pdf'}),name);
+    st.innerHTML='<span style="color:var(--green)">✅ Done! '+(to-from+1)+' pages · '+mbOf(bytes.length)+' — '+(bytes.length<=20*1024*1024?'AI limit ke andar, seedha upload karein 🎯':'abhi bhi bara hai — kam pages lein ya Compress tool use karein')+'</span>';
+  }catch(err){st.innerHTML='<span style="color:var(--red)">❌ Error: '+err.message+'</span>';}
+}
+
+/* --- Tool 2: full PDF compress (pdf.js render → jsPDF) --- */
+function cpFileSel(e){
+  const f=e.target.files[0];e.target.value='';if(!f)return;
+  CP_FILE=f;
+  document.getElementById('cpInfo').textContent=f.name+' ('+mbOf(f.size)+')';
+  document.getElementById('cpChip').style.display='block';
+  if(f.size>80*1024*1024)alert('⚠️ '+mbOf(f.size)+' — bohat bari file! Phone par crash ho sakti hai. Laptop par karein, ya behtar: upar wale tool se sirf zaroori pages nikaal lein.');
+}
+async function compressPdf(){
+  if(!CP_FILE){alert('Pehle PDF select karein!');return;}
+  if(typeof pdfjsLib==='undefined'||typeof jspdf==='undefined'){alert('Libraries load nahi huin — internet check karein.');return;}
+  pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  const q=val('cpQuality');
+  const scale=q==='high'?1.5:(q==='medium'?1.2:0.95);
+  const jpgQ=q==='high'?0.75:(q==='medium'?0.6:0.45);
+  const st=document.getElementById('cpStatus');
+  st.innerHTML='⏳ File load ho rahi hai...';
+  try{
+    const data=new Uint8Array(await CP_FILE.arrayBuffer());
+    const pdf=await pdfjsLib.getDocument({data}).promise;
+    const n=pdf.numPages;
+    let out=null;
+    const canvas=document.createElement('canvas');const ctx=canvas.getContext('2d');
+    for(let i=1;i<=n;i++){
+      st.innerHTML='⏳ Page '+i+' / '+n+' compress ho raha hai...';
+      const page=await pdf.getPage(i);
+      const vp=page.getViewport({scale});
+      canvas.width=vp.width;canvas.height=vp.height;
+      ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);
+      await page.render({canvasContext:ctx,viewport:vp}).promise;
+      const img=canvas.toDataURL('image/jpeg',jpgQ);
+      const wpt=vp.width*0.75,hpt=vp.height*0.75;
+      if(!out)out=new jspdf.jsPDF({unit:'pt',format:[wpt,hpt],orientation:wpt>hpt?'l':'p'});
+      else out.addPage([wpt,hpt],wpt>hpt?'l':'p');
+      out.addImage(img,'JPEG',0,0,wpt,hpt);
+      await new Promise(r=>setTimeout(r,0));
+    }
+    const blob=out.output('blob');
+    const name=CP_FILE.name.replace(/\.pdf$/i,'')+'_compressed.pdf';
+    dlBlob(blob,name);
+    const pct=Math.round(100-(blob.size/CP_FILE.size*100));
+    st.innerHTML='<span style="color:var(--green)">✅ Done! '+mbOf(CP_FILE.size)+' → '+mbOf(blob.size)+' ('+pct+'% chhota) — '+(blob.size<=20*1024*1024?'AI limit ke andar 🎯':'abhi bhi bara hai — Low quality try karein ya Pages tool use karein')+'</span>';
+  }catch(err){st.innerHTML='<span style="color:var(--red)">❌ Error: '+err.message+' — file bohat bari ho to Pages tool use karein.</span>';}
+}
+
+/* --- Tool 3 + AUTO: image compress (canvas) --- */
+function compressImageFile(file,maxMB){
+  return new Promise((resolve,reject)=>{
+    const img=new Image();
+    img.onload=()=>{
+      let w=img.width,h=img.height;
+      const maxDim=2400;
+      if(Math.max(w,h)>maxDim){const r=maxDim/Math.max(w,h);w=Math.round(w*r);h=Math.round(h*r);}
+      const canvas=document.createElement('canvas');
+      const tryQ=(q,dim)=>{
+        canvas.width=Math.round(w*dim);canvas.height=Math.round(h*dim);
+        const c=canvas.getContext('2d');c.fillStyle='#fff';c.fillRect(0,0,canvas.width,canvas.height);
+        c.drawImage(img,0,0,canvas.width,canvas.height);
+        canvas.toBlob(blob=>{
+          if(!blob)return reject(new Error('compress fail'));
+          if(blob.size<=maxMB*1024*1024||q<=0.35){
+            resolve(new File([blob],file.name.replace(/\.\w+$/,'')+'_resized.jpg',{type:'image/jpeg'}));
+          }else tryQ(q-0.12,dim*(q<0.6?0.85:1));
+        },'image/jpeg',q);
+      };
+      tryQ(0.82,1);
+      URL.revokeObjectURL(img.src);
+    };
+    img.onerror=()=>reject(new Error('image load fail'));
+    img.src=URL.createObjectURL(file);
+  });
+}
+function imFileSel(e){
+  const f=e.target.files[0];e.target.value='';if(!f)return;
+  IM_FILE=f;
+  document.getElementById('imInfo').textContent=f.name+' ('+mbOf(f.size)+')';
+  document.getElementById('imChip').style.display='block';
+}
+async function resizeImage(){
+  if(!IM_FILE){alert('Pehle image select karein!');return;}
+  const st=document.getElementById('imStatus');
+  st.innerHTML='⏳ Resize ho rahi hai...';
+  try{
+    const out=await compressImageFile(IM_FILE,4.5);
+    dlBlob(out,out.name);
+    st.innerHTML='<span style="color:var(--green)">✅ Done! '+mbOf(IM_FILE.size)+' → '+mbOf(out.size)+' — AI limit ke andar 🎯</span>';
+  }catch(err){st.innerHTML='<span style="color:var(--red)">❌ Error: '+err.message+'</span>';}
 }
 
 /* ═══════════ INIT ═══════════ */
@@ -1152,6 +1367,15 @@ async function uploadGen(){
   renderDB();
   /* first run — profile setup */
   if(!getProfile().school)setTimeout(openProfile,600);
+  /* server version check — purani server.js ho to warning */
+  fetch('/version').then(r=>{if(!r.ok)throw 0;return r.json();}).then(v=>{
+    if(!v.features||!v.features.includes('streaming'))throw 0;
+  }).catch(()=>{
+    const w=document.createElement('div');
+    w.style.cssText='background:#b91c1c;color:#fff;font-size:12px;font-weight:700;text-align:center;padding:9px 14px;position:sticky;top:56px;z-index:150';
+    w.textContent='⚠️ Server par purani server.js chal rahi hai — book upload kaam nahi karega. Root wali server.js nayi file se replace kar ke dobara deploy karein.';
+    document.querySelector('.layout').before(w);
+  });
 })();
 </script>
 </body>
