@@ -10,11 +10,32 @@ const { createClient } = require('@supabase/supabase-js');
 const crypto = require('crypto');
 
 const app = express();
+app.set('trust proxy', 1); /* Render/proxy ke pichhe sahi client IP (rate limiting ke liye) */
 app.use(require('compression')());
 app.use(require('cors')());
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ limit: '50mb', extended: true }));
+app.use(express.json({ limit: '25mb' }));
+app.use(express.urlencoded({ limit: '25mb', extended: true }));
 app.use(express.static('public'));
+
+/* ── Lightweight in-memory rate limiter (no extra deps) ── */
+const rlBuckets = new Map();
+function rlBlocked(key, max, windowMs) {
+  const b = rlBuckets.get(key);
+  return !!(b && Date.now() - b.start <= windowMs && b.n >= max);
+}
+function rlHit(key, windowMs) {
+  const now = Date.now();
+  const b = rlBuckets.get(key);
+  if (!b || now - b.start > windowMs) rlBuckets.set(key, { start: now, n: 1 });
+  else b.n++;
+}
+function rateLimit(key, max, windowMs) {
+  if (rlBlocked(key, max, windowMs)) return false;
+  rlHit(key, windowMs);
+  return true;
+}
+setInterval(() => { const now = Date.now(); for (const [k, b] of rlBuckets) if (now - b.start > 3600000) rlBuckets.delete(k); }, 600000).unref();
+function tooMany(res) { return res.status(429).json({ success: false, error: 'Too many attempts — please wait a few minutes and try again.' }); }
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -75,9 +96,17 @@ async function takeCredit(req, res) {
 }
 async function refundCredit(gateUser, viaPlan) {
   if (!sb || !gateUser) return;
+  /* takeCredit ki tarah optimistic locking — stale read se balance clobber nahi hoga */
   try {
-    if (viaPlan) await sb.from('tt_users').update({ plan_used: Math.max(0, (gateUser.plan_used || 1) - 1) }).eq('id', gateUser.id);
-    else await sb.from('tt_users').update({ credits: gateUser.credits + 1 }).eq('id', gateUser.id);
+    for (let i = 0; i < 3; i++) {
+      const { data: u } = await sb.from('tt_users').select('id,credits,plan_used').eq('id', gateUser.id).maybeSingle();
+      if (!u) return;
+      const q = viaPlan
+        ? sb.from('tt_users').update({ plan_used: Math.max(0, (u.plan_used || 1) - 1) }).eq('id', u.id).eq('plan_used', u.plan_used || 0)
+        : sb.from('tt_users').update({ credits: u.credits + 1 }).eq('id', u.id).eq('credits', u.credits);
+      const { data } = await q.select().maybeSingle();
+      if (data) return;
+    }
   } catch (e) {}
 }
 async function saveDoc(user, docType, title, content) {
@@ -89,6 +118,7 @@ function cleanPhone(p) { return String(p || '').replace(/[^0-9]/g, '').replace(/
 /* ── Auth routes ── */
 app.post('/auth/register', async (req, res) => {
   if (!sb) return res.json({ success: false, error: 'Database is not configured on the server.' });
+  if (!rateLimit('reg:' + req.ip, 15, 60 * 60 * 1000)) return tooMany(res); /* max 15 accounts/hour/IP */
   const phone = cleanPhone(req.body.phone);
   const { pin, name, school } = req.body;
   if (!phone || phone.length < 11) return res.json({ success: false, error: 'Enter a valid mobile number (03xx-xxxxxxx).' });
@@ -107,8 +137,11 @@ app.post('/auth/register', async (req, res) => {
 app.post('/auth/login', async (req, res) => {
   if (!sb) return res.json({ success: false, error: 'Database is not configured on the server.' });
   const phone = cleanPhone(req.body.phone);
+  /* PIN brute-force protection: 15 failed tries per IP+phone per 15 min */
+  const rk = 'login:' + req.ip + ':' + phone;
+  if (rlBlocked(rk, 15, 15 * 60 * 1000)) return tooMany(res);
   const { data: user } = await sb.from('tt_users').select('*').eq('phone', phone).maybeSingle();
-  if (!user || !checkPin(req.body.pin, user.pin_hash)) return res.json({ success: false, error: 'Wrong phone number or PIN.' });
+  if (!user || !checkPin(req.body.pin, user.pin_hash)) { rlHit(rk, 15 * 60 * 1000); return res.json({ success: false, error: 'Wrong phone number or PIN.' }); }
   const token = crypto.randomUUID();
   await sb.from('tt_users').update({ token }).eq('id', user.id);
   res.json({ success: true, token, user: { name: user.name, phone: user.phone, credits: user.credits } });
@@ -156,16 +189,30 @@ app.post('/students-sync', async (req, res) => {
 });
 
 /* ── Admin (sirf tumhare liye — ADMIN_PASSWORD .env mein) ── */
-function isAdmin(req) { return process.env.ADMIN_PASSWORD && req.headers['x-admin-key'] === process.env.ADMIN_PASSWORD; }
+function isAdmin(req) {
+  const pw = process.env.ADMIN_PASSWORD, k = req.headers['x-admin-key'];
+  if (!pw || typeof k !== 'string' || !k) return false;
+  const a = Buffer.from(k), b = Buffer.from(pw);
+  if (a.length !== b.length) return false; /* length leak is unavoidable; content compare is constant-time */
+  return crypto.timingSafeEqual(a, b);
+}
+/* Har admin route ka common gate: brute-force lockout + password + Supabase check */
+function adminGate(req, res) {
+  const rk = 'adminfail:' + req.ip;
+  if (rlBlocked(rk, 10, 10 * 60 * 1000)) { tooMany(res); return false; }
+  if (!isAdmin(req)) { rlHit(rk, 10 * 60 * 1000); res.status(403).json({ success: false, error: 'Wrong admin password' }); return false; }
+  if (!sb) { res.json({ success: false, error: 'Database is not configured on the server.' }); return false; }
+  return true;
+}
 app.get('/admin/users', async (req, res) => {
-  if (!isAdmin(req)) return res.status(403).json({ success: false, error: 'Wrong admin password' });
+  if (!adminGate(req, res)) return;
   const { data: users } = await sb.from('tt_users').select('id,phone,name,school,credits,created_at').order('created_at', { ascending: false }).limit(500);
   const { data: tx } = await sb.from('tt_transactions').select('amount_rs,credits,created_at');
   const revenue = (tx || []).reduce((s, t) => s + (t.amount_rs || 0), 0);
   res.json({ success: true, users: users || [], revenue, txCount: (tx || []).length });
 });
 app.post('/admin/add-subscription', async (req, res) => {
-  if (!isAdmin(req)) return res.status(403).json({ success: false, error: 'Wrong admin password' });
+  if (!adminGate(req, res)) return;
   const phone = cleanPhone(req.body.phone);
   const days = parseInt(req.body.days) || 30;
   const quota = parseInt(req.body.quota) || 60;
@@ -179,7 +226,7 @@ app.post('/admin/add-subscription', async (req, res) => {
   res.json({ success: true, name: user.name, expires });
 });
 app.post('/admin/add-credits', async (req, res) => {
-  if (!isAdmin(req)) return res.status(403).json({ success: false, error: 'Wrong admin password' });
+  if (!adminGate(req, res)) return;
   const phone = cleanPhone(req.body.phone);
   const credits = parseInt(req.body.credits) || 0;
   const amount = parseInt(req.body.amount_rs) || 0;
@@ -198,30 +245,47 @@ const storage = multer.diskStorage({
   },
   filename: (req, file, cb) => cb(null, Date.now() + path.extname(file.originalname))
 });
-const upload = multer({ storage, limits: { fileSize: 25 * 1024 * 1024 } }); // AI reading capacity ke mutabiq (PDF ~20MB / 100 pages)
+const upload = multer({
+  storage,
+  limits: { fileSize: 25 * 1024 * 1024 }, // AI reading capacity ke mutabiq (PDF ~20MB / 100 pages)
+  fileFilter: (req, file, cb) => {
+    const ok = /\.(pdf|png|jpe?g|webp|gif)$/i.test(file.originalname || '');
+    cb(ok ? null : new Error('Only PDF or image files (JPG, PNG, WEBP, GIF) are allowed.'), ok);
+  }
+});
 
 /* ═══════════════ BOOK BANK (Supabase Storage — curated STB books) ═══════════════ */
 app.get('/books', async (req, res) => {
   if (!sb) return res.json({ success: true, books: [] });
   let q = sb.from('tt_books').select('id,class_name,subject,title,unit_label,size_mb').order('created_at', { ascending: false });
-  if (req.query.className) q = q.eq('class_name', req.query.className);
-  if (req.query.subject) q = q.eq('subject', req.query.subject);
-  const { data } = await q;
+  /* ilike (bina wildcard) = case-insensitive exact match — "ENGLISH" bhi "English" se mil jayega */
+  if (req.query.className) q = q.ilike('class_name', String(req.query.className).trim());
+  if (req.query.subject) q = q.ilike('subject', String(req.query.subject).trim());
+  const { data, error } = await q;
+  if (error) return res.json({ success: false, error: error.message, books: [] });
   res.json({ success: true, books: data || [] });
 });
 app.post('/admin/upload-book', upload.single('file'), async (req, res) => {
-  if (!isAdmin(req)) { try { fs.unlinkSync(req.file.path); } catch(e) {} return res.status(403).json({ success: false, error: 'Wrong admin password' }); }
-  if (!sb) return res.json({ success: false, error: 'Supabase not configured' });
+  if (!adminGate(req, res)) { if (req.file) { try { fs.unlinkSync(req.file.path); } catch(e) {} } return; }
   if (!req.file) return res.json({ success: false, error: 'No file' });
-  const { className, subject, title, unitLabel } = req.body;
+  /* Trim + normalize — teacher UI dropdown se exact match zaroori hai */
+  const className = String(req.body.className || '').trim();
+  const subject = String(req.body.subject || '').trim();
+  const title = String(req.body.title || '').trim();
+  const unitLabel = String(req.body.unitLabel || '').trim();
   if (!className || !subject || !title) { try { fs.unlinkSync(req.file.path); } catch(e) {} return res.json({ success: false, error: 'Class, subject and title are required' }); }
   try {
     const ext = path.extname(req.file.originalname).toLowerCase() || '.pdf';
     const storagePath = (className + '/' + subject + '/' + Date.now() + ext).replace(/[^A-Za-z0-9/._-]+/g, '_');
     const buf = fs.readFileSync(req.file.path);
     const { error: upErr } = await sb.storage.from('books').upload(storagePath, buf, { contentType: ext === '.pdf' ? 'application/pdf' : 'image/jpeg', upsert: false });
-    if (upErr) throw new Error(upErr.message);
-    const { data } = await sb.from('tt_books').insert({ class_name: className, subject, title, unit_label: unitLabel || '', storage_path: storagePath, size_mb: +(req.file.size / 1048576).toFixed(2) }).select().maybeSingle();
+    if (upErr) throw new Error('Storage upload failed: ' + upErr.message);
+    const { data, error: dbErr } = await sb.from('tt_books').insert({ class_name: className, subject, title, unit_label: unitLabel, storage_path: storagePath, size_mb: +(req.file.size / 1048576).toFixed(2) }).select().maybeSingle();
+    if (dbErr) {
+      /* DB row nahi bana to storage ki file bhi hatao — warna orphan file reh jati hai aur admin ko jhoota "Uploaded" milta hai */
+      try { await sb.storage.from('books').remove([storagePath]); } catch(e) {}
+      throw new Error('Database insert failed: ' + dbErr.message);
+    }
     try { fs.unlinkSync(req.file.path); } catch(e) {}
     res.json({ success: true, book: data });
   } catch (e) {
@@ -230,7 +294,7 @@ app.post('/admin/upload-book', upload.single('file'), async (req, res) => {
   }
 });
 app.post('/admin/delete-book', async (req, res) => {
-  if (!isAdmin(req)) return res.status(403).json({ success: false, error: 'Wrong admin password' });
+  if (!adminGate(req, res)) return;
   const { data: book } = await sb.from('tt_books').select('*').eq('id', req.body.id).maybeSingle();
   if (book) {
     try { await sb.storage.from('books').remove([book.storage_path]); } catch(e) {}
@@ -253,7 +317,7 @@ async function fetchBookToTemp(bookId) {
 
 /* ═══════════════ SLO BANK — official curriculum SLOs, prompts mein inject ═══════════════ */
 app.post('/admin/add-slos', async (req, res) => {
-  if (!isAdmin(req)) return res.status(403).json({ success: false, error: 'Wrong admin password' });
+  if (!adminGate(req, res)) return;
   const { className, subject, lines } = req.body;
   if (!className || !subject || !lines) return res.json({ success: false, error: 'Class, subject and SLO lines are required' });
   const rows = [];
@@ -268,7 +332,7 @@ app.post('/admin/add-slos', async (req, res) => {
   res.json({ success: true, added: rows.length });
 });
 app.get('/admin/slos', async (req, res) => {
-  if (!isAdmin(req)) return res.status(403).json({ success: false, error: 'Wrong admin password' });
+  if (!adminGate(req, res)) return;
   const { data } = await sb.from('tt_slos').select('class_name,subject,unit_no').limit(2000);
   const summary = {};
   (data || []).forEach(s => { const k = s.class_name + ' — ' + s.subject; summary[k] = (summary[k] || 0) + 1; });
@@ -287,10 +351,12 @@ async function slosFor(className, subject, unitInfo) {
 }
 
 /* ═══════════════ QUALITY VERIFICATION — doosra AI pass, document ko rubric par janchta hai ═══════════════ */
-const SLO_DOC_TYPES = ['Lesson Plan', 'Worksheet', 'Exam Paper', 'Assessment Rubric', 'CRQ Paper', 'Annual Teaching Plan', 'Monthly Teaching Plan'];
+const SLO_DOC_TYPES = ['Lesson Plan', 'Worksheet', 'Exam Paper', 'Assessment Rubric', 'CRQ Paper', 'Annual Teaching Plan', 'Monthly Teaching Plan', 'Homework Sheet'];
 app.post('/verify', async (req, res) => {
   const user = await userFromReq(req);
   if (sb && !user) return res.json({ success: false, error: 'LOGIN_REQUIRED' });
+  /* Verify credit nahi kaat-ta, lekin API paisa kharch karta hai — abuse rokne ke liye cap */
+  if (!rateLimit('verify:' + (user ? user.id : req.ip), 10, 10 * 60 * 1000)) return tooMany(res);
   const { content, documentType, className, subject, unitInfo } = req.body;
   if (!content) return res.json({ success: false, error: 'Nothing to verify' });
   try {
@@ -340,7 +406,8 @@ const LABELS = {
   eventName:'Event', eventDate:'Date', meetingDate:'Meeting date', agenda:'Agenda',
   bps:'BPS/Grade', basicPay:'Monthly salary', costCentre:'Cost centre',
   section:'Section', workingDays:'Working days', attDuration:'Duration',
-  sessionYear:'Session', noticeReason:'Notice detail', extraData:'Additional information'
+  sessionYear:'Session', noticeReason:'Notice detail', extraData:'Additional information',
+  hwScope:'Homework scope', includeKey:'Include answer key'
 };
 
 /* ─── Per-document AI guidance ───────────────────────────────────────────── */
@@ -363,7 +430,9 @@ const DOC_GUIDE = {
   'Parent Complaint Letter':'Write a respectful notice/letter to the parent about the given matter, mentioning the child\'s name, class, roll number and G.R number in the header block only. Keep the tone constructive and invite the parent for a meeting.',
   'Age Calculator Sheet':'Create an age eligibility record sheet table with columns: S.No, Student name, Father name, Date of birth, Age on cutoff date, Eligible (Yes/No). Include 15 blank numbered rows.',
   'Event Banner Content':'Create event announcement content: main heading, tagline, key details (date, time, venue), and 3 short promotional lines.',
-  'Complaint Letter':'Write a formal complaint letter with reference line, date, recipient, subject, factual respectful body covering the main points, requested action, and signature block.'
+  'Complaint Letter':'Write a formal complaint letter with reference line, date, recipient, subject, factual respectful body covering the main points, requested action, and signature block.',
+  'Homework Sheet':'Create a printable homework/assignment sheet for the given lesson scope with THREE differentiated levels clearly separated: "⭐ SUPPORT" (easier tasks for struggling learners), "⭐⭐ CORE" (whole-class tasks), "⭐⭐⭐ CHALLENGE" (extension tasks for advanced learners). Use varied task types appropriate to the class level, a student info header (Name, Class, Roll No, Date as blank lines), estimated time per section, a short instruction line for parents, and a parent signature line at the end. If "Include answer key: Yes" is specified in the details, add a complete ANSWER KEY section at the very end starting with the line [[PAGEBREAK]] so it prints on its own page.',
+  'Learning Gap Analysis':'You are given real class assessment data (subject-wise marks of every student) in the details below. Write a professional Learning Gap Analysis & Remedial Plan: (1) overall class performance summary with key numbers, (2) subject-wise gap analysis in a table — average, weakest areas, likely root causes, (3) a "Students Needing Extra Support" table listing each at-risk student with weak subjects and 2-3 specific remedial activities each, (4) a practical 4-week whole-class improvement plan (week-by-week table), (5) a re-assessment strategy, (6) 3 practical tips teachers can share with parents. Use ONLY the exact data provided — never invent students or marks.'
 };
 
 /* ─── Helpers: file → Claude content block, language instructions ─────────── */
@@ -403,8 +472,32 @@ function buildDetailLines(fields) {
     .join('\n');
 }
 
+/* ─── My Documents — har AI document save hota hai, yahan se wapas milta hai ── */
+app.get('/documents', async (req, res) => {
+  const user = await userFromReq(req);
+  if (!user) return res.json({ success: false, error: 'LOGIN_REQUIRED' });
+  const { data, error } = await sb.from('tt_documents')
+    .select('id,doc_type,title,created_at')
+    .eq('user_id', user.id).order('created_at', { ascending: false }).limit(100);
+  if (error) return res.json({ success: false, error: error.message });
+  res.json({ success: true, documents: data || [] });
+});
+app.get('/documents/:id', async (req, res) => {
+  const user = await userFromReq(req);
+  if (!user) return res.json({ success: false, error: 'LOGIN_REQUIRED' });
+  const { data } = await sb.from('tt_documents').select('*').eq('id', req.params.id).eq('user_id', user.id).maybeSingle();
+  if (!data) return res.json({ success: false, error: 'Document not found.' });
+  res.json({ success: true, document: data });
+});
+app.post('/documents/delete', async (req, res) => {
+  const user = await userFromReq(req);
+  if (!user) return res.json({ success: false, error: 'LOGIN_REQUIRED' });
+  await sb.from('tt_documents').delete().eq('id', req.body.id).eq('user_id', user.id);
+  res.json({ success: true });
+});
+
 /* ─── Version (frontend isse check karta hai ke server nayi hai ya nahi) ── */
-app.get('/version', (req, res) => res.json({ v: '3.1', features: ['generate-with-file', 'streaming', 'pdf-books', 'paid-system', 'book-bank', 'slo-bank', 'verify'] }));
+app.get('/version', (req, res) => res.json({ v: '3.3', features: ['generate-with-file', 'streaming', 'pdf-books', 'paid-system', 'book-bank', 'slo-bank', 'verify', 'documents', 'assistant', 'premium-tools'] }));
 
 /* ─── Streaming: AI jo likhta jaye foran bhejo — Render ki 100s timeout kabhi nahi lagegi ─── */
 function friendlyError(msg) {
@@ -566,7 +659,8 @@ RULES:
 /* ─── GENERATE CRQ ───────────────────────────────────────────────────────── */
 app.post('/generate-crq', upload.single('file'), async (req, res) => {
   const { schoolName, teacherName, className, subject, unitName, difficulty, bloomLevels, mcqCount, shortCount, longCount, includeAnswerKey, language } = req.body;
-  const bl = JSON.parse(bloomLevels || '["Remember","Understand","Apply"]');
+  let bl; try { bl = JSON.parse(bloomLevels || '[]'); } catch (e) { bl = []; }
+  if (!Array.isArray(bl) || !bl.length) bl = ['Remember', 'Understand', 'Apply'];
 
   let srcBlock = null;
   if (req.file) {
@@ -973,11 +1067,6 @@ app.post('/download-docx', async (req, res) => {
         i++; continue;
       }
       /* Student photo placeholder */
-      if (line.trim() === '[[PAGEBREAK]]') { html += '<div style="page-break-before:always"></div>'; i++; continue; }
-      if (line.trim() === '[[LOGO]]') {
-        if (logoOk) html += `<div style="text-align:center;margin-bottom:6px"><img src="${logo}" style="width:74px;height:74px;object-fit:contain"></div>`;
-        i++; continue;
-      }
       if (line.trim() === '[[PHOTO]]') {
         if (photoBuf) {
           children.push(new Paragraph({
@@ -1177,6 +1266,13 @@ app.post('/download-excel', async (req, res) => {
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
+});
+
+/* ─── GLOBAL ERROR HANDLER — HTML 500 ki jagah hamesha friendly JSON ─────── */
+app.use((err, req, res, next) => {
+  if (res.headersSent) return next(err);
+  console.error('Unhandled route error:', err.message);
+  res.status(err.status || 500).json({ success: false, error: friendlyError(err.message) });
 });
 
 /* ─── START SERVER ───────────────────────────────────────────────────────── */

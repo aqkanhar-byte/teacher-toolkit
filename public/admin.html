@@ -78,9 +78,10 @@ td{padding:8px 10px;border-bottom:1px solid var(--g100)}
 
   <div class="card">
     <h3>📚 Book Bank — Upload curated STB books (teachers select these, no upload needed)</h3>
+    <div style="font-size:11px;color:var(--g600);margin-bottom:8px">Class aur Subject <b>dropdown se hi</b> chunein — teacher app mein book tabhi dikhegi jab class + subject bilkul match karein.</div>
     <div class="row">
-      <select id="b_class"></select>
-      <input type="text" id="b_subject" placeholder="Subject (e.g. English)">
+      <select id="b_class" onchange="fillBookSubjects()"></select>
+      <select id="b_subject"></select>
       <input type="text" id="b_title" placeholder="Book title (e.g. My English Book 1 — STB 2023)">
     </div>
     <div class="row" style="grid-template-columns:1fr 1fr 1fr">
@@ -95,8 +96,8 @@ td{padding:8px 10px;border-bottom:1px solid var(--g100)}
   <div class="card">
     <h3>🎯 SLO Bank — official curriculum SLOs (AI in par lock hota hai)</h3>
     <div class="row" style="grid-template-columns:1fr 1fr">
-      <select id="sl_class"></select>
-      <input type="text" id="sl_subject" placeholder="Subject (e.g. English)">
+      <select id="sl_class" onchange="fillSloSubjects()"></select>
+      <select id="sl_subject"></select>
     </div>
     <div style="font-size:11px;color:var(--g600);margin-bottom:6px">One SLO per line — format: <b>UnitNo | Unit Name | SLO-Code | SLO text | Bloom level</b><br>Example: <code>1 | My Family | E1-U1-01 | Identify and name immediate family members | Remember</code></div>
     <textarea id="sl_lines" rows="6" style="width:100%;padding:10px;border:1.5px solid var(--g200);border-radius:10px;font-size:12px;font-family:monospace;background:var(--g100)" placeholder="1 | My Family | E1-U1-01 | Identify and name immediate family members | Remember"></textarea>
@@ -115,10 +116,23 @@ td{padding:8px 10px;border-bottom:1px solid var(--g100)}
 </div>
 
 </div>
+<script src="/shared-data.js"></script>
 <script>
 let USERS=[];
-const CLS=['ECCE (Katchi)','Class 1','Class 2','Class 3','Class 4','Class 5','Class 6','Class 7','Class 8','Class 9','Class 10','Class 11','Class 12'];
-function fillCls(){['b_class','sl_class'].forEach(id=>{const e=document.getElementById(id);if(e&&!e.options.length)e.innerHTML=CLS.map(c=>'<option>'+c+'</option>').join('');});}
+/* XSS se hifazat — DB se aayi har value HTML mein daalne se pehle escape hoti hai */
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function fillCls(){
+  ['b_class','sl_class'].forEach(id=>{const e=document.getElementById(id);if(e&&!e.options.length)e.innerHTML=CLASS_LIST.map(c=>'<option>'+esc(c)+'</option>').join('');});
+  fillBookSubjects();fillSloSubjects();
+}
+function fillBookSubjects(){
+  const cls=document.getElementById('b_class').value;
+  document.getElementById('b_subject').innerHTML=allSubjectsFor(cls).map(s=>'<option>'+esc(s)+'</option>').join('');
+}
+function fillSloSubjects(){
+  const cls=document.getElementById('sl_class').value;
+  document.getElementById('sl_subject').innerHTML=allSubjectsFor(cls).map(s=>'<option>'+esc(s)+'</option>').join('');
+}
 async function uploadBook(){
   const msg=document.getElementById('bookMsg');msg.textContent='';
   const f=document.getElementById('b_file').files[0];
@@ -127,21 +141,21 @@ async function uploadBook(){
   const fd=new FormData();
   fd.append('file',f);
   fd.append('className',document.getElementById('b_class').value);
-  fd.append('subject',document.getElementById('b_subject').value.trim());
+  fd.append('subject',document.getElementById('b_subject').value);
   fd.append('title',document.getElementById('b_title').value.trim());
   fd.append('unitLabel',document.getElementById('b_unit').value.trim());
   msg.innerHTML='⏳ Uploading...';
   try{
     const r=await fetch('/admin/upload-book',{method:'POST',headers:{'x-admin-key':key()},body:fd});
     const d=await r.json();
-    if(d.success){msg.innerHTML='<span class="ok">✅ Uploaded!</span>';document.getElementById('b_file').value='';document.getElementById('b_title').value='';loadBooks();}
-    else msg.innerHTML='<span class="err">❌ '+d.error+'</span>';
-  }catch(e){msg.innerHTML='<span class="err">❌ '+e.message+'</span>';}
+    if(d.success){msg.innerHTML='<span class="ok">✅ Uploaded! Book is now live for teachers ('+esc(d.book&&d.book.class_name)+' · '+esc(d.book&&d.book.subject)+').</span>';document.getElementById('b_file').value='';document.getElementById('b_title').value='';document.getElementById('b_unit').value='';loadBooks();}
+    else msg.innerHTML='<span class="err">❌ '+esc(d.error)+'</span>';
+  }catch(e){msg.innerHTML='<span class="err">❌ '+esc(e.message)+'</span>';}
 }
 async function loadBooks(){
   try{
     const r=await fetch('/books');const d=await r.json();
-    document.getElementById('bookRows').innerHTML=(d.books||[]).map(b=>'<tr><td>'+b.class_name+'</td><td>'+b.subject+'</td><td><b>'+b.title+'</b></td><td>'+(b.unit_label||'—')+'</td><td>'+b.size_mb+'MB</td><td><button style="background:var(--red);padding:5px 12px;font-size:11px" onclick="delBook(\''+b.id+'\')">Del</button></td></tr>').join('')||'<tr><td colspan="6" style="color:var(--g400)">No books yet — upload unit-wise STB PDFs above.</td></tr>';
+    document.getElementById('bookRows').innerHTML=(d.books||[]).map(b=>'<tr><td>'+esc(b.class_name)+'</td><td>'+esc(b.subject)+'</td><td><b>'+esc(b.title)+'</b></td><td>'+esc(b.unit_label||'—')+'</td><td>'+esc(b.size_mb)+'MB</td><td><button style="background:var(--red);padding:5px 12px;font-size:11px" onclick="delBook(\''+esc(b.id)+'\')">Del</button></td></tr>').join('')||'<tr><td colspan="6" style="color:var(--g400)">No books yet — upload unit-wise STB PDFs above.</td></tr>';
   }catch(e){}
 }
 async function delBook(id){
@@ -158,16 +172,16 @@ async function addSlos(){
       lines:document.getElementById('sl_lines').value
     })});
     const d=await r.json();
-    if(d.success){msg.innerHTML='<span class="ok">✅ '+d.added+' SLOs added</span>';document.getElementById('sl_lines').value='';loadSlos();}
-    else msg.innerHTML='<span class="err">❌ '+d.error+'</span>';
-  }catch(e){msg.innerHTML='<span class="err">❌ '+e.message+'</span>';}
+    if(d.success){msg.innerHTML='<span class="ok">✅ '+esc(d.added)+' SLOs added</span>';document.getElementById('sl_lines').value='';loadSlos();}
+    else msg.innerHTML='<span class="err">❌ '+esc(d.error)+'</span>';
+  }catch(e){msg.innerHTML='<span class="err">❌ '+esc(e.message)+'</span>';}
 }
 async function loadSlos(){
   try{
     const r=await fetch('/admin/slos',{headers:hdr()});const d=await r.json();
     if(!d.success)return;
     const keys=Object.keys(d.summary||{});
-    document.getElementById('sloSummary').innerHTML=keys.length?('<b>SLO Bank coverage:</b> '+keys.map(k=>k+' ('+d.summary[k]+')').join(' · ')):'SLO Bank is empty — paste SLOs from official curriculum documents above.';
+    document.getElementById('sloSummary').innerHTML=keys.length?('<b>SLO Bank coverage:</b> '+keys.map(k=>esc(k)+' ('+esc(d.summary[k])+')').join(' · ')):'SLO Bank is empty — paste SLOs from official curriculum documents above.';
   }catch(e){}
 }
 function key(){return localStorage.getItem('tt_admin')||'';}
@@ -199,7 +213,7 @@ function renderUsers(){
   const q=(document.getElementById('search').value||'').toLowerCase();
   document.getElementById('rows').innerHTML=USERS
     .filter(u=>!q||[u.name,u.phone,u.school].join(' ').toLowerCase().includes(q))
-    .map(u=>'<tr><td><b>'+u.name+'</b></td><td>'+u.phone+'</td><td>'+(u.school||'—')+'</td><td><b>'+u.credits+'</b></td><td>'+new Date(u.created_at).toLocaleDateString()+'</td></tr>').join('');
+    .map(u=>'<tr><td><b>'+esc(u.name)+'</b></td><td>'+esc(u.phone)+'</td><td>'+esc(u.school||'—')+'</td><td><b>'+esc(u.credits)+'</b></td><td>'+new Date(u.created_at).toLocaleDateString()+'</td></tr>').join('');
 }
 async function addSub(){
   const msg=document.getElementById('subMsg');msg.textContent='';
@@ -212,8 +226,8 @@ async function addSub(){
       note:document.getElementById('s_note').value
     })});
     const d=await r.json();
-    if(d.success){msg.innerHTML='<span class="ok">✅ '+d.name+' is now Monthly Pro until '+new Date(d.expires).toLocaleDateString()+'</span>';document.getElementById('s_phone').value='';load();}
-    else msg.innerHTML='<span class="err">❌ '+d.error+'</span>';
+    if(d.success){msg.innerHTML='<span class="ok">✅ '+esc(d.name)+' is now Monthly Pro until '+new Date(d.expires).toLocaleDateString()+'</span>';document.getElementById('s_phone').value='';load();}
+    else msg.innerHTML='<span class="err">❌ '+esc(d.error)+'</span>';
   }catch(e){msg.innerHTML='<span class="err">❌ Network error</span>';}
 }
 async function addCredits(){
@@ -226,8 +240,8 @@ async function addCredits(){
       note:document.getElementById('c_note').value
     })});
     const d=await r.json();
-    if(d.success){msg.innerHTML='<span class="ok">✅ Credits added to '+d.name+' — new balance: '+d.newBalance+'</span>';['c_phone','c_credits','c_amount','c_note'].forEach(i=>document.getElementById(i).value='');load();}
-    else msg.innerHTML='<span class="err">❌ '+d.error+'</span>';
+    if(d.success){msg.innerHTML='<span class="ok">✅ Credits added to '+esc(d.name)+' — new balance: '+esc(d.newBalance)+'</span>';['c_phone','c_credits','c_amount','c_note'].forEach(i=>document.getElementById(i).value='');load();}
+    else msg.innerHTML='<span class="err">❌ '+esc(d.error)+'</span>';
   }catch(e){msg.innerHTML='<span class="err">❌ Network error</span>';}
 }
 if(key())load();

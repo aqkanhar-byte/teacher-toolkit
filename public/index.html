@@ -21,13 +21,49 @@
   --green:#0a7c5c;--green-bg:#eafaf4;--red:#b91c1c;--red-bg:#fef2f2;--blue:#1d4ed8;--blue-bg:#eff6ff;
   --sh-sm:0 1px 3px rgba(26,39,68,.08);--sh:0 4px 14px rgba(26,39,68,.1);--sh-lg:0 10px 30px rgba(26,39,68,.15);
   --r:10px;--r-lg:14px;
+  --dur:.18s;--ease:cubic-bezier(.4,0,.2,1);
+  --heading:var(--navy);
+  color-scheme:light;
 }
+/* ─── DARK MODE — same variable names, just repainted; every component "just works" ─── */
+:root[data-theme="dark"]{
+  --white:#16213b;--bg:#0b1220;
+  --g100:#1c2740;--g200:#2a3654;--g300:#3c4a6e;--g400:#8b96b8;--g600:#c2cbe3;--g800:#eef1fa;
+  --gold-bg:rgba(200,150,12,.16);--green-bg:rgba(10,124,92,.18);--red-bg:rgba(185,28,28,.18);--blue-bg:rgba(29,78,216,.2);
+  --sh-sm:0 1px 3px rgba(0,0,0,.3);--sh:0 4px 14px rgba(0,0,0,.35);--sh-lg:0 10px 30px rgba(0,0,0,.5);
+  --heading:#f2d67a; /* headings on cards use a warm gold-tinted light tone instead of navy-on-navy */
+  color-scheme:dark;
+}
+:root[data-theme="dark"] .loader-ring::before{border-color:var(--g200);border-top-color:var(--gold-light)}
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(--g800);font-size:14px;line-height:1.6;-webkit-font-smoothing:antialiased}
+html{scroll-behavior:smooth}
+body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(--g800);font-size:14px;line-height:1.65;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+body,.sec-card,.sidebar,.db-form,.modal,.ast-panel,.tour-card,.hero,.crq-card,input,select,textarea,.mini-btn,.sb-item,.pa-stat,.result-wrap,.loader-wrap{transition:background-color var(--dur) var(--ease),color var(--dur) var(--ease),border-color var(--dur) var(--ease),box-shadow var(--dur) var(--ease)}
 button,input,select,textarea{font-family:inherit}
 button{cursor:pointer;border:none;background:none}
 ::-webkit-scrollbar{width:5px;height:5px}
 ::-webkit-scrollbar-thumb{background:var(--g300);border-radius:99px}
+/* ─── Accessibility: visible keyboard focus everywhere (mouse clicks stay clean) ─── */
+:focus{outline:none}
+:focus-visible{outline:2.5px solid var(--gold);outline-offset:2px;border-radius:4px}
+.skip-link{position:fixed;top:-48px;left:8px;z-index:1000;background:var(--navy-dark);color:#fff;padding:10px 16px;border-radius:8px;font-size:12px;font-weight:800;transition:top .15s ease}
+.skip-link:focus-visible{top:8px}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.001ms!important;transition-duration:.001ms!important}}
+
+/* ─── TOAST NOTIFICATIONS (replaces jarring native alert()) ─── */
+.toast-wrap{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:600;display:flex;flex-direction:column;gap:8px;align-items:center;width:min(92vw,420px);pointer-events:none}
+.toast{pointer-events:auto;width:100%;background:var(--navy-dark);color:#fff;border-radius:12px;padding:12px 16px;font-size:12.5px;font-weight:600;line-height:1.55;box-shadow:var(--sh-lg);border-left:4px solid var(--gold);display:flex;gap:10px;align-items:flex-start;white-space:pre-wrap;animation:toastIn .22s var(--ease) both}
+.toast.ok{border-left-color:var(--green)}
+.toast.err{border-left-color:#f87171}
+.toast.leaving{animation:toastOut .18s var(--ease) both}
+@keyframes toastIn{from{opacity:0;transform:translateY(10px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes toastOut{to{opacity:0;transform:translateY(6px) scale(.97)}}
+@media(max-width:480px){.toast-wrap{bottom:88px}}
+
+/* ─── THEME TOGGLE ─── */
+.theme-btn{width:32px;height:32px;border-radius:99px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.theme-btn:hover{background:rgba(255,255,255,.16)}
+.theme-btn svg{width:16px;height:16px}
 
 /* ─── TOPBAR ─── */
 .topbar{position:fixed;top:0;left:0;right:0;z-index:200;height:56px;background:var(--navy-dark);border-bottom:3px solid var(--gold);display:flex;align-items:center;justify-content:space-between;padding:0 16px}
@@ -50,11 +86,11 @@ button{cursor:pointer;border:none;background:none}
 
 /* Sidebar profile */
 .sb-profile{background:var(--gold-bg);border:1px solid rgba(200,150,12,.25);border-radius:var(--r);padding:12px;margin-bottom:14px;position:relative}
-.sb-school{font-size:12.5px;font-weight:800;color:var(--navy);line-height:1.35;padding-right:22px}
+.sb-school{font-size:12.5px;font-weight:800;color:var(--heading);line-height:1.35;padding-right:22px}
 .sb-hm{font-size:10.5px;color:var(--g600);margin-top:3px;font-weight:600}
 .sb-semis{display:inline-block;margin-top:7px;font-size:9px;font-weight:800;background:var(--navy);color:#fff;padding:3px 10px;border-radius:99px;letter-spacing:.4px}
 .sb-edit{position:absolute;top:9px;right:9px;width:22px;height:22px;border-radius:6px;font-size:11px;color:var(--g400);display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.6)}
-.sb-edit:hover{color:var(--navy)}
+.sb-edit:hover{color:var(--heading)}
 .sb-setup{font-size:11px;color:var(--g600);line-height:1.5}
 .sb-setup button{margin-top:8px;background:var(--navy);color:#fff;font-size:10.5px;font-weight:700;padding:6px 14px;border-radius:8px}
 
@@ -64,7 +100,7 @@ button{cursor:pointer;border:none;background:none}
 .sb-item:hover{background:var(--g100)}
 .sb-item.active{background:var(--blue-bg);border-color:rgba(29,78,216,.25)}
 .sb-ico{width:30px;height:30px;border-radius:8px;background:var(--g100);display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
-.sb-item.active .sb-ico{background:#fff}
+.sb-item.active .sb-ico{background:var(--white)}
 .sb-txt{min-width:0;flex:1}
 .sb-name{font-size:12px;font-weight:700;color:var(--g800);line-height:1.25}
 .sb-item.active .sb-name{color:var(--blue)}
@@ -86,7 +122,7 @@ button{cursor:pointer;border:none;background:none}
 .doc-head{display:flex;align-items:center;gap:13px;margin-bottom:15px;flex-wrap:wrap}
 .dh-ico{width:44px;height:44px;border-radius:12px;background:var(--white);border:1px solid var(--g200);box-shadow:var(--sh-sm);display:flex;align-items:center;justify-content:center;font-size:22px}
 .dh-txt{flex:1;min-width:150px}
-.dh-name{font-size:18px;font-weight:800;color:var(--navy);letter-spacing:-.3px}
+.dh-name{font-size:18px;font-weight:800;color:var(--heading);letter-spacing:-.3px}
 .dh-sub{font-size:11px;color:var(--g400);font-weight:600}
 .dh-right{display:flex;gap:8px;align-items:center}
 .mode-badge{font-size:9.5px;font-weight:800;padding:4px 12px;border-radius:99px;letter-spacing:.3px}
@@ -112,6 +148,7 @@ button{cursor:pointer;border:none;background:none}
 .fg textarea{resize:vertical;min-height:70px;line-height:1.5}
 .age-badge{display:none;margin-top:4px;font-size:11px;font-weight:700;color:var(--green);background:var(--green-bg);border:1px solid var(--green);border-radius:99px;padding:3px 10px;width:fit-content}
 .btn-gen{width:100%;padding:14px;border-radius:var(--r);background:linear-gradient(135deg,var(--navy-dark),var(--navy));color:#fff;font-size:14px;font-weight:800;box-shadow:0 4px 14px rgba(26,39,68,.25);transition:all .2s;border-bottom:3px solid var(--gold)}
+.btn-gen:active:not(:disabled),.mini-btn:active,.ph-send:active:not(:disabled),.diff-btn:active{transform:scale(.97)}
 .btn-gen:hover{transform:translateY(-2px);box-shadow:0 8px 22px rgba(26,39,68,.3)}
 .btn-gen:disabled{background:var(--g200);color:var(--g400);border-bottom-color:var(--g300);box-shadow:none;transform:none;cursor:not-allowed}
 
@@ -127,7 +164,7 @@ button{cursor:pointer;border:none;background:none}
 .db-search{flex:1;min-width:150px;padding:9px 12px;border:1.5px solid var(--g200);border-radius:var(--r);font-size:12px;background:var(--g100);outline:none}
 .db-search:focus{border-color:var(--navy);background:var(--white)}
 .mini-btn{padding:8px 14px;border-radius:var(--r);font-size:11px;font-weight:700;border:1.5px solid var(--g200);background:var(--g100);color:var(--g600);transition:all .15s}
-.mini-btn:hover{border-color:var(--navy);color:var(--navy)}
+.mini-btn:hover{border-color:var(--navy);color:var(--heading)}
 .mini-btn.primary{background:var(--navy);color:#fff;border-color:var(--navy)}
 .mini-btn.gold{background:var(--gold);color:var(--navy-dark);border-color:var(--gold)}
 .db-table{width:100%;border-collapse:collapse;margin-top:12px;font-size:12px}
@@ -204,7 +241,7 @@ button{cursor:pointer;border:none;background:none}
 .btn-copy{background:rgba(255,255,255,.1);color:rgba(255,255,255,.75);border:1px solid rgba(255,255,255,.15)}
 .result-body{padding:18px;font-size:12.5px;line-height:1.9;white-space:pre-wrap;max-height:560px;overflow-y:auto;color:var(--g600);font-family:'Courier New',monospace}
 .result-foot{padding:9px 18px;border-top:1px solid var(--g100);background:var(--g100);text-align:right;font-size:10px;color:var(--g400);font-style:italic}
-.result-foot b{color:var(--navy);font-style:normal}
+.result-foot b{color:var(--heading);font-style:normal}
 
 /* Views */
 .view{display:none}
@@ -231,23 +268,91 @@ button{cursor:pointer;border:none;background:none}
   .crq-grid2,.crq-grid3{grid-template-columns:1fr}
   .hero-bis{font-size:20px;top:12px;right:14px}
   .hero h1{max-width:100%}
-  .dev-badge{display:none}
-  .db-table th:nth-child(2),.db-table td:nth-child(2){display:none}
+  /* "AI Powered" sirf decorative hai — mobile par jagah bachane ke liye chhupao.
+     Credits chip aur Login button dono functional hain, hamesha nazar aane chahiye
+     (pehle .dev-badge{display:none} ne dono ko ghalti se chhupa diya tha — Login button
+     mobile par ghayab ho jata tha, ye ek asli bug tha jo yahan fix kiya gaya). */
+  .ai-badge{display:none}
+  /* sirf Student Database list ka "Father" column mobile par chhupao — baqi tables par asar nahi */
+  #dbList .db-table th:nth-child(2),#dbList .db-table td:nth-child(2){display:none}
 }
+
+/* ─── PREMIUM TOOLS (Analyzer + Parent Hub) ─── */
+.pa-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:14px}
+.pa-stat{background:var(--white);border:1px solid var(--g200);border-radius:var(--r);padding:13px 14px;box-shadow:var(--sh-sm)}
+.pa-stat .v{font-size:21px;font-weight:800;color:var(--heading);line-height:1.2}
+.pa-stat .l{font-size:9.5px;font-weight:800;color:var(--g400);text-transform:uppercase;letter-spacing:.6px;margin-top:3px}
+.pa-stat.warn .v{color:var(--red)}
+.pa-stat.good .v{color:var(--green)}
+.pa-bar-row{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.pa-bar-name{width:130px;font-size:11.5px;font-weight:700;flex-shrink:0;text-align:right;color:var(--g600)}
+.pa-bar-track{flex:1;height:18px;background:var(--g100);border-radius:99px;overflow:hidden}
+.pa-bar-fill{height:100%;border-radius:99px;display:flex;align-items:center;justify-content:flex-end;padding-right:8px;font-size:9.5px;font-weight:800;color:#fff;min-width:34px;transition:width .5s ease}
+.risk-chip{display:inline-block;font-size:10px;font-weight:700;background:var(--red-bg);color:var(--red);border:1px solid rgba(185,28,28,.3);border-radius:99px;padding:2px 9px;margin:2px 3px 2px 0}
+.ph-row{display:flex;align-items:center;gap:10px;padding:9px 12px;border-bottom:1px solid var(--g100);flex-wrap:wrap}
+.ph-row:hover{background:var(--g100)}
+.ph-info{flex:1;min-width:140px}
+.ph-name{font-size:12.5px;font-weight:700}
+.ph-sub{font-size:10.5px;color:var(--g400);font-weight:600}
+.ph-send{padding:6px 13px;border-radius:99px;font-size:11px;font-weight:800;background:linear-gradient(135deg,#0a7c5c,#10b981);color:#fff}
+.ph-send:disabled{background:var(--g200);color:var(--g400)}
+.ph-preview{background:var(--green-bg);border:1px solid rgba(10,124,92,.3);border-radius:var(--r);padding:12px 14px;font-size:12px;line-height:1.8;white-space:pre-wrap;color:var(--g800)}
+
+/* ─── TOOLKIT ASSISTANT (offline help — floating chat) ─── */
+.ast-fab{position:fixed;bottom:20px;right:20px;z-index:400;width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,var(--navy-dark),var(--navy));border:2px solid var(--gold);box-shadow:0 6px 20px rgba(15,26,46,.35);color:#fff;font-size:23px;display:flex;align-items:center;justify-content:center;transition:transform .2s;cursor:pointer}
+.ast-fab:hover{transform:scale(1.08)}
+.ast-panel{display:none;position:fixed;bottom:88px;right:20px;z-index:400;width:372px;max-width:calc(100vw - 24px);height:540px;max-height:calc(100vh - 120px);background:var(--white);border-radius:16px;border:1px solid var(--g200);box-shadow:0 20px 50px rgba(15,26,46,.3);flex-direction:column;overflow:hidden;animation:astUp .22s ease}
+.ast-panel.open{display:flex}
+@keyframes astUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+.ast-head{background:linear-gradient(135deg,var(--navy-dark),var(--navy));padding:13px 16px;display:flex;align-items:center;gap:10px;border-bottom:3px solid var(--gold)}
+.ast-ava{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,var(--gold),var(--gold-light));display:flex;align-items:center;justify-content:center;font-size:17px}
+.ast-head-t{flex:1}
+.ast-head-name{color:#fff;font-size:13px;font-weight:800}
+.ast-head-sub{color:rgba(255,255,255,.5);font-size:10px;font-weight:600}
+.ast-close{color:rgba(255,255,255,.6);font-size:17px;padding:4px}
+.ast-body{flex:1;overflow-y:auto;padding:14px;background:var(--bg);display:flex;flex-direction:column;gap:10px}
+.ast-msg{max-width:88%;padding:10px 13px;border-radius:13px;font-size:12.5px;line-height:1.65;word-break:break-word}
+.ast-msg.bot{background:var(--white);border:1px solid var(--g200);border-bottom-left-radius:4px;align-self:flex-start;color:var(--g800);box-shadow:var(--sh-sm)}
+.ast-msg.user{background:var(--navy);color:#fff;border-bottom-right-radius:4px;align-self:flex-end}
+.ast-msg.bot b{color:var(--heading)}
+.ast-art-t{font-weight:800;color:var(--heading);font-size:13px;margin-bottom:4px}
+.ast-chips{display:flex;flex-wrap:wrap;gap:6px;align-self:flex-start;max-width:95%}
+.ast-chip{font-size:11px;font-weight:700;padding:6px 12px;border-radius:99px;background:var(--white);border:1.5px solid var(--g200);color:var(--g600);cursor:pointer;transition:all .15s;text-align:left}
+.ast-chip:hover{border-color:var(--gold);color:var(--heading);background:var(--gold-bg)}
+.ast-foot{padding:10px;border-top:1px solid var(--g200);background:var(--white);display:flex;gap:8px}
+.ast-inp{flex:1;padding:10px 13px;border:1.5px solid var(--g200);border-radius:99px;font-size:12.5px;background:var(--g100);outline:none}
+.ast-inp:focus{border-color:var(--navy);background:var(--white)}
+.ast-send{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,var(--gold),var(--gold-light));color:var(--navy-dark);font-size:15px;font-weight:800;flex-shrink:0}
+@media(max-width:480px){.ast-panel{right:12px;bottom:82px}.ast-fab{bottom:16px;right:14px}}
+
+/* ─── GUIDED TOUR (first-time onboarding) ─── */
+.tour-overlay{display:none;position:fixed;inset:0;background:rgba(15,26,46,.62);z-index:500}
+.tour-overlay.open{display:block}
+.tour-card{position:fixed;left:50%;transform:translateX(-50%);bottom:26px;z-index:503;width:min(430px,calc(100vw - 28px));background:var(--white);border-radius:16px;border:1px solid var(--g200);box-shadow:0 20px 50px rgba(15,26,46,.4);padding:18px;border-top:4px solid var(--gold)}
+.tour-step{font-size:10px;font-weight:800;color:var(--gold);text-transform:uppercase;letter-spacing:.8px}
+.tour-title{font-size:15px;font-weight:800;color:var(--heading);margin-top:4px}
+.tour-body{font-size:12.5px;color:var(--g600);line-height:1.65;margin-top:6px}
+.tour-btns{display:flex;gap:8px;margin-top:14px;justify-content:flex-end}
+.tour-raise{z-index:502!important;position:relative}
+.tour-hl{box-shadow:0 0 0 3px var(--gold-light),0 6px 18px rgba(200,150,12,.4)!important;border-radius:12px;background:var(--white);position:relative;z-index:502}
 </style>
 </head>
 <body>
 
+<a href="#main" class="skip-link">Skip to main content</a>
+<div class="toast-wrap" id="toastWrap" aria-live="polite" aria-atomic="true"></div>
+
 <header class="topbar">
   <div class="tb-left">
-    <button class="menu-btn" onclick="toggleSidebar()">☰</button>
-    <div class="brand-logo">TT</div>
+    <button class="menu-btn" onclick="toggleSidebar()" aria-label="Open menu">☰</button>
+    <div class="brand-logo" aria-hidden="true">TT</div>
     <div class="brand-txt">
       <div class="brand-name">Teacher <span>Toolkit</span></div>
       <div class="brand-sub" id="tbSub">Sindh Education Department</div>
     </div>
   </div>
   <div class="tb-right">
+    <button class="theme-btn" id="themeBtn" onclick="toggleTheme()" aria-label="Switch to dark mode" title="Switch theme"></button>
     <button class="dev-badge" id="credChip" onclick="creditChipClick()" style="cursor:pointer;display:none">💳 <em id="credCount">0</em> credits</button>
     <button class="dev-badge" id="authBtn" onclick="openAuth()" style="cursor:pointer">👤 Login</button>
     <div class="ai-badge">✦ AI Powered</div>
@@ -265,7 +370,7 @@ button{cursor:pointer;border:none;background:none}
 </aside>
 
 <!-- ═══ MAIN ═══ -->
-<main class="main">
+<main class="main" id="main">
 
   <!-- HERO -->
   <div class="hero" id="hero"></div>
@@ -500,8 +605,82 @@ button{cursor:pointer;border:none;background:none}
     </div>
   </div>
 
+  <!-- ══ VIEW: PERFORMANCE ANALYZER ══ -->
+  <div class="view" id="view-analyze">
+    <div class="doc-head">
+      <div class="dh-ico">📊</div>
+      <div class="dh-txt"><div class="dh-name">Performance Analyzer</div><div class="dh-sub">Enter marks once — learning gaps, at-risk students &amp; remedial plan</div></div>
+      <div class="dh-right"><span class="mode-badge off">⚡ Analysis Free</span></div>
+    </div>
+    <div class="sec-card">
+      <div class="sec-head"><div class="sec-bar"></div><div class="sec-title">1 · Class &amp; Assessment</div></div>
+      <div class="sec-body">
+        <div class="form-row">
+          <div class="fg"><label>Class</label><select id="paClass" onchange="paBuildTable()"></select></div>
+          <div class="fg"><label>Assessment / Term</label><select id="paTerm" onchange="paBuildTable()"><option>Monthly Test</option><option>Mid Term</option><option>Annual / Final</option><option>Class Test</option></select></div>
+        </div>
+        <div id="paGroupRow" class="form-row" style="display:none">
+          <div class="fg"><label>Group</label><select id="paGroup" onchange="paBuildTable()"></select></div>
+        </div>
+      </div>
+    </div>
+    <div class="sec-card">
+      <div class="sec-head"><div class="sec-bar"></div><div class="sec-title">2 · Marks Entry</div><span id="paSaved" style="margin-left:auto;font-size:10px;font-weight:700;color:var(--green)"></span></div>
+      <div class="sec-body" style="padding:0"><div style="overflow-x:auto"><table class="db-table" id="paTable"></table></div></div>
+    </div>
+    <button class="btn-gen" onclick="paAnalyze()">📊 Analyze Class Performance</button>
+    <div id="paDash" style="margin-top:16px"></div>
+  </div>
+
+  <!-- ══ VIEW: PARENT COMMUNICATION HUB ══ -->
+  <div class="view" id="view-parent">
+    <div class="doc-head">
+      <div class="dh-ico">💬</div>
+      <div class="dh-txt"><div class="dh-name">Parent Communication</div><div class="dh-sub">Personalized WhatsApp messages to parents — one tap each</div></div>
+      <div class="dh-right"><span class="mode-badge off">⚡ Instant · Free</span></div>
+    </div>
+    <div class="sec-card">
+      <div class="sec-head"><div class="sec-bar"></div><div class="sec-title">1 · Message</div></div>
+      <div class="sec-body">
+        <div class="form-row">
+          <div class="fg"><label>Message Type</label><select id="phTpl" onchange="phTplChange()"></select></div>
+          <div class="fg"><label>Language</label><select id="phLang" onchange="phRender()"><option value="english">English</option><option value="urdu">اردو (Urdu)</option><option value="roman">Roman Urdu</option></select></div>
+        </div>
+        <div id="phFields"></div>
+        <div style="margin-top:12px">
+          <div style="font-size:10px;font-weight:800;color:var(--g400);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px">Preview (first selected student)</div>
+          <div class="ph-preview" id="phPreview">—</div>
+        </div>
+      </div>
+    </div>
+    <div class="sec-card">
+      <div class="sec-head"><div class="sec-bar"></div><div class="sec-title">2 · Choose Parents</div>
+        <div style="margin-left:auto;display:flex;gap:6px">
+          <select id="phClass" onchange="phRender()" style="padding:5px 26px 5px 10px;border:1.5px solid var(--g200);border-radius:8px;font-size:11px;font-weight:700"></select>
+          <button class="mini-btn" style="padding:5px 12px;font-size:10px" onclick="phToggleAll()">Select All / None</button>
+        </div>
+      </div>
+      <div class="sec-body" style="padding:0"><div id="phList"></div></div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn-gen" style="flex:1;min-width:200px" onclick="phSendNext()">📱 Send to Selected — One by One</button>
+      <button class="mini-btn" style="padding:12px 18px" onclick="phCopyAll()">📋 Copy All Messages</button>
+    </div>
+    <div id="phLog" style="margin-top:12px;font-size:11px;color:var(--g400)"></div>
+  </div>
+
+  <!-- ══ VIEW: MY DOCUMENTS ══ -->
+  <div class="view" id="view-docs">
+    <div class="doc-head">
+      <div class="dh-ico">📂</div>
+      <div class="dh-txt"><div class="dh-name">My Documents</div><div class="dh-sub">Every AI document you generate is saved here automatically</div></div>
+      <div class="dh-right"><button class="mini-btn" onclick="loadMyDocs()">↻ Refresh</button></div>
+    </div>
+    <div class="sec-card"><div class="sec-body" id="myDocsList"><div class="db-empty">Loading...</div></div></div>
+  </div>
+
   <!-- LOADER + RESULT (shared) -->
-  <div class="loader-wrap" id="loader">
+  <div class="loader-wrap" id="loader" role="status" aria-live="polite">
     <div class="loader-ring"></div>
     <div class="loader-title">Generating Document...</div>
     <div class="loader-sub">Crafting your professional document</div>
@@ -526,10 +705,37 @@ button{cursor:pointer;border:none;background:none}
 </main>
 </div>
 
+<!-- ═══ TOOLKIT ASSISTANT (offline help) ═══ -->
+<button class="ast-fab" id="astBtn" onclick="astToggle()" aria-label="Help — Toolkit Assistant" title="Help & Assistant">💬</button>
+<div class="ast-panel" id="astPanel" role="dialog" aria-label="Toolkit Assistant">
+  <div class="ast-head">
+    <div class="ast-ava">🎓</div>
+    <div class="ast-head-t"><div class="ast-head-name">Toolkit Assistant</div><div class="ast-head-sub">Instant help · works offline · uses no credits</div></div>
+    <button class="ast-close" onclick="astToggle()" aria-label="Close">✕</button>
+  </div>
+  <div class="ast-body" id="astBody"></div>
+  <div class="ast-foot">
+    <input class="ast-inp" id="astInp" placeholder="Ask anything — e.g. how to upload a book" onkeydown="if(event.key==='Enter')astSend()">
+    <button class="ast-send" onclick="astSend()" aria-label="Send">➤</button>
+  </div>
+</div>
+
+<!-- ═══ FIRST-TIME GUIDED TOUR ═══ -->
+<div class="tour-overlay" id="tourOverlay"></div>
+<div class="tour-card" id="tourCard" style="display:none">
+  <div class="tour-step" id="tourStep"></div>
+  <div class="tour-title" id="tourTitle"></div>
+  <div class="tour-body" id="tourBody"></div>
+  <div class="tour-btns">
+    <button class="mini-btn" onclick="endTour()">Skip Tour</button>
+    <button class="mini-btn primary" id="tourNext" onclick="tourNext()">Next →</button>
+  </div>
+</div>
+
 <!-- AUTH MODAL -->
 <div class="overlay" id="authOverlay">
   <div class="modal">
-    <div class="modal-head"><span id="authTitle">Teacher Login</span> <button class="modal-close" onclick="closeAuth()">✕</button></div>
+    <div class="modal-head"><span id="authTitle">Teacher Login</span> <button class="modal-close" onclick="closeAuth()" aria-label="Close">✕</button></div>
     <div class="modal-body">
       <div style="display:flex;gap:8px;margin-bottom:14px">
         <button class="mini-btn primary" id="tabLogin" onclick="authTab('login')">Login</button>
@@ -554,14 +760,14 @@ button{cursor:pointer;border:none;background:none}
 <!-- BUY CREDITS MODAL -->
 <div class="overlay" id="buyOverlay">
   <div class="modal">
-    <div class="modal-head">💳 Buy Credits <button class="modal-close" onclick="closeBuy()">✕</button></div>
+    <div class="modal-head">💳 Buy Credits <button class="modal-close" onclick="closeBuy()" aria-label="Close">✕</button></div>
     <div class="modal-body">
       <div style="font-size:12.5px;line-height:1.7;color:var(--g600)">Your credits have run out. To buy more, send payment via <b>Easypaisa/JazzCash</b> to the number below, then send the screenshot on WhatsApp — your credits will be added right away.</div>
       <div id="buyPlans" style="margin-top:12px"></div>
       <div id="buyPrices" style="margin-top:10px"></div>
       <div style="margin-top:12px;padding:14px;border:1.5px solid var(--gold);border-radius:var(--r);background:var(--gold-bg)">
         <div style="font-size:10px;font-weight:800;color:var(--g400);text-transform:uppercase;letter-spacing:.7px">Easypaisa / JazzCash</div>
-        <div style="font-size:20px;font-weight:800;color:var(--navy);margin-top:4px" id="buyNumber">—</div>
+        <div style="font-size:20px;font-weight:800;color:var(--heading);margin-top:4px" id="buyNumber">—</div>
         <div style="font-size:12px;font-weight:700;color:var(--g600)" id="buyName">—</div>
       </div>
       <a id="buyWa" href="#" target="_blank" style="text-decoration:none"><button class="btn-gen" style="margin-top:12px;font-size:13px;background:linear-gradient(135deg,#0a7c5c,#10b981);border-bottom-color:#065f46">📱 Send Screenshot on WhatsApp</button></a>
@@ -573,7 +779,7 @@ button{cursor:pointer;border:none;background:none}
 <!-- PROFILE MODAL -->
 <div class="overlay" id="profileOverlay">
   <div class="modal">
-    <div class="modal-head">School Profile <button class="modal-close" onclick="closeProfile()">✕</button></div>
+    <div class="modal-head">School Profile <button class="modal-close" onclick="closeProfile()" aria-label="Close">✕</button></div>
     <div class="modal-body">
       <div class="form-row">
         <div class="fg full"><label>School Name <b>*</b></label><input type="text" id="p_school" placeholder="e.g. Government Boys Primary School ____"></div>
@@ -597,49 +803,52 @@ button{cursor:pointer;border:none;background:none}
     </div>
   </div>
 </div>
+<script src="/shared-data.js"></script>
 <script>
 /* ═══════════ STATE ═══════════ */
 const S={doc:'Lesson Plan',content:'',file:null,crqFile:null,diff:'easy',ak:false,editIdx:-1,lastFields:{}};
 function lang(){return document.getElementById('langSel').value;}
 
-/* ═══════════ SINDH E&LD SUBJECTS (ECCE → 10) ═══════════ */
-const CLASS_LIST=['ECCE (Katchi)','Class 1','Class 2','Class 3','Class 4','Class 5','Class 6','Class 7','Class 8','Class 9','Class 10','Class 11','Class 12'];
-const CLASS_SUBJECTS={
- 'ECCE (Katchi)':['Pre-Sindhi','Pre-English','Pre-Math','General Awareness','Rhymes & Activities'],
- 'Class 1':['Sindhi','English','Mathematics','Deeniyat / Nazra'],
- 'Class 2':['Sindhi','English','Mathematics','Deeniyat / Nazra'],
- 'Class 3':['Sindhi','English','Mathematics','General Knowledge','Islamiat'],
- 'Class 4':['Sindhi','Urdu','English','Mathematics','General Science','Social Studies','Islamiat'],
- 'Class 5':['Sindhi','Urdu','English','Mathematics','General Science','Social Studies','Islamiat'],
- 'Class 6':['Sindhi','Urdu','English','Mathematics','General Science','Social Studies','Islamiat','Computer Education'],
- 'Class 7':['Sindhi','Urdu','English','Mathematics','General Science','Social Studies','Islamiat','Computer Education'],
- 'Class 8':['Sindhi','Urdu','English','Mathematics','General Science','Social Studies','Islamiat','Computer Education']
-};
-const SEC_MAP={
- 'Class 9':{comp:['English','Sindhi','Urdu','Islamiat'],groups:{
-   'Science':['Mathematics','Physics','Chemistry','Biology','Computer Science'],
-   'Arts / General':['General Mathematics','General Science','Civics','Education','Economics','Islamic Studies (Elective)','Home Economics']}},
- 'Class 10':{comp:['English','Sindhi','Urdu','Pakistan Studies'],groups:{
-   'Science':['Mathematics','Physics','Chemistry','Biology','Computer Science'],
-   'Arts / General':['General Mathematics','General Science','Civics','Education','Economics','Islamic Studies (Elective)','Home Economics']}},
- 'Class 11':{comp:['English','Urdu','Islamic Education'],groups:{
-   'Pre-Medical':['Biology','Chemistry','Physics'],
-   'Pre-Engineering':['Mathematics','Chemistry','Physics'],
-   'Computer Science (ICS)':['Computer Science','Mathematics','Physics'],
-   'Commerce':['Principles of Accounting','Principles of Commerce','Business Mathematics','Economics'],
-   'Humanities / Arts':['Civics','Education','Economics','Sociology','Islamic Studies','Psychology']}},
- 'Class 12':{comp:['English','Urdu','Pakistan Studies'],groups:{
-   'Pre-Medical':['Biology','Chemistry','Physics'],
-   'Pre-Engineering':['Mathematics','Chemistry','Physics'],
-   'Computer Science (ICS)':['Computer Science','Mathematics','Statistics'],
-   'Commerce':['Principles of Accounting','Commercial Geography','Statistics','Principles of Banking'],
-   'Humanities / Arts':['Civics','Education','Economics','Sociology','Islamic Studies','Psychology']}}
-};
-function groupNames(cls){return SEC_MAP[cls]?Object.keys(SEC_MAP[cls].groups):[];}
-function subjectsFor(cls,group){
-  if(SEC_MAP[cls]){const gs=SEC_MAP[cls].groups;const g=gs[group]?group:Object.keys(gs)[0];return SEC_MAP[cls].comp.concat(gs[g]);}
-  return CLASS_SUBJECTS[cls]||[];
+/* ═══════════ THEME (dark/light) — persisted, respects system preference on first visit ═══════════ */
+const SUN_ICO='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.6M12 18.9v2.6M4.4 4.4l1.8 1.8M17.8 17.8l1.8 1.8M2.5 12h2.6M18.9 12h2.6M4.4 19.6l1.8-1.8M17.8 6.2l1.8-1.8"/></svg>';
+const MOON_ICO='<svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.7 15.3A8.6 8.6 0 0 1 9.7 4.3a1 1 0 0 0-1.2-1.3A10.6 10.6 0 1 0 22 16.5a1 1 0 0 0-1.3-1.2Z"/></svg>';
+function currentTheme(){return document.documentElement.getAttribute('data-theme')||'light';}
+function applyTheme(t){
+  document.documentElement.setAttribute('data-theme',t);
+  const btn=document.getElementById('themeBtn');
+  if(btn){btn.innerHTML=t==='dark'?SUN_ICO:MOON_ICO;btn.setAttribute('aria-label','Switch to '+(t==='dark'?'light':'dark')+' mode');}
 }
+function initTheme(){
+  const saved=localStorage.getItem('tt_theme');
+  const t=saved||(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');
+  applyTheme(t);
+}
+function toggleTheme(){
+  const t=currentTheme()==='dark'?'light':'dark';
+  localStorage.setItem('tt_theme',t);
+  applyTheme(t);
+}
+
+/* ═══════════ TOAST NOTIFICATIONS — replaces native alert() with a non-blocking, styled message ═══════════
+   Fire-and-forget: none of this app's ~40 alert() calls depend on a return value or blocking
+   execution, so overriding window.alert here is a single, low-risk change that upgrades every
+   call site at once (including inside dynamically-added code) without touching each one. */
+function toast(msg,type){
+  const wrap=document.getElementById('toastWrap');if(!wrap)return;
+  const t=document.createElement('div');
+  t.className='toast'+(type?' '+type:'');
+  t.textContent=msg;
+  wrap.appendChild(t);
+  const life=Math.min(7000,Math.max(2600,msg.length*55));
+  setTimeout(()=>{t.classList.add('leaving');setTimeout(()=>t.remove(),200);},life);
+}
+window.alert=function(msg){
+  msg=String(msg==null?'':msg);
+  const type=/^(✅|🎉)/.test(msg)?'ok':(/^(❌|⚠️)/.test(msg)||/error/i.test(msg)?'err':'');
+  toast(msg,type);
+};
+
+/* Class/subject data ab /shared-data.js mein hai (admin panel ke sath shared) */
 function fillGroupSel(selId,cls,keep){
   const el=document.getElementById(selId);if(!el)return;
   const cur=el.value;const names=groupNames(cls);
@@ -703,7 +912,9 @@ const F={
  docLang:{l:'Document Language',t:'select',o:['English','Urdu','Sindhi'],sec:'letter'},
  photo:{l:'Student Photo (Optional)',t:'photo',sec:'student'},
  meetingDate:{l:'Meeting Date',t:'date',sec:'letter'},
- agenda:{l:'Agenda / Points',t:'textarea',ph:'Topics discussed...',sec:'letter'}
+ agenda:{l:'Agenda / Points',t:'textarea',ph:'Topics discussed...',sec:'letter'},
+ hwScope:{l:'Homework Scope',t:'select',o:["Today's lesson","This week's lessons",'Revision of the whole unit','Weekend homework pack','Holiday homework pack'],sec:'class'},
+ includeKey:{l:'Answer Key',t:'select',o:['Yes — include answer key','No answer key'],sec:'class'}
 };
 const SEC_TITLES={school:'School & Teacher Details',class:'Class & Subject',student:'Student Details',staff:'Staff / Person Details',cert:'Certificate Details',letter:'Letter Details'};
 
@@ -712,6 +923,7 @@ const NO_AI=['Result Card','Attendance Sheet','Student Profile','Enrollment Form
 const DOC_CONFIG={
  'Lesson Plan':{f:['schoolName','teacherName','className','subject','unitSel','duration'],extra:1,upload:1},
  'Worksheet':{f:['schoolName','teacherName','className','subject','unitSel'],extra:1,upload:1},
+ 'Homework Sheet':{f:['schoolName','teacherName','className','subject','unitSel','hwScope','includeKey'],extra:1,upload:1},
  'Assessment Rubric':{f:['schoolName','teacherName','className','subject','unitName'],extra:1,upload:1},
  'Exam Paper':{f:['schoolName','teacherName','className','subject','unitSel','examTerm','totalMarks','timeAllowed'],extra:1,upload:1},
  'Annual Teaching Plan':{f:['schoolName','teacherName','className','subject','academicYear'],extra:1,upload:1},
@@ -750,6 +962,7 @@ const SIDEBAR=[
   {v:'upload',n:'Upload & Generate',i:'📖',s:'Books, syllabus, any document'},
   {v:'resize',n:'PDF / Image Resizer',i:'🗜️',s:'Compress books · Extract pages'},
   {d:'Worksheet',i:'✏️',s:'Printable activity sheets'},
+  {d:'Homework Sheet',i:'📒',s:'3-level differentiated + answer key'},
   {d:'Exam Paper',i:'📝',s:'Mid-term / Final'},
   {v:'crq',n:'CRQ Generator',i:'🔍',s:'AI from textbook content'},
   {d:'Assessment Rubric',i:'📊',s:'3-level evaluation'},
@@ -776,6 +989,13 @@ const SIDEBAR=[
   {d:'Student Profile',i:'👤',s:'Complete record'},
   {d:'Scholarship Form',i:'💰',s:'Wazifa application'},
   {d:'Parent Notice',i:'👨‍👩‍👧',s:'Letter to parent'}
+ ]},
+ {sec:'Premium Tools',items:[
+  {v:'analyze',n:'Performance Analyzer',i:'📊',s:'Learning gaps · at-risk students'},
+  {v:'parent',n:'Parent Communication',i:'💬',s:'1-click WhatsApp to parents'}
+ ]},
+ {sec:'My Account',items:[
+  {v:'docs',n:'My Documents',i:'📂',s:'Re-open saved AI documents'}
  ]},
  {sec:'Admin & Tools',items:[
   {d:'Leave Application',i:'📨',s:'Official request'},
@@ -809,7 +1029,7 @@ function sbClick(el){
   const[type,val]=el.dataset.key.split(/:(.+)/);
   hideOutput();
   if(type==='doc'){S.doc=val;showView('doc');renderForm();}
-  else showView(val);
+  else{showView(val);if(val==='docs')loadMyDocs();if(val==='analyze')paInit();if(val==='parent')phInit();}
   if(window.innerWidth<=860)toggleSidebar(false);
   document.querySelector('.main').scrollIntoView?window.scrollTo({top:0,behavior:'smooth'}):null;
 }
@@ -836,7 +1056,7 @@ function renderProfile(){
   const p=getProfile();
   const box=document.getElementById('sbProfile');
   if(p.school){
-    box.innerHTML='<button class="sb-edit" onclick="openProfile()">✏️</button><div class="sb-school">'+esc(p.school)+'</div>'+(p.hm?'<div class="sb-hm">'+(p.desig?esc(p.hm)+' ('+esc(p.desig)+')':esc(p.hm))+'</div>':'')+(p.semis?'<span class="sb-semis">SEMIS: '+esc(p.semis)+'</span>':'');
+    box.innerHTML='<button class="sb-edit" onclick="openProfile()" aria-label="Edit school profile">✏️</button><div class="sb-school">'+esc(p.school)+'</div>'+(p.hm?'<div class="sb-hm">'+(p.desig?esc(p.hm)+' ('+esc(p.desig)+')':esc(p.hm))+'</div>':'')+(p.semis?'<span class="sb-semis">SEMIS: '+esc(p.semis)+'</span>':'');
     document.getElementById('tbSub').textContent=p.school+' · Sindh Education Department';
   }else{
     box.innerHTML='<div class="sb-setup">👋 Set up your school profile — it will be used in every document automatically.<br><button onclick="openProfile()">⚙️ Setup School Profile</button></div>';
@@ -939,7 +1159,7 @@ function renderForm(){
   if(cfg.upload)html+='<div class="sec-card"><div class="sec-head"><div class="sec-bar"></div><div class="sec-title">Book / Syllabus Upload <span style="text-transform:none;font-weight:600;color:var(--g400)">(Optional — AI will read it deeply and build from it)</span></div></div><div class="sec-body">'
     +'<div class="fg" style="margin-bottom:12px"><label>📚 Book Bank — curated STB books (no upload needed)</label><select id="bankSel" onchange="onBankSel()"><option value="">— Select a book from the Book Bank —</option></select></div><div class="upload-zone" id="docDrop" ondrop="docDropFn(event)" ondragover="docOver(event)" ondragleave="docLeave(event)" onclick="document.getElementById(\'docFile\').click()"><div class="uz-ico">📖</div><div class="uz-title">Drop book, syllabus or any document here</div><div class="uz-sub">PDF: max 20MB (~100 pages) · Image: max 5MB</div></div><div style="margin-top:8px;font-size:10.5px;font-weight:600;color:var(--gold);background:var(--gold-bg);border:1px solid rgba(200,150,12,.25);border-radius:8px;padding:7px 11px;line-height:1.5">💡 <b>For best results:</b> upload <b>a few pages at a time</b> (one unit/chapter), not the whole book — AI reads focused content more accurately. Large file? <button onclick="openResizer()" style="margin-left:6px;background:var(--navy);color:#fff;font-size:10px;font-weight:800;padding:4px 11px;border-radius:99px;vertical-align:middle">🗜️ Open Resizer</button></div><input type="file" id="docFile" accept=".pdf,image/*" style="display:none" onchange="docFileSel(event)"><div class="f-chip" id="docChip">✅ &nbsp;<span id="docFName">-</span> <button onclick="clearDocFile()" style="margin-left:8px;color:var(--red);font-weight:800">✕ Remove</button></div></div></div>';
   if(cfg.marks){
-    html+='<div class="sec-card"><div class="sec-head"><div class="sec-bar"></div><div class="sec-title">Subject-wise Marks <span style="text-transform:none;font-weight:600;color:var(--g400)">(auto — by class)</span></div><div class="ch-right" style="margin-left:auto"><label style="display:flex;align-items:center;gap:6px;font-size:11px;font-weight:800;color:var(--navy);cursor:pointer"><input type="checkbox" id="fcMode" onchange="toggleFC()"> 👥 Full Class Mode</label></div></div><div class="sec-body" style="padding:0">';
+    html+='<div class="sec-card"><div class="sec-head"><div class="sec-bar"></div><div class="sec-title">Subject-wise Marks <span style="text-transform:none;font-weight:600;color:var(--g400)">(auto — by class)</span></div><div class="ch-right" style="margin-left:auto"><label style="display:flex;align-items:center;gap:6px;font-size:11px;font-weight:800;color:var(--heading);cursor:pointer"><input type="checkbox" id="fcMode" onchange="toggleFC()"> 👥 Full Class Mode</label></div></div><div class="sec-body" style="padding:0">';
     html+='<div id="singleMarks"><div class="marks-head"><span>Subject</span><span>Total</span><span>Obtained</span></div><div id="marksRows"></div></div>';
     html+='<div id="fcWrap" style="display:none;padding:14px"><div style="font-size:12px;color:var(--g600);margin-bottom:10px;line-height:1.6">Enter marks for the <b>whole class</b> below (students loaded from your Student Database for the selected class). One click will generate <b>every student\'s result card</b> in a single Word file — each card on its own page.</div><div style="overflow-x:auto"><table class="db-table" id="fcTable"></table></div></div>';
     html+='</div></div>';
@@ -1237,23 +1457,66 @@ async function fetchGen(url,opts){
   }catch(e){return{success:false,error:'Network/connection error: '+e.message+' — check internet and server.'};}
 }
 
-/* ═══════════ BOOK BANK (teacher side) ═══════════ */
-async function loadBank(){
+/* ═══════════ BOOK BANK (teacher side) ═══════════
+   Debounced — renderForm/onClassChange/onSubjectChange ke duplicate calls ek hi request banate hain.
+   Empty/error state ab saaf dikhta hai (pehle khali dropdown se pata hi nahi chalta tha). */
+let bankTimer=null;
+function loadBank(){clearTimeout(bankTimer);bankTimer=setTimeout(doLoadBank,150);}
+async function doLoadBank(){
   const sel=document.getElementById('bankSel');if(!sel)return;
   const cls=(document.getElementById('f_className')||{}).value||'';
-  const sub=(document.getElementById('f_subject')||{}).value||'';
+  let sub=(document.getElementById('f_subject')||{}).value||'';
+  if(sub==='__other')sub='';
   try{
-    const r=await fetch('/books?className='+encodeURIComponent(cls)+'&subject='+encodeURIComponent(sub==='__other'?'':sub));
+    const r=await fetch('/books?className='+encodeURIComponent(cls)+'&subject='+encodeURIComponent(sub));
     const d=await r.json();
-    const cur=S.bookId||'';
-    sel.innerHTML='<option value="">— Select a book from the Book Bank —</option>'+
-      (d.books||[]).map(b=>'<option value="'+b.id+'"'+(b.id===cur?' selected':'')+'>'+esc(b.title)+(b.unit_label?' — '+esc(b.unit_label):'')+' ('+b.size_mb+'MB)</option>').join('');
-    if(!(d.books||[]).some(b=>b.id===cur))S.bookId='';
-  }catch(e){}
+    if(d.success===false){sel.innerHTML='<option value="">— Book Bank temporarily unavailable — you can still upload your own file below —</option>';return;}
+    const books=d.books||[];
+    const cur=String(S.bookId||'');
+    const label=books.length
+      ?'— Select a book · '+books.length+' available for '+(cls||'all classes')+(sub?' · '+sub:'')+' —'
+      :'— No books in the Book Bank yet for '+(cls||'this class')+(sub?' · '+sub:'')+' —';
+    sel.innerHTML='<option value="">'+esc(label)+'</option>'+
+      books.map(b=>'<option value="'+esc(b.id)+'"'+(String(b.id)===cur?' selected':'')+'>'+esc(b.title)+(b.unit_label?' — '+esc(b.unit_label):'')+' ('+esc(b.size_mb)+'MB)</option>').join('');
+    if(!books.some(b=>String(b.id)===cur))S.bookId='';
+  }catch(e){
+    sel.innerHTML='<option value="">— Book Bank could not load (check internet, then change class to retry) —</option>';
+  }
 }
 function onBankSel(){
   S.bookId=val('bankSel');
   if(S.bookId)clearDocFile();
+}
+
+/* ═══════════ MY DOCUMENTS — saved AI docs wapas kholo ═══════════ */
+async function loadMyDocs(){
+  const box=document.getElementById('myDocsList');
+  if(!token()){box.innerHTML='<div class="db-empty">🔒 Please <a href="#" onclick="openAuth(\'Login to see your saved documents\');return false" style="color:var(--blue);font-weight:700">login</a> — every AI document you generate is saved to your account automatically.</div>';return;}
+  box.innerHTML='<div class="db-empty">⏳ Loading your documents...</div>';
+  try{
+    const r=await fetch('/documents',{headers:authHeaders()});
+    const d=await r.json();
+    if(!d.success){box.innerHTML='<div class="db-empty">'+(d.error==='LOGIN_REQUIRED'?'🔒 Please login to see your saved documents.':esc(d.error))+'</div>';return;}
+    if(!d.documents.length){box.innerHTML='<div class="db-empty">No saved documents yet — generate your first AI document (Lesson Plan, Worksheet, Exam Paper...) and it will appear here.</div>';return;}
+    box.innerHTML='<table class="db-table"><thead><tr><th>Type</th><th>Title</th><th>Date</th><th></th></tr></thead><tbody>'+
+      d.documents.map(doc=>'<tr><td><b>'+esc(doc.doc_type)+'</b></td><td>'+esc(doc.title||'—')+'</td><td>'+new Date(doc.created_at).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})+'</td><td><div class="db-act"><button class="fill" onclick="openMyDoc(\''+esc(doc.id)+'\')">Open</button><button class="del" onclick="delMyDoc(\''+esc(doc.id)+'\')">Del</button></div></td></tr>').join('')+'</tbody></table>';
+  }catch(e){box.innerHTML='<div class="db-empty">Network error — please check internet and refresh.</div>';}
+}
+async function openMyDoc(id){
+  try{
+    const r=await fetch('/documents/'+encodeURIComponent(id),{headers:authHeaders()});
+    const d=await r.json();
+    if(!d.success){alert(d.error==='LOGIN_REQUIRED'?'Please login first.':d.error);return;}
+    S.doc=d.document.doc_type;S.lastFields={};S.photo=null;
+    showResult(d.document.content,d.document.doc_type+(d.document.title?' — '+d.document.title:''));
+  }catch(e){alert('Could not open document: '+e.message);}
+}
+async function delMyDoc(id){
+  if(!confirm('Delete this saved document? This cannot be undone.'))return;
+  try{
+    await fetch('/documents/delete',{method:'POST',headers:{'Content-Type':'application/json',...authHeaders()},body:JSON.stringify({id})});
+    loadMyDocs();
+  }catch(e){alert('Delete failed: '+e.message);}
 }
 
 /* ═══════════ PER-DOC BOOK UPLOAD + STUDENT PHOTO ═══════════ */
@@ -1345,7 +1608,7 @@ function showResult(c,t){
   document.getElementById('rhTitle').textContent=(t||S.doc)+' — Ready';
   const vp=document.getElementById('verifyPanel');vp.style.display='none';vp.innerHTML='';
   const vb=document.getElementById('verifyBtn');
-  const aiDocs=['Lesson Plan','Worksheet','Exam Paper','Assessment Rubric','CRQ Paper','Annual Teaching Plan','Monthly Teaching Plan'];
+  const aiDocs=['Lesson Plan','Worksheet','Exam Paper','Assessment Rubric','CRQ Paper','Annual Teaching Plan','Monthly Teaching Plan','Homework Sheet','Learning Gap Analysis'];
   vb.style.display=aiDocs.includes(S.doc)?'inline-block':'none';
   w.scrollIntoView({behavior:'smooth',block:'start'});
 }
@@ -1364,7 +1627,7 @@ async function verifyDoc(){
       const rep=d.report||{};const s=Math.max(0,Math.min(100,parseInt(rep.score)||0));
       const col=s>=85?'var(--green)':(s>=65?'var(--gold)':'var(--red)');
       vp.innerHTML='<div style="display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap">'
-        +'<div style="width:64px;height:64px;border-radius:50%;border:4px solid '+col+';display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:800;color:'+col+';flex-shrink:0;background:#fff">'+s+'%</div>'
+        +'<div style="width:64px;height:64px;border-radius:50%;border:4px solid '+col+';display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:800;color:'+col+';flex-shrink:0;background:var(--white)">'+s+'%</div>'
         +'<div style="flex:1;min-width:200px"><div style="font-size:13px;font-weight:800;color:var(--g800)">'+esc(rep.verdict||'Quality report')+'</div>'
         +((rep.issues&&rep.issues.length)?'<div style="margin-top:8px"><div style="font-size:10px;font-weight:800;color:var(--red);text-transform:uppercase;letter-spacing:.6px">Issues to fix ('+rep.issues.length+')</div>'+rep.issues.map(i=>'<div style="font-size:12px;color:var(--g600);margin-top:3px">• '+esc(i)+'</div>').join('')+'</div>':'<div style="margin-top:6px;font-size:12px;color:var(--green);font-weight:700">✅ No issues found</div>')
         +((rep.strengths&&rep.strengths.length)?'<div style="margin-top:8px"><div style="font-size:10px;font-weight:800;color:var(--green);text-transform:uppercase;letter-spacing:.6px">Strengths</div>'+rep.strengths.map(i=>'<div style="font-size:12px;color:var(--g600);margin-top:3px">• '+esc(i)+'</div>').join('')+'</div>':'')
@@ -1662,7 +1925,7 @@ async function openBuy(){
   const c=await loadCfg();
   document.getElementById('buyNumber').textContent=c.easypaisa||'—';
   document.getElementById('buyName').textContent=c.easypaisaName||'';
-  document.getElementById('buyPlans').innerHTML=(c.plans||[]).map(p=>'<div style="border:2px solid var(--gold);border-radius:var(--r);padding:14px;background:linear-gradient(135deg,var(--gold-bg),#fff)"><div style="display:flex;justify-content:space-between;align-items:center"><div><div style="font-size:15px;font-weight:800;color:var(--navy)">⭐ '+p.name+' — Rs. '+p.rs+'/month</div><div style="font-size:12px;color:var(--g600);margin-top:3px;font-weight:600">'+p.docs+' AI documents · '+p.days+' days · unlimited certificates</div></div><div style="font-size:10px;font-weight:800;background:var(--navy);color:#fff;padding:4px 10px;border-radius:99px">BEST VALUE</div></div></div>').join('');
+  document.getElementById('buyPlans').innerHTML=(c.plans||[]).map(p=>'<div style="border:2px solid var(--gold);border-radius:var(--r);padding:14px;background:linear-gradient(135deg,var(--gold-bg),var(--white))"><div style="display:flex;justify-content:space-between;align-items:center"><div><div style="font-size:15px;font-weight:800;color:var(--heading)">⭐ '+p.name+' — Rs. '+p.rs+'/month</div><div style="font-size:12px;color:var(--g600);margin-top:3px;font-weight:600">'+p.docs+' AI documents · '+p.days+' days · unlimited certificates</div></div><div style="font-size:10px;font-weight:800;background:var(--navy);color:#fff;padding:4px 10px;border-radius:99px">BEST VALUE</div></div></div>').join('');
   document.getElementById('buyPrices').innerHTML='<div style="font-size:10px;font-weight:800;color:var(--g400);text-transform:uppercase;letter-spacing:.7px;margin:6px 0 6px">Or buy credits</div><table class="db-table"><thead><tr><th>Package</th><th>AI documents</th><th>Per doc</th></tr></thead><tbody>'+
     (c.prices||[]).map(p=>'<tr><td><b>Rs. '+p.rs+'</b></td><td>'+p.credits+'</td><td>Rs. '+Math.round(p.rs/p.credits)+'</td></tr>').join('')+'</tbody></table>';
   const wa=document.getElementById('buyWa');
@@ -1692,8 +1955,439 @@ async function syncStudentsOnLogin(){
   }catch(e){}
 }
 
+/* ═══════════ PERFORMANCE ANALYZER — learning gaps, at-risk students (offline, free) ═══════════ */
+let PA_LAST=null;
+function paInit(){
+  const cls=document.getElementById('paClass');
+  if(!cls.options.length)cls.innerHTML=CLASS_LIST.map(c=>'<option'+(c==='Class 1'?' selected':'')+'>'+c+'</option>').join('');
+  paBuildTable();
+}
+function paKey(){return val('paClass')+'|'+val('paTerm');}
+function paGetSaved(){try{return JSON.parse(localStorage.getItem('tt_assess')||'{}');}catch(e){return{};}}
+function paBuildTable(){
+  const cls=val('paClass');
+  const gRow=document.getElementById('paGroupRow');
+  gRow.style.display=SEC_MAP[cls]?'grid':'none';
+  if(SEC_MAP[cls])fillGroupSel('paGroup',cls,true);
+  const grp=val('paGroup')||'';
+  const subs=subjectsFor(cls,grp);
+  const students=getDB().filter(s=>s.className===cls);
+  const tbl=document.getElementById('paTable');
+  document.getElementById('paDash').innerHTML='';
+  document.getElementById('paSaved').textContent='';
+  if(!students.length){tbl.innerHTML='<tr><td style="padding:16px;color:var(--red);font-weight:700">No students of '+esc(cls)+' in your Student Database. Sidebar → Student Database → add or import students, then return here.</td></tr>';return;}
+  let h='<thead><tr><th style="min-width:130px">Student</th>'+subs.map(s=>'<th style="min-width:70px">'+esc(s)+'</th>').join('')+'</tr>';
+  h+='<tr><th style="font-size:9px;color:var(--gold)">Total marks →</th>'+subs.map((s,j)=>'<th><input type="number" id="pat_'+j+'" value="100" min="1" style="width:60px;padding:5px;border:1.5px solid var(--g200);border-radius:7px;text-align:center;font-size:11px;font-weight:700"></th>').join('')+'</tr></thead><tbody>';
+  students.forEach((s,i)=>{
+    h+='<tr><td><b>'+esc(s.name)+'</b><div style="font-size:10px;color:var(--g400)">G.R '+esc(s.grNumber||'—')+'</div></td>'+subs.map((sub,j)=>'<td><input type="number" id="pam_'+i+'_'+j+'" placeholder="—" min="0" style="width:60px;padding:5px;border:1.5px solid var(--g200);border-radius:7px;text-align:center;font-size:12px"></td>').join('')+'</tr>';
+  });
+  tbl.innerHTML=h+'</tbody>';
+  /* isi class+term ke pehle-saved marks wapas bharo */
+  const saved=paGetSaved()[paKey()];
+  if(saved&&saved.subjects.join()===subs.join()){
+    students.forEach((s,i)=>{
+      const row=saved.students.find(x=>x.name===s.name&&x.gr===(s.grNumber||''));
+      if(row)row.marks.forEach((m,j)=>{const e=document.getElementById('pam_'+i+'_'+j);if(e&&m!==null&&m!==undefined)e.value=m;});
+    });
+    saved.totals.forEach((t,j)=>{const e=document.getElementById('pat_'+j);if(e&&t)e.value=t;});
+    document.getElementById('paSaved').textContent='↻ Restored marks saved on '+new Date(saved.ts).toLocaleDateString();
+  }
+}
+function paGrade(p){if(p>=80)return'A-1';if(p>=70)return'A';if(p>=60)return'B';if(p>=50)return'C';if(p>=40)return'D';if(p>=33)return'E';return'F';}
+function paCollect(){
+  const cls=val('paClass'),grp=val('paGroup')||'';
+  const subs=subjectsFor(cls,grp);
+  const students=getDB().filter(s=>s.className===cls);
+  const totals=subs.map((s,j)=>parseFloat(val('pat_'+j))||100);
+  const rows=students.map((s,i)=>({name:s.name,gr:s.grNumber||'',marks:subs.map((sub,j)=>{const v=val('pam_'+i+'_'+j);return v===''?null:Math.max(0,parseFloat(v)||0);})}));
+  return{cls,term:val('paTerm'),subs,totals,rows};
+}
+function paAnalyze(){
+  const d=paCollect();
+  if(!d.rows.length){alert('No students of this class in the Student Database!');return;}
+  const withMarks=d.rows.filter(r=>r.marks.some(m=>m!==null));
+  if(!withMarks.length){alert('Please enter marks first (at least one student).');return;}
+  const store=paGetSaved();store[paKey()]={ts:Date.now(),subjects:d.subs,totals:d.totals,students:d.rows};
+  try{localStorage.setItem('tt_assess',JSON.stringify(store));}catch(e){}
+  document.getElementById('paSaved').textContent='✓ Marks saved on this device';
+  const students=withMarks.map(r=>{
+    let obt=0,max=0;const weak=[];
+    r.marks.forEach((m,j)=>{if(m===null)return;obt+=m;max+=d.totals[j];const p=d.totals[j]?m/d.totals[j]*100:0;if(p<40)weak.push(d.subs[j]);});
+    const pct=max?Math.round(obt/max*100):0;
+    return{name:r.name,gr:r.gr,obt,max,pct,grade:paGrade(pct),weak};
+  }).sort((a,b)=>b.pct-a.pct);
+  const subjects=d.subs.map((s,j)=>{
+    const ms=withMarks.map(r=>r.marks[j]).filter(m=>m!==null);
+    if(!ms.length)return{s,avg:null,fails:0};
+    const avg=Math.round(ms.reduce((a,b)=>a+b,0)/ms.length/d.totals[j]*100);
+    const fails=ms.filter(m=>m/d.totals[j]*100<33).length;
+    return{s,avg,fails};
+  }).filter(x=>x.avg!==null);
+  const classAvg=Math.round(students.reduce((a,b)=>a+b.pct,0)/students.length);
+  const passN=students.filter(x=>x.pct>=33).length;
+  const atRisk=students.filter(x=>x.pct<40||x.weak.length>=2);
+  PA_LAST={cls:d.cls,term:d.term,students,subjects,classAvg,passN,atRisk};
+  paDash(PA_LAST);
+}
+function paDash(a){
+  const top=a.students[0];
+  const barCol=p=>p>=60?'var(--green)':(p>=40?'var(--gold)':'var(--red)');
+  let h='<div class="pa-stats">'
+   +'<div class="pa-stat '+(a.classAvg>=60?'good':(a.classAvg<40?'warn':''))+'"><div class="v">'+a.classAvg+'%</div><div class="l">Class Average</div></div>'
+   +'<div class="pa-stat'+(a.passN===a.students.length?' good':'')+'"><div class="v">'+a.passN+' / '+a.students.length+'</div><div class="l">Passing (≥33%)</div></div>'
+   +'<div class="pa-stat'+(a.atRisk.length?' warn':' good')+'"><div class="v">'+a.atRisk.length+'</div><div class="l">Need Extra Support</div></div>'
+   +'<div class="pa-stat good"><div class="v" style="font-size:14px;line-height:1.4">'+esc(top.name)+'</div><div class="l">Top Position — '+top.pct+'%</div></div>'
+   +'</div>';
+  h+='<div class="sec-card"><div class="sec-head"><div class="sec-bar"></div><div class="sec-title">Subject-wise Class Average</div></div><div class="sec-body">'
+   +a.subjects.map(s=>'<div class="pa-bar-row"><div class="pa-bar-name">'+esc(s.s)+'</div><div class="pa-bar-track"><div class="pa-bar-fill" style="width:'+Math.max(9,Math.min(100,s.avg))+'%;background:'+barCol(s.avg)+'">'+s.avg+'%</div></div></div>').join('')
+   +'<div style="font-size:10.5px;color:var(--g400);margin-top:8px">🔴 below 40% = learning gap · 🟡 40–59% = needs practice · 🟢 60%+ = on track</div></div></div>';
+  if(a.atRisk.length){
+    h+='<div class="sec-card"><div class="sec-head"><div class="sec-bar" style="background:var(--red)"></div><div class="sec-title">Students Needing Extra Support</div></div><div class="sec-body">'
+     +a.atRisk.map(s=>'<div style="padding:7px 0;border-bottom:1px solid var(--g100)"><b>'+esc(s.name)+'</b> — '+s.pct+'% ('+s.grade+')<div>'+(s.weak.length?s.weak.map(w=>'<span class="risk-chip">'+esc(w)+'</span>').join(''):'<span style="font-size:11px;color:var(--g400)">low overall score</span>')+'</div></div>').join('')
+     +'</div></div>';
+  }
+  h+='<div class="sec-card"><div class="sec-head"><div class="sec-bar"></div><div class="sec-title">Ranking</div></div><div class="sec-body" style="padding:0;overflow-x:auto"><table class="db-table"><thead><tr><th>#</th><th>Student</th><th>Marks</th><th>%</th><th>Grade</th><th>Weak Subjects</th></tr></thead><tbody>'
+   +a.students.map((s,i)=>'<tr><td>'+(i+1)+'</td><td><b>'+esc(s.name)+'</b></td><td>'+s.obt+' / '+s.max+'</td><td>'+s.pct+'%</td><td>'+s.grade+'</td><td>'+(s.weak.map(esc).join(', ')||'—')+'</td></tr>').join('')
+   +'</tbody></table></div></div>';
+  h+='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px">'
+   +'<button class="btn-gen" style="flex:1;min-width:200px" onclick="paReport()">🖨️ Printable Class Report (Free)</button>'
+   +'<button class="btn-gen" style="flex:1;min-width:200px;background:linear-gradient(135deg,var(--gold),var(--gold-light));color:var(--navy-dark);border-bottom-color:#a87d0a" onclick="paAIPlan()">🤖 AI Remedial Plan (1 credit)</button>'
+   +'</div>';
+  const box=document.getElementById('paDash');box.innerHTML=h;box.scrollIntoView({behavior:'smooth',block:'start'});
+}
+function paSummaryText(a){
+  return 'CLASS: '+a.cls+' | ASSESSMENT: '+a.term+' | Students assessed: '+a.students.length
+   +'\nClass average: '+a.classAvg+'% | Passing: '+a.passN+'/'+a.students.length
+   +'\n\nSUBJECT AVERAGES:\n'+a.subjects.map(s=>'- '+s.s+': '+s.avg+'% average, '+s.fails+' student(s) failing').join('\n')
+   +'\n\nSTUDENT RESULTS (name | obtained/max | % | grade | weak subjects):\n'
+   +a.students.map(s=>'- '+s.name+' | '+s.obt+'/'+s.max+' | '+s.pct+'% | '+s.grade+' | '+(s.weak.join(', ')||'none')).join('\n');
+}
+function paReport(){
+  const a=PA_LAST;if(!a)return;
+  const p=getProfile();
+  let md='[[LOGO]]\n# '+(p.school||'School')+'\n## CLASS PERFORMANCE REPORT — '+a.cls+' ('+a.term+')\n\nDate: '+new Date().toLocaleDateString('en-GB',{day:'2-digit',month:'long',year:'numeric'})+(p.hm?'\nPrepared by: '+p.hm:'')+'\n';
+  md+='\n### Summary\n\n| Class Average | Passing | Need Extra Support | Top Position |\n|---|---|---|---|\n| '+a.classAvg+'% | '+a.passN+' / '+a.students.length+' | '+a.atRisk.length+' | '+a.students[0].name+' ('+a.students[0].pct+'%) |\n';
+  md+='\n### Subject-wise Analysis\n\n| Subject | Class Average | Students Failing | Status |\n|---|---|---|---|\n'+a.subjects.map(s=>'| '+s.s+' | '+s.avg+'% | '+s.fails+' | '+(s.avg>=60?'On track':(s.avg>=40?'Needs practice':'LEARNING GAP'))+' |').join('\n')+'\n';
+  md+='\n### Student Ranking\n\n| # | Student | Marks | % | Grade | Weak Subjects |\n|---|---|---|---|---|---|\n'+a.students.map((s,i)=>'| '+(i+1)+' | '+s.name+' | '+s.obt+'/'+s.max+' | '+s.pct+'% | '+s.grade+' | '+(s.weak.join(', ')||'—')+' |').join('\n')+'\n';
+  if(a.atRisk.length)md+='\n### Students Needing Extra Support\n\n'+a.atRisk.map(s=>'- **'+s.name+'** ('+s.pct+'%) — focus areas: '+(s.weak.join(', ')||'overall revision')).join('\n')+'\n';
+  md+='\n\n| Class Teacher | Head Master / Principal |\n|---|---|\n|   |   |\n| Signature & Stamp | Signature & Stamp |';
+  S.doc='Class Performance Report';S.lastFields={className:a.cls};S.photo=null;
+  showResult(md,'Class Performance Report — '+a.cls);
+}
+async function paAIPlan(){
+  const a=PA_LAST;if(!a)return;
+  if(CFG&&CFG.paidMode&&!token()){openAuth('Please login to generate the AI Remedial Plan — new accounts get 1 FREE document 🎁');return;}
+  S.doc='Learning Gap Analysis';S.lastFields={className:a.cls};S.photo=null;
+  showLoader('AI is analyzing learning gaps & writing the remedial plan...');
+  try{
+    const d=await fetchGen('/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({documentType:'Learning Gap Analysis',language:lang(),fields:{schoolName:getProfile().school||'',teacherName:getProfile().hm||'',className:a.cls,examTerm:a.term,extraData:paSummaryText(a)}})});
+    if(d.success){showResult(d.content,'Learning Gap Analysis — '+a.cls);updateAuthUI();}
+    else{hideLoader();handleGenError(d.error);}
+  }catch(e){hideLoader();alert('Error: '+e.message);}
+}
+
+/* ═══════════ PARENT COMMUNICATION HUB — 1-click WhatsApp (offline, free) ═══════════ */
+const PH_TPL={
+ attendance:{n:'🚫 Absence Alert',fields:[{id:'date',l:'Absence Date',t:'date'}],msg:{
+  english:c=>`Respected ${c.father}, your child ${c.student} (${c.cls}) was absent from school on ${c.date}. Kindly ensure regular attendance so that studies are not affected. Thank you. — ${c.teacher}, ${c.school}`,
+  urdu:c=>`محترم ${c.father}، السلام علیکم! آپ کا بچہ ${c.student} (${c.cls}) ${c.date} کو اسکول سے غیر حاضر رہا۔ براہِ کرم روزانہ حاضری یقینی بنائیں تاکہ پڑھائی متاثر نہ ہو۔ شکریہ — ${c.teacher}، ${c.school}`,
+  roman:c=>`Mohtaram ${c.father}, Assalam o Alaikum! Aap ka bacha ${c.student} (${c.cls}) ${c.date} ko school se ghair-hazir raha. Barah-e-karam rozana hazri yaqeeni banayen taake parhai mutasir na ho. Shukriya — ${c.teacher}, ${c.school}`}},
+ homework:{n:'📒 Homework Notification',fields:[{id:'hw',l:'Homework Details',t:'textarea',ph:'e.g. English: Unit 3, Exercise A & B (page 24)'},{id:'due',l:'Submit By',t:'date'}],msg:{
+  english:c=>`Respected ${c.father}, today's homework for ${c.student} (${c.cls}): ${c.hw}. Please submit by ${c.due}. Kindly help your child complete it. — ${c.teacher}, ${c.school}`,
+  urdu:c=>`محترم ${c.father}، السلام علیکم! ${c.student} (${c.cls}) کا آج کا ہوم ورک: ${c.hw}۔ جمع کرانے کی تاریخ: ${c.due}۔ براہِ کرم بچے کو مکمل کرنے میں مدد کریں۔ شکریہ — ${c.teacher}، ${c.school}`,
+  roman:c=>`Mohtaram ${c.father}, Assalam o Alaikum! ${c.student} (${c.cls}) ka aaj ka homework: ${c.hw}. Jama karane ki tareekh: ${c.due}. Barah-e-karam bachay ki madad karen. Shukriya — ${c.teacher}, ${c.school}`}},
+ ptm:{n:'👨‍👩‍👧 Parent Meeting (PTM) Invitation',fields:[{id:'date',l:'Meeting Date',t:'date'},{id:'time',l:'Time',t:'text',ph:'e.g. 10:00 AM'}],msg:{
+  english:c=>`Respected ${c.father}, you are cordially invited to the Parent-Teacher Meeting for ${c.student} (${c.cls}) on ${c.date} at ${c.time} at ${c.school}. Your presence is very important for your child's progress. — ${c.teacher}`,
+  urdu:c=>`محترم ${c.father}، السلام علیکم! ${c.student} (${c.cls}) کے سلسلے میں والدین-اساتذہ میٹنگ ${c.date} کو ${c.time} بجے ${c.school} میں ہوگی۔ بچے کی بہتری کے لیے آپ کی شرکت نہایت ضروری ہے۔ — ${c.teacher}`,
+  roman:c=>`Mohtaram ${c.father}, Assalam o Alaikum! ${c.student} (${c.cls}) ke silsile mein Parent-Teacher Meeting ${c.date} ko ${c.time} par ${c.school} mein hogi. Bachay ki behtari ke liye aap ki shirkat nihayat zaroori hai. — ${c.teacher}`}},
+ exam:{n:'📝 Exam Reminder',fields:[{id:'exam',l:'Exam Name',t:'text',ph:'e.g. Mid Term Examination'},{id:'date',l:'Starting Date',t:'date'}],msg:{
+  english:c=>`Respected ${c.father}, this is a reminder that the ${c.exam} for ${c.student} (${c.cls}) starts on ${c.date}. Kindly help your child prepare and ensure they reach school on time. Best wishes! — ${c.teacher}, ${c.school}`,
+  urdu:c=>`محترم ${c.father}، السلام علیکم! یاد دہانی: ${c.student} (${c.cls}) کے ${c.exam} ${c.date} سے شروع ہو رہے ہیں۔ براہِ کرم بچے کی تیاری میں مدد کریں اور وقت پر اسکول بھیجیں۔ دعاؤں کے ساتھ — ${c.teacher}، ${c.school}`,
+  roman:c=>`Mohtaram ${c.father}, Assalam o Alaikum! Yaad-dahani: ${c.student} (${c.cls}) ke ${c.exam} ${c.date} se shuru ho rahe hain. Barah-e-karam bachay ki tayyari mein madad karen aur waqt par school bhejein. Duaon ke sath — ${c.teacher}, ${c.school}`}},
+ progress:{n:'📊 Progress Summary',fields:[{id:'remarks',l:'Remarks (auto-filled from Analyzer if available)',t:'textarea',ph:'e.g. Obtained 72% in Mid Term — good progress in English, needs practice in Mathematics'}],auto:1,msg:{
+  english:c=>`Respected ${c.father}, progress update for ${c.student} (${c.cls}): ${c.remarks}. For any questions you are welcome to visit the school. — ${c.teacher}, ${c.school}`,
+  urdu:c=>`محترم ${c.father}، السلام علیکم! ${c.student} (${c.cls}) کی تعلیمی کارکردگی: ${c.remarks}۔ کسی بھی سوال کے لیے اسکول تشریف لائیں۔ شکریہ — ${c.teacher}، ${c.school}`,
+  roman:c=>`Mohtaram ${c.father}, Assalam o Alaikum! ${c.student} (${c.cls}) ki taleemi karkardagi: ${c.remarks}. Kisi bhi sawal ke liye school tashreef layen. Shukriya — ${c.teacher}, ${c.school}`}},
+ praise:{n:'🌟 Appreciation Message',fields:[{id:'reason',l:'Reason',t:'text',ph:'e.g. excellent performance in the class test'}],msg:{
+  english:c=>`Respected ${c.father}, congratulations! Your child ${c.student} (${c.cls}) is being appreciated for ${c.reason}. We are proud of them — please encourage them at home too! — ${c.teacher}, ${c.school}`,
+  urdu:c=>`محترم ${c.father}، السلام علیکم! مبارک ہو! آپ کے بچے ${c.student} (${c.cls}) کو ${c.reason} پر سراہا جا رہا ہے۔ ہمیں اس پر فخر ہے — گھر پر بھی حوصلہ افزائی کریں! — ${c.teacher}، ${c.school}`,
+  roman:c=>`Mohtaram ${c.father}, Assalam o Alaikum! Mubarak ho! Aap ke bachay ${c.student} (${c.cls}) ko ${c.reason} par saraha ja raha hai. Humein is par fakhar hai — ghar par bhi hosla-afzai karen! — ${c.teacher}, ${c.school}`}},
+ custom:{n:'✍️ Custom Message',fields:[{id:'text',l:'Your Message (use {student}, {father}, {class} anywhere)',t:'textarea',ph:'Write your own message...'}],msg:{
+  english:c=>c.text,urdu:c=>c.text,roman:c=>c.text}}
+};
+function phInit(){
+  const tpl=document.getElementById('phTpl');
+  if(!tpl.options.length){
+    tpl.innerHTML=Object.entries(PH_TPL).map(([k,t])=>'<option value="'+k+'">'+t.n+'</option>').join('');
+    document.getElementById('phClass').innerHTML='<option value="">All Classes</option>'+CLASS_LIST.map(c=>'<option>'+c+'</option>').join('');
+  }
+  phTplChange();
+  phShowLog();
+}
+function phTplChange(){
+  const t=PH_TPL[val('phTpl')];
+  document.getElementById('phFields').innerHTML=(t.fields||[]).map(f=>{
+    if(f.t==='textarea')return '<div class="form-row"><div class="fg full"><label>'+f.l+'</label><textarea id="phf_'+f.id+'" placeholder="'+esc(f.ph||'')+'" oninput="phPreviewOnly()"></textarea></div></div>';
+    return '<div class="form-row"><div class="fg full"><label>'+f.l+'</label><input type="'+(f.t==='date'?'date':'text')+'" id="phf_'+f.id+'" placeholder="'+esc(f.ph||'')+'" oninput="phPreviewOnly()"></div></div>';
+  }).join('');
+  phRender();
+}
+function phFmtDate(v){if(!v)return '____';try{return new Date(v).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});}catch(e){return v;}}
+function phCtx(s){
+  const p=getProfile(),L=val('phLang');
+  const fatherFallback=L==='urdu'?'والدین':(L==='roman'?'walidain':'Parent');
+  const c={student:s.name,father:s.fatherName||fatherFallback,cls:s.className||'',school:p.school||'our school',teacher:p.hm||'Class Teacher'};
+  const t=PH_TPL[val('phTpl')];
+  (t.fields||[]).forEach(f=>{let v=val('phf_'+f.id);if(f.t==='date')v=phFmtDate(v);c[f.id]=v||'____';});
+  /* Progress template: Analyzer ke saved marks se auto-remarks */
+  if(t.auto&&(!val('phf_remarks'))){
+    const store=paGetSaved();
+    for(const k of Object.keys(store)){
+      if(!k.startsWith((s.className||'')+'|'))continue;
+      const a=store[k];const row=a.students.find(x=>x.name===s.name&&x.gr===(s.grNumber||''));
+      if(row&&row.marks.some(m=>m!==null)){
+        let obt=0,max=0;row.marks.forEach((m,j)=>{if(m!==null){obt+=m;max+=a.totals[j];}});
+        if(max)c.remarks='obtained '+obt+'/'+max+' ('+Math.round(obt/max*100)+'%) in '+k.split('|')[1];
+        break;
+      }
+    }
+  }
+  if(c.text)c.text=c.text.replace(/\{student\}/g,c.student).replace(/\{father\}/g,c.father).replace(/\{class\}/g,c.cls);
+  return c;
+}
+function phMsgFor(s){
+  const t=PH_TPL[val('phTpl')];
+  const L=val('phLang');
+  return t.msg[L]?t.msg[L](phCtx(s)):t.msg.english(phCtx(s));
+}
+function phPhone(p){const d=String(p||'').replace(/[^0-9]/g,'');return d?d.replace(/^0/, '92'):'';}
+function phStudents(){
+  const cls=val('phClass');
+  return getDB().map((s,i)=>({s,i})).filter(({s})=>!cls||s.className===cls);
+}
+let PH_QUEUE=[];
+function phRender(){
+  PH_QUEUE=[];
+  const list=document.getElementById('phList');
+  const rows=phStudents();
+  if(!rows.length){list.innerHTML='<div class="db-empty">No students'+(val('phClass')?' of '+esc(val('phClass')):'')+' in your Student Database — add or import students first (with Guardian Contact numbers).</div>';phPreviewOnly();return;}
+  list.innerHTML=rows.map(({s,i})=>{
+    const ph=phPhone(s.phone);
+    return '<div class="ph-row"><input type="checkbox" class="ph-chk" data-i="'+i+'" '+(ph?'checked':'disabled')+' onchange="phPreviewOnly()"><div class="ph-info"><div class="ph-name">'+esc(s.name)+'</div><div class="ph-sub">'+esc(s.fatherName||'—')+' · '+esc(s.className||'—')+' · '+(ph?'📱 '+esc(s.phone):'<span style="color:var(--red)">no phone number saved</span>')+'</div></div>'+(ph?'<button class="ph-send" onclick="phSendOne('+i+')">📱 Send</button>':'<button class="ph-send" disabled>No number</button>')+'</div>';
+  }).join('');
+  phPreviewOnly();
+}
+function phSelected(){
+  return [...document.querySelectorAll('.ph-chk:checked')].map(c=>getDB()[+c.dataset.i]).filter(Boolean);
+}
+function phPreviewOnly(){
+  PH_QUEUE=[];
+  const sel=phSelected();
+  document.getElementById('phPreview').textContent=sel.length?phMsgFor(sel[0]):'Select at least one parent below to see the message preview.';
+}
+function phToggleAll(){
+  const chks=[...document.querySelectorAll('.ph-chk:not(:disabled)')];
+  const allOn=chks.every(c=>c.checked);
+  chks.forEach(c=>c.checked=!allOn);
+  phPreviewOnly();
+}
+function phLogSave(n){
+  try{
+    const log=JSON.parse(localStorage.getItem('tt_msglog')||'[]');
+    log.unshift({ts:Date.now(),tpl:PH_TPL[val('phTpl')].n,n});
+    localStorage.setItem('tt_msglog',JSON.stringify(log.slice(0,50)));
+  }catch(e){}
+  phShowLog();
+}
+function phShowLog(){
+  try{
+    const log=JSON.parse(localStorage.getItem('tt_msglog')||'[]').slice(0,5);
+    document.getElementById('phLog').innerHTML=log.length?('<b style="color:var(--g600)">Recent:</b> '+log.map(l=>esc(l.tpl)+' → '+l.n+' parent(s) on '+new Date(l.ts).toLocaleDateString()).join(' · ')):'';
+  }catch(e){}
+}
+function phSendOne(i){
+  const s=getDB()[i];if(!s)return;
+  const ph=phPhone(s.phone);if(!ph){alert('No phone number saved for '+s.name);return;}
+  window.open('https://wa.me/'+ph+'?text='+encodeURIComponent(phMsgFor(s)),'_blank');
+  phLogSave(1);
+}
+function phSendNext(){
+  if(!PH_QUEUE.length){
+    PH_QUEUE=phSelected().filter(s=>phPhone(s.phone));
+    if(!PH_QUEUE.length){alert('Select at least one parent with a saved phone number!');return;}
+    phLogSave(PH_QUEUE.length);
+  }
+  const s=PH_QUEUE.shift();
+  window.open('https://wa.me/'+phPhone(s.phone)+'?text='+encodeURIComponent(phMsgFor(s)),'_blank');
+  const btn=document.querySelector('#view-parent .btn-gen');
+  btn.textContent=PH_QUEUE.length?('📱 Send Next — '+PH_QUEUE.length+' remaining ('+PH_QUEUE[0].name+')'):'📱 Send to Selected — One by One';
+}
+function phCopyAll(){
+  const sel=phSelected();
+  if(!sel.length){alert('Select at least one parent first!');return;}
+  const all=sel.map(s=>'📱 '+s.name+(s.phone?' ('+s.phone+')':'')+':\n'+phMsgFor(s)).join('\n\n──────────\n\n');
+  navigator.clipboard.writeText(all).then(()=>alert('✅ '+sel.length+' message(s) copied — paste anywhere (WhatsApp, SMS app, etc.)'));
+}
+
+/* ═══════════ TOOLKIT ASSISTANT — offline knowledge base (no API, no credits) ═══════════ */
+const TT_KB=[
+ {id:'start',t:'Getting started',k:'start begin new first shuru welcome intro use kaise',b:'Welcome! Creating a document takes 3 easy steps:<br>1️⃣ Pick a document type from the <b>sidebar</b> (Lesson Plan, Exam Paper, Certificate...).<br>2️⃣ Fill the short form — your School Profile fills school details automatically.<br>3️⃣ Press <b>⚡ Generate</b>, then download as Word/PDF or share on WhatsApp.<br><br>💡 Documents marked <b>No AI</b> (certificates, result cards, attendance) are instant and always free.'},
+ {id:'profile',t:'School Profile & logo',k:'profile school name logo semis address setup change edit head master',b:'Your School Profile is used on <b>every document</b> automatically.<br>• Open it from the <b>✏️ button</b> on the sidebar card (top-left).<br>• Enter school name, address, head master, SEMIS code and session.<br>• Upload a <b>school logo</b> — it appears at the top of certificates and documents.<br>Everything is saved on your device — set it once and forget it.'},
+ {id:'lesson',t:'Generate a Lesson Plan',k:'lesson plan ppp bloom generate teaching sabaq unit full book premium',b:'1️⃣ Sidebar → <b>Lesson Plan</b>.<br>2️⃣ Choose Class, Subject and Unit (or <b>Full Book</b> for a complete lesson-plan book with the premium 11-part pattern).<br>3️⃣ (Best results) Attach the textbook — pick one from the <b>Book Bank</b> dropdown or upload unit pages as PDF.<br>4️⃣ Press Generate. The plan follows the <b>PPP model</b> with Bloom\'s Taxonomy, differentiation, homework and a rubric.'},
+ {id:'worksheet',t:'Generate a Worksheet',k:'worksheet activity printable practice sheet',b:'Sidebar → <b>Worksheet</b> → choose Class, Subject and Unit → Generate.<br>You get a printable sheet with varied activities (trace/write, match, fill-in-the-blank, short answers) plus a student info header.<br>💡 Attach the textbook unit (Book Bank or upload) so every activity comes from the actual book content.'},
+ {id:'exam',t:'Exam Paper & CRQ Generator',k:'exam paper test crq mcq question marks paper generator answer key',b:'Two options:<br>• <b>Exam Paper</b> (sidebar) — full paper with MCQs, short & long questions and marks distribution.<br>• <b>CRQ Generator</b> — advanced: choose difficulty, Bloom\'s levels, question counts, and an optional <b>answer key + marking scheme</b>.<br>💡 Upload the unit pages of the textbook so the questions come exactly from the syllabus.'},
+ {id:'bookbank',t:'Book Bank — select a book without uploading',k:'book bank select stb textbook curated dropdown kitab',b:'The Book Bank holds curated STB textbooks so you don\'t upload anything:<br>1️⃣ Open Lesson Plan / Worksheet / Exam Paper.<br>2️⃣ Choose your <b>Class and Subject</b> — the Book Bank dropdown (in the upload section) shows the matching books.<br>3️⃣ Select a book and Generate — the AI reads it directly.<br><br>⚠️ If it says "No books yet", a book for that exact class + subject hasn\'t been added to the bank — you can still upload your own PDF below it.'},
+ {id:'upload',t:'Upload a book / document (limits & tips)',k:'upload book pdf image file size limit 20mb 5mb attach photo page',b:'You can attach a book to most academic documents:<br>• <b>PDF:</b> up to 20MB (~100 pages) · <b>Image:</b> up to 5MB (auto-compressed).<br>• <b>Best practice:</b> upload only the unit/chapter pages you need — the AI reads focused content much more accurately.<br>• File too big? Use the <b>🗜️ PDF / Image Resizer</b> in the sidebar to extract pages or compress — it works offline in your browser.'},
+ {id:'resizer',t:'PDF / Image Resizer',k:'resize compress extract pages big large file resizer chota tool',b:'Sidebar → <b>PDF / Image Resizer</b>. Three free offline tools:<br>1️⃣ <b>Extract Pages</b> — pull just the unit you need from a huge book (zero quality loss, best option).<br>2️⃣ <b>Compress Full PDF</b> — shrinks the whole file (pages become images).<br>3️⃣ <b>Image Resize</b> — any photo down to under 5MB.<br>Nothing is uploaded to any server — it all happens on your device.'},
+ {id:'students',t:'Student Database — import & auto-fill',k:'student database import excel csv save auto fill list add export',b:'Save your students once, reuse them everywhere:<br>• Sidebar → <b>Student Database</b> → "+ Add Student" or <b>Import Excel/CSV</b> (columns like Name, Father, G.R No are detected automatically).<br>• On any student document, press <b>🗄️ Fill from Database</b> to auto-fill the form.<br>• <b>Export Excel</b> makes a backup file anytime.<br>• When you\'re logged in, your list is also backed up to your account automatically.'},
+ {id:'result',t:'Result Cards (single & full class)',k:'result card marks grade full class mode report annual natija',b:'• <b>Single student:</b> sidebar → Result Card → fill details, enter subject-wise marks → Generate. Grades are calculated automatically.<br>• <b>Whole class at once:</b> turn on <b>👥 Full Class Mode</b> — students load from your Student Database, you enter marks in one table, and you get every student\'s card in a single Word file (each on its own page). 100% free, no AI needed.'},
+ {id:'attendance',t:'Attendance Sheet',k:'attendance sheet register hazri month monthly',b:'Sidebar → <b>Attendance Sheet</b> → choose Class and Month (or a custom duration).<br>If your Student Database has students of that class, their names, G.R and roll numbers are <b>pre-filled automatically</b>. Instant and free — no AI needed.'},
+ {id:'certs',t:'Certificates (always free)',k:'certificate character bonafide transfer leaving noc experience salary prize free instant',b:'All certificates are <b>instant and always free</b> (no login, no credits):<br>🏅 Character · 📜 Bonafide · 🔄 Transfer · 🎓 School Leaving · ✅ NOC · 🎖️ Experience · 💼 Salary · 🏆 Prize<br>Fill the short form → Generate → download Word/PDF. Your school logo (from School Profile) appears on top, with proper signature blocks.'},
+ {id:'credits',t:'Credits, plans & payment',k:'credit price plan buy pay easypaisa jazzcash monthly pro subscription paisa rupees free',b:'• Certificates, result cards & attendance are <b>always free</b>.<br>• AI documents (lesson plans, exam papers...) use <b>credits</b> — new accounts get <b>1 free AI document</b> 🎁.<br>• Buy credits or the <b>Monthly Pro plan</b> (60 docs/month): tap the 💳 credits chip on the top bar, send payment via Easypaisa/JazzCash, then send the screenshot on WhatsApp — credits are added right away.<br>• If a generation fails, your credit is <b>refunded automatically</b>.'},
+ {id:'account',t:'Login, PIN & account',k:'login account register pin password forgot phone number sign signup logout',b:'• <b>Sign up</b> with your mobile number and a 4+ digit PIN (👤 button, top-right).<br>• Your documents and student list are saved to your account.<br>• <b>Forgot PIN?</b> Message us on WhatsApp (💳 chip → WhatsApp button) and we\'ll reset it.<br>• Logging in on a new phone signs you out of the old one — this keeps your account safe.'},
+ {id:'verify',t:'Verify Quality (second AI check)',k:'verify quality check review score curriculum slo',b:'After generating an AI document, press <b>🔍 Verify Quality</b> on the result bar.<br>A second AI reviewer checks curriculum/SLO alignment, factual accuracy, language quality and completeness, then gives a score with specific issues and strengths.<br>💡 You can edit the document right in the result box, then verify again — verification is free.'},
+ {id:'download',t:'Download, edit & WhatsApp share',k:'download word docx pdf print share whatsapp copy edit',b:'On the result bar:<br>• <b>Word (.docx)</b> — real tables, Urdu/Sindhi fonts, logo & photo embedded.<br>• <b>PDF / Print</b> — opens print-ready; choose "Save as PDF" in the print dialog.<br>• <b>📱 WhatsApp</b> — on mobile, shares the Word file directly into WhatsApp.<br>• ✏️ You can <b>click and edit the text</b> in the result box before downloading.'},
+ {id:'languages',t:'Language options (8 modes)',k:'language urdu sindhi english roman bilingual translate zaban',b:'Use the language selector (top of the document form):<br>English · اردو · سنڌي · Roman Urdu · English + Urdu · English + Sindhi · Trilingual (EN + UR + SD) · EN + UR + Roman.<br>Some letters (Parent Notice, Official Letter, Leave Application) also have their own per-document language choice inside the form.'},
+ {id:'analyzer',t:'Performance Analyzer (learning gaps)',k:'performance analyzer marks gap weak at-risk remedial analysis average rank kamzor',b:'Sidebar → <b>📊 Performance Analyzer</b> (Premium Tools):<br>1️⃣ Choose Class and Assessment — your students load from the Student Database.<br>2️⃣ Enter subject-wise marks once (they are saved on your device automatically).<br>3️⃣ Press <b>Analyze</b> — you instantly get class average, subject-wise gaps, ranking, and a list of students needing extra support. Analysis is <b>free</b>.<br>4️⃣ Download the <b>Printable Class Report</b> (free) or generate a full <b>AI Remedial Plan</b> (1 credit) with week-by-week improvement activities.'},
+ {id:'parenthub',t:'Parent Communication (WhatsApp)',k:'parent communication whatsapp message absent ptm meeting reminder notify sms walidain',b:'Sidebar → <b>💬 Parent Communication</b> (Premium Tools):<br>1️⃣ Pick a message type — Absence Alert, Homework, PTM Invitation, Exam Reminder, Progress Summary, Appreciation, or Custom.<br>2️⃣ Choose the language: English, اردو or Roman Urdu.<br>3️⃣ Tick the parents (numbers come from your Student Database\'s Guardian Contact field).<br>4️⃣ Press <b>Send</b> — WhatsApp opens with a personalized message for each parent, one tap at a time. 100% free.'},
+ {id:'homework',t:'Homework Sheet (differentiated)',k:'homework sheet assignment differentiated answer key daily home work',b:'Sidebar → <b>📒 Homework Sheet</b>:<br>• Choose Class, Subject, Unit and the <b>scope</b> (today\'s lesson, this week, revision, weekend or holiday pack).<br>• The sheet has <b>three levels</b>: ⭐ Support, ⭐⭐ Core, ⭐⭐⭐ Challenge — so every student gets suitable work.<br>• Turn on the <b>Answer Key</b> option to get a key on its own page.<br>💡 Attach the textbook (Book Bank or upload) so tasks come straight from the book.'},
+ {id:'trouble',t:'Troubleshooting common problems',k:'error problem fail not working slow busy network old server stuck issue masla',b:'• <b>"AI is busy"</b> — wait 30 seconds and try again.<br>• <b>"File exceeds the AI limit"</b> — use the 🗜️ Resizer to extract only the unit pages.<br>• <b>Book Bank empty</b> — no book has been added for that exact class + subject yet; upload your own PDF instead.<br>• <b>Network error</b> — check your internet; your credit is auto-refunded if generation fails.<br>• <b>Red "old server" banner</b> — the server needs to be redeployed with the latest server.js.<br>Still stuck? Tap the 💳 chip → <b>WhatsApp</b> to message support.'}
+];
+
+let astStarted=false;
+function astToggle(){
+  const p=document.getElementById('astPanel');
+  const open=!p.classList.contains('open');
+  p.classList.toggle('open',open);
+  if(open&&!astStarted){astStarted=true;astGreet();}
+  if(open)setTimeout(()=>document.getElementById('astInp').focus(),250);
+}
+function astScroll(){const b=document.getElementById('astBody');b.scrollTop=b.scrollHeight;}
+function astMsg(html,who){
+  const d=document.createElement('div');d.className='ast-msg '+(who||'bot');d.innerHTML=html;
+  document.getElementById('astBody').appendChild(d);astScroll();return d;
+}
+function astChips(items){
+  const w=document.createElement('div');w.className='ast-chips';
+  items.forEach(it=>{
+    const c=document.createElement('button');c.className='ast-chip';c.textContent=it.l;
+    c.onclick=it.fn;w.appendChild(c);
+  });
+  document.getElementById('astBody').appendChild(w);astScroll();
+}
+function astGreet(){
+  astMsg('Assalam o Alaikum! 👋 I\'m your <b>Toolkit Assistant</b> — I can explain every feature, help you fix problems, and guide you step by step. I work offline and never use your credits.<br><br>What would you like to know?');
+  astSuggest();
+}
+function astSuggest(){
+  astChips([
+    {l:'📚 How do I generate a Lesson Plan?',fn:()=>astAsk('How do I generate a lesson plan?')},
+    {l:'📖 How do I use the Book Bank?',fn:()=>astAsk('How do I use the book bank?')},
+    {l:'📋 Result cards for the whole class',fn:()=>astAsk('Result cards for full class')},
+    {l:'💳 Credits & prices',fn:()=>astAsk('How do credits and plans work?')},
+    {l:'🗜️ My file is too large',fn:()=>astAsk('My file is too large')},
+    {l:'📂 Browse all help articles',fn:astBrowse},
+    {l:'🎯 Restart the welcome tour',fn:()=>{astToggle();startTour();}}
+  ]);
+}
+function astBrowse(){
+  astMsg('Browse all help articles','user');
+  astMsg('Here is everything I can help with — tap any article: 📖');
+  astChips(TT_KB.map(a=>({l:a.t,fn:()=>astOpen(a.id)})));
+}
+function astOpen(id){
+  const a=TT_KB.find(x=>x.id===id);if(!a)return;
+  astMsg(a.t,'user');
+  astMsg('<div class="ast-art-t">'+esc(a.t)+'</div>'+a.b);
+  astChips([{l:'📂 All articles',fn:astBrowse},{l:'💡 More suggestions',fn:astSuggest}]);
+}
+function astSearchKB(q){
+  const ql=q.toLowerCase();
+  const words=ql.split(/[^a-z0-9؀-ۿ]+/i).filter(w=>w.length>1);
+  return TT_KB.map(a=>{
+    let s=0;
+    words.forEach(w=>{
+      if(a.t.toLowerCase().includes(w))s+=5;
+      if(a.k.includes(w))s+=4;
+      if(a.b.toLowerCase().includes(w))s+=1;
+    });
+    return{a,s};
+  }).filter(x=>x.s>0).sort((x,y)=>y.s-x.s).map(x=>x.a);
+}
+function astSend(){
+  const inp=document.getElementById('astInp');
+  const q=inp.value.trim();if(!q)return;
+  inp.value='';astAsk(q);
+}
+function astAsk(q){
+  astMsg(esc(q),'user');
+  const results=astSearchKB(q);
+  if(results.length){
+    const top=results[0];
+    astMsg('<div class="ast-art-t">'+esc(top.t)+'</div>'+top.b);
+    const more=results.slice(1,3);
+    const chips=more.map(a=>({l:'Related: '+a.t,fn:()=>astOpen(a.id)}));
+    chips.push({l:'📂 All articles',fn:astBrowse});
+    astChips(chips);
+  }else{
+    astMsg('I\'m sorry, I couldn\'t find that in my help guide. 🙏 Please try different words (e.g. "upload book", "result card", "credits") — or browse the articles below. For anything else, our support team on WhatsApp is happy to help.');
+    const chips=[{l:'📂 Browse all articles',fn:astBrowse}];
+    if(CFG&&CFG.whatsapp)chips.push({l:'📱 Message support on WhatsApp',fn:()=>window.open('https://wa.me/'+CFG.whatsapp+'?text='+encodeURIComponent('Assalam o Alaikum! I need help with Teacher Toolkit: '),'_blank')});
+    astChips(chips);
+  }
+}
+
+/* ═══════════ FIRST-TIME GUIDED TOUR ═══════════ */
+const TOUR=[
+ {t:'Welcome to Teacher Toolkit! 👋',b:'Assalam o Alaikum! This 30-second tour shows you how to create professional school documents in minutes. You can skip anytime.',sel:null},
+ {t:'Choose a document',b:'The sidebar has 29+ document types — Lesson Plans, Exam Papers, Certificates, Result Cards and more. Documents marked "No AI" are instant and always free.',sel:()=>document.querySelector('.sb-item'),sidebar:true},
+ {t:'Set up your School Profile',b:'Enter your school name, head master and logo once — every document will use them automatically. We\'ll open it for you right after this tour.',sel:()=>document.getElementById('sbProfile'),sidebar:true},
+ {t:'Pick your language',b:'Every document can be generated in English, Urdu, Sindhi, Roman Urdu — or bilingual combinations. Just choose from this selector.',sel:()=>document.getElementById('langSel')},
+ {t:'Generate & download',b:'Fill the simple form and press this button. Then download as Word (.docx), print as PDF, or share directly on WhatsApp.',sel:()=>document.getElementById('genBtn')},
+ {t:'Need help anytime? 💬',b:'Tap this gold chat button — the Toolkit Assistant answers questions instantly, works offline, and never uses your credits. Happy teaching! 🎓',sel:()=>document.getElementById('astBtn')}
+];
+let tourIdx=0;
+function tourHL(el){
+  document.querySelectorAll('.tour-hl').forEach(e=>e.classList.remove('tour-hl'));
+  document.querySelectorAll('.tour-raise').forEach(e=>e.classList.remove('tour-raise'));
+  if(!el)return;
+  el.classList.add('tour-hl');
+  const box=el.closest('.topbar')||el.closest('.sidebar')||el.closest('.main');
+  if(box)box.classList.add('tour-raise');
+  try{el.scrollIntoView({block:'center',behavior:'smooth'});}catch(e){}
+}
+function startTour(){
+  tourIdx=0;
+  document.getElementById('tourOverlay').classList.add('open');
+  document.getElementById('tourCard').style.display='block';
+  tourShow();
+}
+function tourShow(){
+  const s=TOUR[tourIdx];
+  document.getElementById('tourStep').textContent='Step '+(tourIdx+1)+' of '+TOUR.length;
+  document.getElementById('tourTitle').textContent=s.t;
+  document.getElementById('tourBody').innerHTML=s.b;
+  document.getElementById('tourNext').textContent=tourIdx===TOUR.length-1?'✓ Finish':'Next →';
+  if(window.innerWidth<=860)toggleSidebar(!!s.sidebar);
+  tourHL(s.sel?s.sel():null);
+}
+function tourNext(){
+  tourIdx++;
+  if(tourIdx>=TOUR.length)return endTour();
+  tourShow();
+}
+function endTour(){
+  localStorage.setItem('tt_tour','1');
+  document.getElementById('tourOverlay').classList.remove('open');
+  document.getElementById('tourCard').style.display='none';
+  tourHL(null);
+  if(window.innerWidth<=860)toggleSidebar(false);
+  if(!getProfile().school)setTimeout(openProfile,300);
+}
+
 /* ═══════════ INIT ═══════════ */
 (function init(){
+  initTheme();
   renderSidebar();
   renderProfile();
   /* CRQ + Upload selects */
@@ -1709,8 +2403,9 @@ async function syncStudentsOnLogin(){
   loadCfg().then(()=>updateAuthUI());
   if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});
   authTab('login');
-  /* first run — profile setup */
-  if(!getProfile().school)setTimeout(openProfile,600);
+  /* first run — pehle guided tour, phir profile setup (tour ke end par khulta hai) */
+  if(!localStorage.getItem('tt_tour'))setTimeout(startTour,700);
+  else if(!getProfile().school)setTimeout(openProfile,600);
   /* server version check — purani server.js ho to warning */
   fetch('/version').then(r=>{if(!r.ok)throw 0;return r.json();}).then(v=>{
     if(!v.features||!v.features.includes('streaming'))throw 0;

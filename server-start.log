@@ -1,4 +1,0 @@
-◇ injected env (2) from .env // tip: ⌘ custom filepath { path: '/custom/path/.env' }
-(node:1884) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
-(Use `node --trace-warnings ...` to show where the warning was created)
-✅ Teacher Toolkit running on port 3000
