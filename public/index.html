@@ -354,13 +354,14 @@ button{cursor:pointer;border:none;background:none}
       </div>
       <div class="crq-lbl">Unit / Lessons</div>
       <input type="text" class="crq-inp" id="crqTopic" placeholder="e.g. Unit 3, Lessons 3-7, Lessons 2,4,9 or Full Book">
-      <div class="crq-lbl">Upload Source (Optional)</div>
+      <div class="crq-lbl">Book / Document Upload (Optional — AI isi se CRQ banayega)</div>
       <div class="upload-zone" style="background:rgba(255,255,255,.04);border-color:rgba(255,255,255,.2)" id="crqDrop" ondrop="crqDropFn(event)" ondragover="crqOver(event)" ondragleave="crqLeave(event)" onclick="document.getElementById('crqFile').click()">
         <div class="uz-ico">📄</div>
-        <div class="uz-title" style="color:rgba(255,255,255,.6)">Drop textbook page / image here</div>
-        <div class="uz-sub" style="color:rgba(255,255,255,.3)">JPG · PNG · up to 50MB</div>
+        <div class="uz-title" style="color:rgba(255,255,255,.6)">Book (PDF), B.Ed/M.Ed material, page ya image — kuch bhi</div>
+        <div class="uz-sub" style="color:rgba(255,255,255,.3)">PDF: max 20MB (~100 pages) · Image: max 5MB</div>
       </div>
-      <input type="file" id="crqFile" accept="image/*,.pdf" style="display:none" onchange="crqFileSel(event)">
+      <div style="margin-top:8px;font-size:10.5px;font-weight:600;color:var(--gold-light);background:rgba(200,150,12,.1);border:1px solid rgba(200,150,12,.3);border-radius:8px;padding:7px 11px;line-height:1.5">💡 <b>Best result ke liye:</b> poori book nahi — <b>thore thore pages</b> (ek unit/chapter) upload karein.</div>
+      <input type="file" id="crqFile" accept=".pdf,image/*" style="display:none" onchange="crqFileSel(event)">
       <div class="f-chip" id="crqChip" style="background:rgba(16,185,129,.12);border-color:rgba(16,185,129,.3);color:#10b981">✅ &nbsp;<span id="crqFName">-</span></div>
       <div class="crq-lbl">Difficulty</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
@@ -416,7 +417,7 @@ button{cursor:pointer;border:none;background:none}
   <div class="view" id="view-upload">
     <div class="doc-head">
       <div class="dh-ico">📸</div>
-      <div class="dh-txt"><div class="dh-name">Upload &amp; Generate</div><div class="dh-sub">Book page se document banayein</div></div>
+      <div class="dh-txt"><div class="dh-name">Upload &amp; Generate</div><div class="dh-sub">Random books, syllabus ya koi bhi educational document</div></div>
       <div class="dh-right"><span class="mode-badge ai">AI Required</span></div>
     </div>
     <div class="sec-card">
@@ -424,10 +425,11 @@ button{cursor:pointer;border:none;background:none}
       <div class="sec-body">
         <div class="upload-zone" id="dropZone" ondrop="handleDrop(event)" ondragover="handleOver(event)" ondragleave="handleLeave(event)" onclick="document.getElementById('fileIn').click()">
           <div class="uz-ico">📸</div>
-          <div class="uz-title">Drop textbook page here or tap to browse</div>
-          <div class="uz-sub">JPG, PNG · Max 50MB</div>
+          <div class="uz-title">Book, syllabus, notes ya koi bhi document yahan drop karein</div>
+          <div class="uz-sub">PDF: max 20MB (~100 pages) · Image: max 5MB</div>
         </div>
-        <input type="file" id="fileIn" accept="image/*,.pdf" style="display:none" onchange="onFileSel(event)">
+        <div style="margin-top:8px;font-size:10.5px;font-weight:600;color:var(--gold);background:var(--gold-bg);border:1px solid rgba(200,150,12,.25);border-radius:8px;padding:7px 11px;line-height:1.5">💡 <b>Best result ke liye:</b> poori book ek sath nahi — <b>thore thore pages</b> (ek unit ya chapter) upload karein. AI focused content zyada accurate parhta hai.</div>
+        <input type="file" id="fileIn" accept=".pdf,image/*" style="display:none" onchange="onFileSel(event)">
         <div class="f-chip" id="fChip">✅ &nbsp;<span id="fName">-</span></div>
         <div class="form-row" style="margin-top:14px">
           <div class="fg"><label>Document Type</label><select id="upDocType"></select></div>
@@ -564,6 +566,8 @@ const F={
  bodyPoints:{l:'Main Points',t:'textarea',ph:'Key points to include...',sec:'letter'},
  refNumber:{l:'Inward / Outward No.',t:'text',ph:'optional',sec:'letter'},
  noticeReason:{l:'Notice / Complaint Detail',t:'textarea',req:1,sec:'letter'},
+ docLang:{l:'Document Language',t:'select',o:['English','Urdu','Sindhi'],sec:'letter'},
+ photo:{l:'Student Photo (Optional)',t:'photo',sec:'student'},
  meetingDate:{l:'Meeting Date',t:'date',sec:'letter'},
  agenda:{l:'Agenda / Points',t:'textarea',ph:'Topics discussed...',sec:'letter'}
 };
@@ -572,12 +576,12 @@ const SEC_TITLES={school:'School & Teacher Details',class:'Class & Subject',stud
 /* ═══════════ PER-DOCUMENT CONFIG ═══════════ */
 const NO_AI=['Result Card','Attendance Sheet','Student Profile','Enrollment Form','Character Certificate','Bonafide Certificate','Transfer Certificate','School Leaving Certificate','NOC Letter','Experience Certificate','Salary Certificate','Prize Certificate','Affidavit','Scholarship Form'];
 const DOC_CONFIG={
- 'Lesson Plan':{f:['schoolName','teacherName','className','subject','unitSel','duration'],extra:1},
- 'Worksheet':{f:['schoolName','teacherName','className','subject','unitSel'],extra:1},
- 'Assessment Rubric':{f:['schoolName','teacherName','className','subject','unitName'],extra:1},
- 'Exam Paper':{f:['schoolName','teacherName','className','subject','unitSel','examTerm','totalMarks','timeAllowed'],extra:1},
- 'Annual Teaching Plan':{f:['schoolName','teacherName','className','subject','academicYear'],extra:1},
- 'Monthly Teaching Plan':{f:['schoolName','teacherName','className','subject','month','unitName'],extra:1},
+ 'Lesson Plan':{f:['schoolName','teacherName','className','subject','unitSel','duration'],extra:1,upload:1},
+ 'Worksheet':{f:['schoolName','teacherName','className','subject','unitSel'],extra:1,upload:1},
+ 'Assessment Rubric':{f:['schoolName','teacherName','className','subject','unitName'],extra:1,upload:1},
+ 'Exam Paper':{f:['schoolName','teacherName','className','subject','unitSel','examTerm','totalMarks','timeAllowed'],extra:1,upload:1},
+ 'Annual Teaching Plan':{f:['schoolName','teacherName','className','subject','academicYear'],extra:1,upload:1},
+ 'Monthly Teaching Plan':{f:['schoolName','teacherName','className','subject','month','unitName'],extra:1,upload:1},
  'Progress Report':{f:['schoolName','teacherName','studentName','fatherName','className','grNumber','rollNumber','term'],extra:1},
  'Character Certificate':{f:['schoolName','teacherName','studentName','fatherName','className','grNumber','dob','periodFrom','periodTo','conduct','purpose']},
  'Transfer Certificate':{f:['schoolName','teacherName','studentName','fatherName','grNumber','dob','admissionClass','leavingClass','leavingDate','conduct','reason']},
@@ -587,15 +591,15 @@ const DOC_CONFIG={
  'School Improvement Plan':{f:['schoolName','teacherName','academicYear'],extra:1},
  'Experience Certificate':{f:['schoolName','teacherName','personName','fatherName','designation','cnic','fromDate','toDate']},
  'Salary Certificate':{f:['schoolName','teacherName','personName','designation','cnic','bps','basicPay','costCentre']},
- 'Result Card':{f:['schoolName','teacherName','studentName','fatherName','className','grNumber','rollNumber','dob','sessionYear','term'],marks:1},
+ 'Result Card':{f:['schoolName','teacherName','studentName','fatherName','className','grNumber','rollNumber','sessionYear','term'],marks:1},
  'Attendance Sheet':{f:['schoolName','teacherName','className','section','attRange','workingDays'],attendance:1},
- 'Student Profile':{f:['schoolName','teacherName','studentName','fatherName','className','grNumber','rollNumber','dob','address','guardianContact']},
+ 'Student Profile':{f:['schoolName','teacherName','studentName','fatherName','className','grNumber','rollNumber','dob','address','guardianContact','photo']},
  'Enrollment Form':{f:['schoolName','teacherName','studentName','fatherName','fatherCnic','className','grNumber','dob','address']},
  'Prize Certificate':{f:['schoolName','teacherName','childName','fatherName','className','grNumber','rollNumber','prizeTitle','eventName','eventDate']},
  'Scholarship Form':{f:['schoolName','teacherName','studentName','fatherName','className','grNumber','rollNumber','dob']},
- 'Parent Notice':{f:['schoolName','teacherName','fatherName','studentName','className','rollNumber','grNumber','noticeReason']},
- 'Leave Application':{f:['schoolName','personName','designation','leaveType','fromDate','toDate','reason','refNumber'],extra:1},
- 'Official Letter':{f:['schoolName','teacherName','recipientDesignation','subjectLine','bodyPoints','refNumber']},
+ 'Parent Notice':{f:['schoolName','teacherName','fatherName','studentName','className','rollNumber','grNumber','docLang','noticeReason']},
+ 'Leave Application':{f:['schoolName','personName','designation','leaveType','fromDate','toDate','docLang','reason','refNumber'],extra:1},
+ 'Official Letter':{f:['schoolName','teacherName','recipientDesignation','subjectLine','docLang','bodyPoints','refNumber']},
  'Meeting Minutes':{f:['schoolName','teacherName','meetingDate','agenda'],extra:1},
  'School Budget Statement':{f:['schoolName','teacherName','academicYear'],extra:1},
  'Inspection Report':{f:['schoolName','teacherName','eventDate'],extra:1},
@@ -609,6 +613,7 @@ function hasStudentFields(doc){const c=DOC_CONFIG[doc];return c&&c.f.some(k=>F[k
 const SIDEBAR=[
  {sec:'Academic Documents',items:[
   {d:'Lesson Plan',i:'📚',s:"PPP + Bloom's Taxonomy"},
+  {v:'upload',n:'Upload & Generate',i:'📖',s:'Books, syllabus, koi bhi document'},
   {d:'Worksheet',i:'✏️',s:'Printable activity sheets'},
   {d:'Exam Paper',i:'📝',s:'Mid-term / Final'},
   {v:'crq',n:'CRQ Generator',i:'🔍',s:'AI from textbook content'},
@@ -645,8 +650,7 @@ const SIDEBAR=[
   {d:'Inspection Report',i:'🔎',s:'DEO visit'},
   {d:'Affidavit',i:'⚖️',s:'Legal declaration'},
   {d:'Event Content',i:'🎉',s:'Program announcement'},
-  {v:'age',n:'Age Calculator',i:'🎂',s:'Eligibility check'},
-  {v:'upload',n:'Upload & Generate',i:'📸',s:'From book page'}
+  {v:'age',n:'Age Calculator',i:'🎂',s:'Eligibility check'}
  ]}
 ];
 const DOC_META={};
@@ -743,6 +747,7 @@ function fieldHTML(k){
       +'<div class="fg" id="customRangeWrap" style="display:none"><label>Lessons Range <b>*</b></label><input type="text" id="f_customRange" placeholder="e.g. Lessons 3-7 or 2,4,9"></div>';
   }
   if(f.t==='dob'){return '<div class="fg"><label>'+f.l+'</label><input type="date" id="f_dob" onchange="onDobChange()"><span class="age-badge" id="ageBadge"></span></div>';}
+  if(f.t==='photo'){return '<div class="fg"><label>'+f.l+'</label><input type="file" id="f_photo" accept="image/*" onchange="onPhotoSel(event)" style="padding:8px"><span class="age-badge" id="photoBadge"></span></div>';}
   if(f.t==='attrange'){
     return '<div class="fg"><label>Duration Mode</label><select id="f_attMode" onchange="onAttModeChange()"><option value="month">Single Month</option><option value="custom">Custom Duration</option></select></div>'
       +'<div class="fg" id="attMonthWrap"><label>Month</label><input type="month" id="f_attMonth"></div>'
@@ -758,6 +763,7 @@ function secCard(title,inner,extraHead){
   return '<div class="sec-card"><div class="sec-head"><div class="sec-bar"></div><div class="sec-title">'+title+'</div>'+(extraHead||'')+'</div><div class="sec-body"><div class="form-row">'+inner+'</div></div></div>';
 }
 function renderForm(){
+  S.docFile=null;S.photo=null;
   const cfg=DOC_CONFIG[S.doc]||{f:['schoolName','teacherName']};
   /* group fields by section, preserve order of first appearance */
   const groups=[];const idx={};
@@ -770,6 +776,7 @@ function renderForm(){
     if(g.sec==='student'&&getDB().length)head='<button class="mini-btn" style="margin-left:auto;padding:5px 12px;font-size:10px" onclick="openPicker()">🗄️ Fill from Database</button>';
     html+=secCard(title,g.keys.map(fieldHTML).join(''),head);
   });
+  if(cfg.upload)html+='<div class="sec-card"><div class="sec-head"><div class="sec-bar"></div><div class="sec-title">Book / Syllabus Upload <span style="text-transform:none;font-weight:600;color:var(--g400)">(Optional — AI isko deeply parh kar isi se banayega)</span></div></div><div class="sec-body"><div class="upload-zone" id="docDrop" ondrop="docDropFn(event)" ondragover="docOver(event)" ondragleave="docLeave(event)" onclick="document.getElementById(\'docFile\').click()"><div class="uz-ico">📖</div><div class="uz-title">Book, syllabus, page ya koi bhi document yahan drop karein</div><div class="uz-sub">PDF: max 20MB (~100 pages) · Image: max 5MB</div></div><div style="margin-top:8px;font-size:10.5px;font-weight:600;color:var(--gold);background:var(--gold-bg);border:1px solid rgba(200,150,12,.25);border-radius:8px;padding:7px 11px;line-height:1.5">💡 <b>Best result ke liye:</b> poori book ek sath nahi — <b>thore thore pages</b> (ek unit ya chapter) upload karein. AI focused content zyada accurate parhta hai.</div><input type="file" id="docFile" accept=".pdf,image/*" style="display:none" onchange="docFileSel(event)"><div class="f-chip" id="docChip">✅ &nbsp;<span id="docFName">-</span> <button onclick="clearDocFile()" style="margin-left:8px;color:var(--red);font-weight:800">✕ Remove</button></div></div></div>';
   if(cfg.marks)html+='<div class="sec-card"><div class="sec-head"><div class="sec-bar"></div><div class="sec-title">Subject-wise Marks <span style="text-transform:none;font-weight:600;color:var(--g400)">(class ke hisaab se auto)</span></div></div><div class="sec-body" style="padding:0"><div class="marks-head"><span>Subject</span><span>Total</span><span>Obtained</span></div><div id="marksRows"></div></div></div>';
   html+=secCard('Extra Details','<div class="fg full"><label>Additional Information (Optional)</label><textarea id="f_extraData" placeholder="Koi khaas requirement — optional, khaali chhor sakte hain"></textarea></div>');
   document.getElementById('dynForm').innerHTML=html;
@@ -991,15 +998,54 @@ function dbFillFields(s){
   if(s.dob)onDobChange();
 }
 
+/* ═══════════ PER-DOC BOOK UPLOAD + STUDENT PHOTO ═══════════ */
+function docFileSel(e){if(e.target.files[0])setDocFile(e.target.files[0]);}
+function docDropFn(e){e.preventDefault();document.getElementById('docDrop').classList.remove('over');if(e.dataTransfer.files[0])setDocFile(e.dataTransfer.files[0]);}
+function docOver(e){e.preventDefault();document.getElementById('docDrop').classList.add('over');}
+function docLeave(){document.getElementById('docDrop').classList.remove('over');}
+/* AI ki asal reading capacity: PDF ~20MB / 100 pages, image 5MB */
+function checkAILimit(f){
+  const mb=f.size/1024/1024;
+  const isPdf=(f.name.split('.').pop()||'').toLowerCase()==='pdf';
+  if(isPdf&&mb>20){alert('❌ PDF '+mb.toFixed(0)+'MB hai — AI max 20MB (~100 pages) tak parh sakta hai.\n\n💡 Behtar tareeqa: poori book ki bajaye sirf us unit/chapter ke pages ka chhota PDF banao jiska document banana hai. Thora thora upload karo — result bhi zyada accurate aayega.');return false;}
+  if(!isPdf&&mb>5){alert('❌ Image '+mb.toFixed(1)+'MB hai — AI max 5MB per image parh sakta hai.\n\n💡 Photo compress karein ya screenshot lein.');return false;}
+  if(isPdf&&mb>10)alert('⚠️ File '+mb.toFixed(0)+'MB hai — chal jayegi, lekin best result ke liye thore pages (ek unit/chapter) upload karna behtar hai.');
+  return true;
+}
+function setDocFile(f){
+  if(!checkAILimit(f))return;
+  S.docFile=f;document.getElementById('docFName').textContent=f.name+' ('+(f.size/1024/1024).toFixed(1)+' MB)';document.getElementById('docChip').style.display='block';
+}
+function clearDocFile(){S.docFile=null;document.getElementById('docChip').style.display='none';document.getElementById('docFile').value='';}
+function onPhotoSel(e){
+  const f=e.target.files[0];if(!f)return;
+  if(f.size>5*1024*1024){alert('Photo 5MB se chhoti honi chahiye!');e.target.value='';return;}
+  const reader=new FileReader();
+  reader.onload=ev=>{S.photo=ev.target.result;const b=document.getElementById('photoBadge');b.textContent='✅ Photo attached — docx/PDF mein embed hogi';b.style.display='inline-block';};
+  reader.readAsDataURL(f);
+}
+
 /* ═══════════ GENERATE + OUTPUT ═══════════ */
 async function generateDoc(){
   const{fields,marks,studentsList,cfg}=collect();
   if(!validate(fields,cfg))return;
   S.lastFields=fields;
-  showLoader(NO_AI.includes(S.doc)?'Building instantly — no AI needed...':'AI is crafting your document...');
   try{
-    const r=await fetch('/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({documentType:S.doc,language:lang(),fields,marks,studentsList})});
-    const d=await r.json();
+    let d;
+    if(S.docFile&&cfg.upload){
+      showLoader('AI book ko deeply parh raha hai...');
+      const fd=new FormData();
+      fd.append('file',S.docFile);
+      fd.append('documentType',S.doc);
+      fd.append('language',lang());
+      fd.append('fieldsJson',JSON.stringify(fields));
+      const r=await fetch('/generate-with-file',{method:'POST',body:fd});
+      d=await r.json();
+    }else{
+      showLoader(NO_AI.includes(S.doc)?'Building instantly — no AI needed...':'AI is crafting your document...');
+      const r=await fetch('/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({documentType:S.doc,language:lang(),fields,marks,studentsList})});
+      d=await r.json();
+    }
     d.success?showResult(d.content,S.doc):(hideLoader(),alert('Error: '+d.error));
   }catch(e){hideLoader();alert('Server error!');}
 }
@@ -1011,8 +1057,8 @@ function fileBase(){
 function showLoader(msg){document.getElementById('genBtn').disabled=true;document.getElementById('loader').style.display='block';document.getElementById('resultWrap').style.display='none';if(msg)document.querySelector('.loader-title').textContent=msg;document.getElementById('loader').scrollIntoView({behavior:'smooth',block:'center'});}
 function hideLoader(){document.getElementById('genBtn').disabled=false;document.getElementById('loader').style.display='none';}
 function showResult(c,t){S.content=c;hideLoader();const w=document.getElementById('resultWrap');w.style.display='block';document.getElementById('resultBody').textContent=c;document.getElementById('rhTitle').textContent=(t||S.doc)+' — Ready';w.scrollIntoView({behavior:'smooth',block:'start'});}
-async function dlDocx(){const fn=fileBase();try{const r=await fetch('/download-docx',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({content:S.content,fileName:fn,language:lang()})});const blob=await r.blob();const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=fn+'.docx';a.click();URL.revokeObjectURL(url);}catch(e){alert('Download error!');}}
-async function dlPdf(){const fn=fileBase();try{const r=await fetch('/download-pdf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({content:S.content,fileName:fn})});const blob=await r.blob();const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=fn+'.html';a.click();URL.revokeObjectURL(url);}catch(e){alert('PDF error!');}}
+async function dlDocx(){const fn=fileBase();try{const r=await fetch('/download-docx',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({content:S.content,fileName:fn,language:lang(),photo:S.photo||null})});const blob=await r.blob();const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=fn+'.docx';a.click();URL.revokeObjectURL(url);}catch(e){alert('Download error!');}}
+async function dlPdf(){const fn=fileBase();try{const r=await fetch('/download-pdf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({content:S.content,fileName:fn,photo:S.photo||null})});const blob=await r.blob();const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=fn+'.html';a.click();URL.revokeObjectURL(url);}catch(e){alert('PDF error!');}}
 function copyTxt(){navigator.clipboard.writeText(S.content).then(()=>alert('Copied!'));}
 
 /* ═══════════ AGE CALCULATOR (apni view — kisi ke sath stack nahi hoti) ═══════════ */
@@ -1039,7 +1085,7 @@ function crqFileSel(e){if(e.target.files[0])setCrqFile(e.target.files[0]);}
 function crqDropFn(e){e.preventDefault();document.getElementById('crqDrop').classList.remove('over');if(e.dataTransfer.files[0])setCrqFile(e.dataTransfer.files[0]);}
 function crqOver(e){e.preventDefault();document.getElementById('crqDrop').classList.add('over');}
 function crqLeave(){document.getElementById('crqDrop').classList.remove('over');}
-function setCrqFile(f){S.crqFile=f;document.getElementById('crqFName').textContent=f.name+' ('+(f.size/1024).toFixed(1)+' KB)';document.getElementById('crqChip').style.display='block';}
+function setCrqFile(f){if(!checkAILimit(f))return;S.crqFile=f;document.getElementById('crqFName').textContent=f.name+' ('+(f.size/1024).toFixed(1)+' KB)';document.getElementById('crqChip').style.display='block';}
 async function genCRQ(){
   const t=val('crqTopic');
   if(!t){alert('Unit / Lessons zaroor bharein (e.g. Unit 3 ya Lessons 3-7)!');return;}
@@ -1067,7 +1113,7 @@ function handleDrop(e){e.preventDefault();document.getElementById('dropZone').cl
 function handleOver(e){e.preventDefault();document.getElementById('dropZone').classList.add('over');}
 function handleLeave(){document.getElementById('dropZone').classList.remove('over');}
 function onFileSel(e){if(e.target.files[0])setFile(e.target.files[0]);}
-function setFile(f){S.file=f;document.getElementById('fName').textContent=f.name+' ('+(f.size/1024).toFixed(1)+' KB)';document.getElementById('fChip').style.display='block';}
+function setFile(f){if(!checkAILimit(f))return;S.file=f;document.getElementById('fName').textContent=f.name+' ('+(f.size/1024).toFixed(1)+' KB)';document.getElementById('fChip').style.display='block';}
 function upClassChange(keep){
   const cls=val('upClass');
   document.getElementById('upGroupWrap').style.display=SEC_MAP[cls]?'flex':'none';

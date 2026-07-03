@@ -1,7 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const Anthropic = require('@anthropic-ai/sdk');
-const { Document, Packer, Paragraph, TextRun, AlignmentType, BorderStyle, WidthType, ShadingType, Table, TableRow, TableCell } = require('docx');
+const { Document, Packer, Paragraph, TextRun, AlignmentType, BorderStyle, WidthType, ShadingType, Table, TableRow, TableCell, ImageRun } = require('docx');
 const multer = require('multer');
 const fs = require('fs');
 const path = require('path');
@@ -21,7 +21,7 @@ const storage = multer.diskStorage({
   },
   filename: (req, file, cb) => cb(null, Date.now() + path.extname(file.originalname))
 });
-const upload = multer({ storage, limits: { fileSize: 50 * 1024 * 1024 } });
+const upload = multer({ storage, limits: { fileSize: 25 * 1024 * 1024 } }); // AI reading capacity ke mutabiq (PDF ~20MB / 100 pages)
 
 /* ─── NO-AI document types — instant, offline, zero API cost ─────────────── */
 const NO_AI_TYPES = [
@@ -74,6 +74,43 @@ const DOC_GUIDE = {
   'Complaint Letter':'Write a formal complaint letter with reference line, date, recipient, subject, factual respectful body covering the main points, requested action, and signature block.'
 };
 
+/* ─── Helpers: file → Claude content block, language instructions ─────────── */
+function fileToBlock(filePath, originalName) {
+  const ext = path.extname(originalName || filePath).toLowerCase();
+  const data = fs.readFileSync(filePath).toString('base64');
+  if (ext === '.pdf') {
+    return { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data } };
+  }
+  const mt = ext === '.png' ? 'image/png' : (ext === '.webp' ? 'image/webp' : (ext === '.gif' ? 'image/gif' : 'image/jpeg'));
+  return { type: 'image', source: { type: 'base64', media_type: mt, data } };
+}
+
+const LANG_INSTRUCTIONS = {
+  english: 'Write ONLY in English.',
+  urdu: 'Write ONLY in formal Urdu (Nastaliq script). Proofread carefully — grammar, spelling and idiom must be 100% correct. No English words unless unavoidable (names, numbers).',
+  sindhi: 'Write ONLY in formal Sindhi (Arabic-Sindhi script, 52-letter alphabet). Proofread carefully — grammar and spelling must be 100% correct standard Sindhi.',
+  roman_urdu: 'Write ONLY in Roman Urdu (Urdu words in Latin/English letters).',
+  bilingual_en_ur: 'Write in BOTH English AND Urdu — every heading, label, and content in both languages side by side.',
+  bilingual_en_sd: 'Write in BOTH English AND Sindhi — every part bilingual.',
+  trilingual: 'Write in English, Urdu, AND Sindhi — all three languages throughout.',
+  en_ur_roman: 'Write in English, Urdu script, AND Roman Urdu — all three throughout.'
+};
+/* Per-document language override (Parent Notice, Official Letter, Leave Application etc.) */
+function resolveLangInstruction(language, fields) {
+  if (fields && fields.docLang) {
+    const map = { English: 'english', Urdu: 'urdu', Sindhi: 'sindhi' };
+    const key = map[fields.docLang];
+    if (key) return LANG_INSTRUCTIONS[key];
+  }
+  return LANG_INSTRUCTIONS[language] || LANG_INSTRUCTIONS.bilingual_en_ur;
+}
+function buildDetailLines(fields) {
+  return Object.entries(fields)
+    .filter(([k, v]) => v && !k.startsWith('_') && k !== 'docLang')
+    .map(([k, v]) => `${LABELS[k] || k}: ${v}`)
+    .join('\n');
+}
+
 /* ─── GENERATE ───────────────────────────────────────────────────────────── */
 app.post('/generate', async (req, res) => {
   const { documentType, language } = req.body;
@@ -91,21 +128,7 @@ app.post('/generate', async (req, res) => {
     }
   }
 
-  const langInstructions = {
-    english: 'Write ONLY in English.',
-    urdu: 'Write ONLY in Urdu (Nastaliq script).',
-    sindhi: 'Write ONLY in Sindhi (Nastaliq script).',
-    roman_urdu: 'Write ONLY in Roman Urdu (Urdu words in Latin/English letters).',
-    bilingual_en_ur: 'Write in BOTH English AND Urdu — every heading, label, and content in both languages side by side.',
-    bilingual_en_sd: 'Write in BOTH English AND Sindhi — every part bilingual.',
-    trilingual: 'Write in English, Urdu, AND Sindhi — all three languages throughout.',
-    en_ur_roman: 'Write in English, Urdu script, AND Roman Urdu — all three throughout.'
-  };
-
-  const detailLines = Object.entries(fields)
-    .filter(([k, v]) => v && !k.startsWith('_'))
-    .map(([k, v]) => `${LABELS[k] || k}: ${v}`)
-    .join('\n');
+  const detailLines = buildDetailLines(fields);
 
   const prompt = `You are a professional educator creating a ${documentType} for a Government of Sindh school in Pakistan.
 
@@ -114,7 +137,7 @@ ${detailLines || '(none provided)'}
 
 DOCUMENT INSTRUCTIONS: ${DOC_GUIDE[documentType] || 'Create a complete, professional, classroom-ready document.'}
 
-LANGUAGE INSTRUCTION: ${langInstructions[language] || langInstructions.bilingual_en_ur}
+LANGUAGE INSTRUCTION: ${resolveLangInstruction(language, fields)}
 
 RULES:
 - Follow Sindh Textbook Board (STB) curriculum standards and Sindh Education & Literacy Department conventions.
@@ -134,28 +157,58 @@ RULES:
   }
 });
 
+/* ─── GENERATE WITH UPLOADED BOOK/DOCUMENT ─────────────────────────────────
+   Lesson Plan, Worksheet, Exam Paper, Rubric, Annual/Monthly Plan —
+   AI uploaded book/PDF/image ko deeply parh kar EXACTLY usi se banata hai */
+app.post('/generate-with-file', upload.single('file'), async (req, res) => {
+  if (!req.file) return res.json({ success: false, error: 'No file uploaded' });
+  const { documentType, language } = req.body;
+  let fields = {};
+  try { fields = JSON.parse(req.body.fieldsJson || '{}'); } catch (e) {}
+
+  try {
+    const block = fileToBlock(req.file.path, req.file.originalname);
+    const detailLines = buildDetailLines(fields);
+    const prompt = `You are a professional educator creating a ${documentType} for a Government of Sindh school in Pakistan.
+
+DETAILS:
+${detailLines || '(none provided)'}
+
+SOURCE MATERIAL: A book/syllabus/document is attached. READ IT DEEPLY, word by word, page by page. The ${documentType} must be based EXACTLY and COMPLETELY on this attached content — its actual topics, vocabulary, exercises, and sequence. Do NOT invent content that is not in the source. If a unit/lesson range is specified in DETAILS, cover that range from the source; if "Full Book" is specified, cover the entire attached content.
+
+DOCUMENT INSTRUCTIONS: ${DOC_GUIDE[documentType] || 'Create a complete, professional, classroom-ready document.'}
+
+LANGUAGE INSTRUCTION: ${resolveLangInstruction(language, fields)}
+
+RULES:
+- Follow Sindh Textbook Board (STB) curriculum standards.
+- Use ONLY the details provided. Do NOT include any student personal details unless provided.
+- Use markdown headings (#, ##, ###) and pipe tables (| col | col |) where a table improves clarity.
+- Generate COMPLETE content — no placeholders.`;
+
+    const response = await client.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 8000,
+      messages: [{ role: 'user', content: [block, { type: 'text', text: prompt }] }]
+    });
+    try { fs.unlinkSync(req.file.path); } catch (e) {}
+    res.json({ success: true, content: response.content[0].text });
+  } catch (error) {
+    try { fs.unlinkSync(req.file.path); } catch (e) {}
+    let msg = error.message || 'Unknown error';
+    if (/request_too_large|exceeds|too large|maximum/i.test(msg)) msg = 'File AI ki limit se bari hai — poori book ki bajaye sirf relevant unit/chapter ke pages (PDF ya photos) upload karein.';
+    res.json({ success: false, error: msg });
+  }
+});
+
 /* ─── GENERATE CRQ ───────────────────────────────────────────────────────── */
 app.post('/generate-crq', upload.single('file'), async (req, res) => {
   const { schoolName, teacherName, className, subject, unitName, difficulty, bloomLevels, mcqCount, shortCount, longCount, includeAnswerKey, language } = req.body;
   const bl = JSON.parse(bloomLevels || '["Remember","Understand","Apply"]');
 
-  let fileContent = '';
+  let srcBlock = null;
   if (req.file) {
-    const ext = path.extname(req.file.originalname).toLowerCase();
-    if (['.jpg','.jpeg','.png','.gif','.webp'].includes(ext)) {
-      const imgData = fs.readFileSync(req.file.path).toString('base64');
-      const imgType = ext === '.png' ? 'image/png' : 'image/jpeg';
-      try {
-        const vr = await client.messages.create({
-          model: 'claude-sonnet-4-6', max_tokens: 2000,
-          messages: [{ role: 'user', content: [
-            { type: 'image', source: { type: 'base64', media_type: imgType, data: imgData } },
-            { type: 'text', text: 'Extract all text from this textbook page. Return only the extracted text.' }
-          ]}]
-        });
-        fileContent = vr.content[0].text;
-      } catch(e) {}
-    }
+    try { srcBlock = fileToBlock(req.file.path, req.file.originalname); } catch(e) {}
     try { fs.unlinkSync(req.file.path); } catch(e) {}
   }
 
@@ -167,19 +220,22 @@ Unit/Lessons: ${unitName} (if a range like "Lessons 3-7" or "Full Book" is given
 Difficulty: ${difficulty} | Bloom's Levels: ${bl.join(', ')}
 MCQs: ${mcqCount} | Short Questions: ${shortCount} | Long Questions: ${longCount}
 Include Answer Key: ${includeAnswerKey}
-${fileContent ? 'Based on this textbook content:\n' + fileContent : ''}
+${srcBlock ? 'SOURCE MATERIAL: A book/document is attached. READ IT DEEPLY, word by word. Base every question EXACTLY on its content — its topics, concepts, facts and exercises. Cover the specified unit/lesson range from it; do NOT invent content not present in the source.' : ''}
 Language: ${language === 'bilingual_en_ur' ? 'Bilingual English + Urdu' : language}
 Follow the Sindh Textbook Board curriculum. Do NOT include any student personal details.
 Generate a complete, professional exam paper with all sections and marks distribution.`;
 
   try {
+    const content = srcBlock ? [srcBlock, { type: 'text', text: prompt }] : prompt;
     const response = await client.messages.create({
       model: 'claude-sonnet-4-6', max_tokens: 8000,
-      messages: [{ role: 'user', content: prompt }]
+      messages: [{ role: 'user', content }]
     });
     res.json({ success: true, content: response.content[0].text });
   } catch (error) {
-    res.json({ success: false, error: error.message });
+    let msg = error.message || 'Unknown error';
+    if (/request_too_large|exceeds|too large|maximum/i.test(msg)) msg = 'File AI ki limit se bari hai — sirf relevant chapters upload karein.';
+    res.json({ success: false, error: msg });
   }
 });
 
@@ -187,22 +243,22 @@ Generate a complete, professional exam paper with all sections and marks distrib
 app.post('/upload-generate', upload.single('file'), async (req, res) => {
   if (!req.file) return res.json({ success: false, error: 'No file uploaded' });
   const { documentType, schoolName, teacherName, className, subject, language } = req.body;
-  const ext = path.extname(req.file.originalname).toLowerCase();
-  const imgData = fs.readFileSync(req.file.path).toString('base64');
-  const imgType = ext === '.png' ? 'image/png' : 'image/jpeg';
-
   try {
+    const block = fileToBlock(req.file.path, req.file.originalname);
     const response = await client.messages.create({
       model: 'claude-sonnet-4-6', max_tokens: 8000,
       messages: [{ role: 'user', content: [
-        { type: 'image', source: { type: 'base64', media_type: imgType, data: imgData } },
-        { type: 'text', text: `Create a ${documentType}${schoolName ? ' for ' + schoolName : ''}${className ? ', ' + className : ''}${subject ? ', Subject: ' + subject : ''}${teacherName ? ', Prepared by: ' + teacherName : ''}. Language: ${language}. ${DOC_GUIDE[documentType] || ''} Based on this textbook page content, generate a complete professional document. Do NOT include any student personal details.` }
+        block,
+        { type: 'text', text: `Create a ${documentType}${schoolName ? ' for ' + schoolName : ''}${className ? ', ' + className : ''}${subject ? ', Subject: ' + subject : ''}${teacherName ? ', Prepared by: ' + teacherName : ''}. LANGUAGE INSTRUCTION: ${LANG_INSTRUCTIONS[language] || LANG_INSTRUCTIONS.bilingual_en_ur} ${DOC_GUIDE[documentType] || ''} READ the attached book/document DEEPLY, word by word, and base the document EXACTLY and completely on its content. Do NOT include any student personal details. Use markdown headings and pipe tables where helpful.` }
       ]}]
     });
-    fs.unlinkSync(req.file.path);
+    try { fs.unlinkSync(req.file.path); } catch(e) {}
     res.json({ success: true, content: response.content[0].text });
   } catch (error) {
-    res.json({ success: false, error: error.message });
+    try { fs.unlinkSync(req.file.path); } catch(e) {}
+    let msg = error.message || 'Unknown error';
+    if (/request_too_large|exceeds|too large|maximum/i.test(msg)) msg = 'File AI ki limit se bari hai — sirf relevant chapters upload karein.';
+    res.json({ success: false, error: msg });
   }
 });
 
@@ -226,6 +282,9 @@ function headerBlock(f, title) {
 }
 function signBlock3() {
   return `\n\n| Class Teacher | Head Master / Principal | Beat Officer / Supervisor |\n|---|---|---|\n| \u00A0 | \u00A0 | \u00A0 |\n| \u00A0 | \u00A0 | \u00A0 |\n| Signature & Stamp | Signature & Stamp | Signature & Stamp |`;
+}
+function signBlock2() {
+  return `\n\n| Class Teacher | Head Master / Principal |\n|---|---|\n| \u00A0 | \u00A0 |\n| \u00A0 | \u00A0 |\n| Signature & Stamp | Signature & Stamp |`;
 }
 function signBlockHM(f) {
   return `\n\n\n_______________________\n**Head Master / Principal**\n${blank(f.teacherName, 25)}\n${blank(f.schoolName, 35)}\nSignature & Official Stamp`;
@@ -358,6 +417,8 @@ Father/Guardian Signature & Thumb Impression: ____________________  Date: ______
   'Student Profile': (f) =>
     headerBlock(f, 'STUDENT PROFILE') +
 `
+[[PHOTO]]
+
 | Field | Detail |
 |---|---|
 | Student Name | ${blank(f.studentName, 30)} |
@@ -399,7 +460,6 @@ Father/Guardian Signature & Thumb Impression: ____________________  Date: ______
 | Student Name | ${blank(f.studentName, 22)} | G.R Number | ${blank(f.grNumber, 8)} |
 | Father's Name | ${blank(f.fatherName, 22)} | Seat / Roll No | ${blank(f.rollNumber, 8)} |
 | Class | ${blank(f.className, 10)} | Session | ${blank(f.sessionYear, 10)} |
-| Date of Birth | ${fmt(f.dob) || '__________'} | Current Age | ${f.age || '__________'} |
 | Examination | ${f.term || 'Annual'} | Result Date | ${today()} |
 
 ### Subject-wise Marks
@@ -411,7 +471,7 @@ ${rows}| **TOTAL** | **${totMax}** | **${allFilled ? totObt : '\u00A0'}** | **${
 **Result:** ${overallPct === null ? '________________' : (overallPct >= 33 ? 'PASS — Promoted to next class' : 'FAIL')}
 **Position in Class:** ________________
 **Remarks:** ________________________________________` +
-    signBlock3();
+    signBlock2();
   },
 
   'Attendance Sheet': (f, marks, students) => {
@@ -505,7 +565,12 @@ function runFromText(text, opts) {
 }
 
 app.post('/download-docx', async (req, res) => {
-  const { content, fileName } = req.body;
+  const { content, fileName, photo } = req.body;
+  let photoBuf = null, photoType = 'jpg';
+  if (photo && /^data:image\/(png|jpe?g);base64,/.test(photo)) {
+    photoType = photo.includes('image/png') ? 'png' : 'jpg';
+    try { photoBuf = Buffer.from(photo.split(',')[1], 'base64'); } catch(e) {}
+  }
   try {
     const lines = content.split('\n');
     const children = [];
@@ -515,6 +580,23 @@ app.post('/download-docx', async (req, res) => {
     let i = 0;
     while (i < lines.length) {
       const line = lines[i];
+
+      /* Student photo placeholder */
+      if (line.trim() === '[[PHOTO]]') {
+        if (photoBuf) {
+          children.push(new Paragraph({
+            alignment: AlignmentType.RIGHT,
+            spacing: { after: 120 },
+            children: [new ImageRun({ data: photoBuf, transformation: { width: 110, height: 130 }, type: photoType })]
+          }));
+        } else {
+          children.push(new Paragraph({
+            alignment: AlignmentType.RIGHT, spacing: { after: 120 },
+            children: [new TextRun({ text: '  Affix recent photograph  ', size: 16, font: 'Arial', color: '8898b8', border: { style: BorderStyle.SINGLE, size: 6, color: 'c8d3e8' } })]
+          }));
+        }
+        i++; continue;
+      }
 
       /* Markdown pipe table → real DOCX table */
       if (isTableLine(line)) {
@@ -583,7 +665,8 @@ app.post('/download-docx', async (req, res) => {
 
 /* ─── DOWNLOAD PDF (HTML-based, with table support) ──────────────────────── */
 app.post('/download-pdf', async (req, res) => {
-  const { content, fileName } = req.body;
+  const { content, fileName, photo } = req.body;
+  const photoOk = photo && /^data:image\/(png|jpe?g);base64,/.test(photo);
   try {
     const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     const inline = s => esc(s).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
@@ -605,6 +688,12 @@ app.post('/download-pdf', async (req, res) => {
         });
         html += '</table>';
         continue;
+      }
+      if (line.trim() === '[[PHOTO]]') {
+        html += photoOk
+          ? `<div style="text-align:right"><img src="${photo}" style="width:110px;height:130px;object-fit:cover;border:1.5px solid #c8d3e8;border-radius:4px"></div>`
+          : `<div style="text-align:right"><span style="display:inline-block;width:110px;height:130px;border:1.5px dashed #c8d3e8;border-radius:4px;font-size:8pt;color:#8898b8;text-align:center;line-height:130px">Affix Photo</span></div>`;
+        i++; continue;
       }
       if (!line.trim()) { html += '<div class="sp"></div>'; i++; continue; }
       if (line.includes('بِسْمِ')) html += `<div class="bismillah">${esc(line.replace(/\*\*/g, ''))}</div>`;
