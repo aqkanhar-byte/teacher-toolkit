@@ -363,7 +363,7 @@ button{cursor:pointer;border:none;background:none}
         <div class="uz-title" style="color:rgba(255,255,255,.6)">Book (PDF), B.Ed/M.Ed material, page ya image — kuch bhi</div>
         <div class="uz-sub" style="color:rgba(255,255,255,.3)">PDF: max 20MB (~100 pages) · Image: max 5MB</div>
       </div>
-      <div style="margin-top:8px;font-size:10.5px;font-weight:600;color:var(--gold-light);background:rgba(200,150,12,.1);border:1px solid rgba(200,150,12,.3);border-radius:8px;padding:7px 11px;line-height:1.5">💡 <b>Best result ke liye:</b> poori book nahi — <b>thore thore pages</b> (ek unit/chapter) upload karein.</div>
+      <div style="margin-top:8px;font-size:10.5px;font-weight:600;color:var(--gold-light);background:rgba(200,150,12,.1);border:1px solid rgba(200,150,12,.3);border-radius:8px;padding:7px 11px;line-height:1.5">💡 <b>Best result ke liye:</b> poori book nahi — <b>thore thore pages</b> (ek unit/chapter) upload karein. Bari file hai? <button onclick="openResizer()" style="margin-left:6px;background:var(--navy);color:#fff;font-size:10px;font-weight:800;padding:4px 11px;border-radius:99px;vertical-align:middle">🗜️ Resizer Kholo</button></div>
       <input type="file" id="crqFile" accept=".pdf,image/*" style="display:none" onchange="crqFileSel(event)">
       <div class="f-chip" id="crqChip" style="background:rgba(16,185,129,.12);border-color:rgba(16,185,129,.3);color:#10b981">✅ &nbsp;<span id="crqFName">-</span></div>
       <div class="crq-lbl">Difficulty</div>
@@ -483,7 +483,7 @@ button{cursor:pointer;border:none;background:none}
           <div class="uz-title">Book, syllabus, notes ya koi bhi document yahan drop karein</div>
           <div class="uz-sub">PDF: max 20MB (~100 pages) · Image: max 5MB</div>
         </div>
-        <div style="margin-top:8px;font-size:10.5px;font-weight:600;color:var(--gold);background:var(--gold-bg);border:1px solid rgba(200,150,12,.25);border-radius:8px;padding:7px 11px;line-height:1.5">💡 <b>Best result ke liye:</b> poori book ek sath nahi — <b>thore thore pages</b> (ek unit ya chapter) upload karein. AI focused content zyada accurate parhta hai.</div>
+        <div style="margin-top:8px;font-size:10.5px;font-weight:600;color:var(--gold);background:var(--gold-bg);border:1px solid rgba(200,150,12,.25);border-radius:8px;padding:7px 11px;line-height:1.5">💡 <b>Best result ke liye:</b> poori book ek sath nahi — <b>thore thore pages</b> (ek unit ya chapter) upload karein. AI focused content zyada accurate parhta hai. Bari file hai? <button onclick="openResizer()" style="margin-left:6px;background:var(--navy);color:#fff;font-size:10px;font-weight:800;padding:4px 11px;border-radius:99px;vertical-align:middle">🗜️ Resizer Kholo</button></div>
         <input type="file" id="fileIn" accept=".pdf,image/*" style="display:none" onchange="onFileSel(event)">
         <div class="f-chip" id="fChip">✅ &nbsp;<span id="fName">-</span></div>
         <div class="form-row" style="margin-top:14px">
@@ -669,6 +669,7 @@ const SIDEBAR=[
  {sec:'Academic Documents',items:[
   {d:'Lesson Plan',i:'📚',s:"PPP + Bloom's Taxonomy"},
   {v:'upload',n:'Upload & Generate',i:'📖',s:'Books, syllabus, koi bhi document'},
+  {v:'resize',n:'PDF / Image Resizer',i:'🗜️',s:'Bari books chhoti karein · Pages nikaalen'},
   {d:'Worksheet',i:'✏️',s:'Printable activity sheets'},
   {d:'Exam Paper',i:'📝',s:'Mid-term / Final'},
   {v:'crq',n:'CRQ Generator',i:'🔍',s:'AI from textbook content'},
@@ -705,7 +706,6 @@ const SIDEBAR=[
   {d:'Inspection Report',i:'🔎',s:'DEO visit'},
   {d:'Affidavit',i:'⚖️',s:'Legal declaration'},
   {d:'Event Content',i:'🎉',s:'Program announcement'},
-  {v:'resize',n:'PDF / Image Resizer',i:'🗜️',s:'Compress · Pages nikaalen · Resize'},
   {v:'age',n:'Age Calculator',i:'🎂',s:'Eligibility check'}
  ]}
 ];
@@ -740,6 +740,11 @@ function showView(id){
   document.getElementById('view-'+id).classList.add('active');
 }
 function hideOutput(){document.getElementById('loader').style.display='none';document.getElementById('resultWrap').style.display='none';}
+function openResizer(){
+  const item=document.querySelector('.sb-item[data-key="view:resize"]');
+  if(item)sbClick(item);else{hideOutput();showView('resize');}
+  window.scrollTo({top:0,behavior:'smooth'});
+}
 function toggleSidebar(force){
   const sb=document.getElementById('sidebar'),ov=document.getElementById('sbOverlay');
   const open=force!==undefined?force:!sb.classList.contains('open');
@@ -832,7 +837,7 @@ function renderForm(){
     if(g.sec==='student'&&getDB().length)head='<button class="mini-btn" style="margin-left:auto;padding:5px 12px;font-size:10px" onclick="openPicker()">🗄️ Fill from Database</button>';
     html+=secCard(title,g.keys.map(fieldHTML).join(''),head);
   });
-  if(cfg.upload)html+='<div class="sec-card"><div class="sec-head"><div class="sec-bar"></div><div class="sec-title">Book / Syllabus Upload <span style="text-transform:none;font-weight:600;color:var(--g400)">(Optional — AI isko deeply parh kar isi se banayega)</span></div></div><div class="sec-body"><div class="upload-zone" id="docDrop" ondrop="docDropFn(event)" ondragover="docOver(event)" ondragleave="docLeave(event)" onclick="document.getElementById(\'docFile\').click()"><div class="uz-ico">📖</div><div class="uz-title">Book, syllabus, page ya koi bhi document yahan drop karein</div><div class="uz-sub">PDF: max 20MB (~100 pages) · Image: max 5MB</div></div><div style="margin-top:8px;font-size:10.5px;font-weight:600;color:var(--gold);background:var(--gold-bg);border:1px solid rgba(200,150,12,.25);border-radius:8px;padding:7px 11px;line-height:1.5">💡 <b>Best result ke liye:</b> poori book ek sath nahi — <b>thore thore pages</b> (ek unit ya chapter) upload karein. AI focused content zyada accurate parhta hai.</div><input type="file" id="docFile" accept=".pdf,image/*" style="display:none" onchange="docFileSel(event)"><div class="f-chip" id="docChip">✅ &nbsp;<span id="docFName">-</span> <button onclick="clearDocFile()" style="margin-left:8px;color:var(--red);font-weight:800">✕ Remove</button></div></div></div>';
+  if(cfg.upload)html+='<div class="sec-card"><div class="sec-head"><div class="sec-bar"></div><div class="sec-title">Book / Syllabus Upload <span style="text-transform:none;font-weight:600;color:var(--g400)">(Optional — AI isko deeply parh kar isi se banayega)</span></div></div><div class="sec-body"><div class="upload-zone" id="docDrop" ondrop="docDropFn(event)" ondragover="docOver(event)" ondragleave="docLeave(event)" onclick="document.getElementById(\'docFile\').click()"><div class="uz-ico">📖</div><div class="uz-title">Book, syllabus, page ya koi bhi document yahan drop karein</div><div class="uz-sub">PDF: max 20MB (~100 pages) · Image: max 5MB</div></div><div style="margin-top:8px;font-size:10.5px;font-weight:600;color:var(--gold);background:var(--gold-bg);border:1px solid rgba(200,150,12,.25);border-radius:8px;padding:7px 11px;line-height:1.5">💡 <b>Best result ke liye:</b> poori book ek sath nahi — <b>thore thore pages</b> (ek unit ya chapter) upload karein. AI focused content zyada accurate parhta hai. Bari file hai? <button onclick="openResizer()" style="margin-left:6px;background:var(--navy);color:#fff;font-size:10px;font-weight:800;padding:4px 11px;border-radius:99px;vertical-align:middle">🗜️ Resizer Kholo</button></div><input type="file" id="docFile" accept=".pdf,image/*" style="display:none" onchange="docFileSel(event)"><div class="f-chip" id="docChip">✅ &nbsp;<span id="docFName">-</span> <button onclick="clearDocFile()" style="margin-left:8px;color:var(--red);font-weight:800">✕ Remove</button></div></div></div>';
   if(cfg.marks)html+='<div class="sec-card"><div class="sec-head"><div class="sec-bar"></div><div class="sec-title">Subject-wise Marks <span style="text-transform:none;font-weight:600;color:var(--g400)">(class ke hisaab se auto)</span></div></div><div class="sec-body" style="padding:0"><div class="marks-head"><span>Subject</span><span>Total</span><span>Obtained</span></div><div id="marksRows"></div></div></div>';
   html+=secCard('Extra Details','<div class="fg full"><label>Additional Information (Optional)</label><textarea id="f_extraData" placeholder="Koi khaas requirement — optional, khaali chhor sakte hain"></textarea></div>');
   document.getElementById('dynForm').innerHTML=html;
