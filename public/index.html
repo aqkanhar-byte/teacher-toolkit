@@ -245,7 +245,8 @@ button{cursor:pointer;border:none;background:none}
     </div>
   </div>
   <div class="tb-right">
-    <div class="dev-badge">by <em>aqkanhar</em></div>
+    <button class="dev-badge" id="credChip" onclick="creditChipClick()" style="cursor:pointer;display:none">💳 <em id="credCount">0</em> credits</button>
+    <button class="dev-badge" id="authBtn" onclick="openAuth()" style="cursor:pointer">👤 Login</button>
     <div class="ai-badge">✦ AI Powered</div>
   </div>
 </header>
@@ -357,13 +358,13 @@ button{cursor:pointer;border:none;background:none}
       </div>
       <div class="crq-lbl">Unit / Lessons</div>
       <input type="text" class="crq-inp" id="crqTopic" placeholder="e.g. Unit 3, Lessons 3-7, Lessons 2,4,9 or Full Book">
-      <div class="crq-lbl">Book / Document Upload (Optional — AI isi se CRQ banayega)</div>
+      <div class="crq-lbl">Book / Document Upload (Optional — AI will build the CRQ from it)</div>
       <div class="upload-zone" style="background:rgba(255,255,255,.04);border-color:rgba(255,255,255,.2)" id="crqDrop" ondrop="crqDropFn(event)" ondragover="crqOver(event)" ondragleave="crqLeave(event)" onclick="document.getElementById('crqFile').click()">
         <div class="uz-ico">📄</div>
-        <div class="uz-title" style="color:rgba(255,255,255,.6)">Book (PDF), B.Ed/M.Ed material, page ya image — kuch bhi</div>
+        <div class="uz-title" style="color:rgba(255,255,255,.6)">Book (PDF), B.Ed/M.Ed material, page or image — anything</div>
         <div class="uz-sub" style="color:rgba(255,255,255,.3)">PDF: max 20MB (~100 pages) · Image: max 5MB</div>
       </div>
-      <div style="margin-top:8px;font-size:10.5px;font-weight:600;color:var(--gold-light);background:rgba(200,150,12,.1);border:1px solid rgba(200,150,12,.3);border-radius:8px;padding:7px 11px;line-height:1.5">💡 <b>Best result ke liye:</b> poori book nahi — <b>thore thore pages</b> (ek unit/chapter) upload karein. Bari file hai? <button onclick="openResizer()" style="margin-left:6px;background:var(--navy);color:#fff;font-size:10px;font-weight:800;padding:4px 11px;border-radius:99px;vertical-align:middle">🗜️ Resizer Kholo</button></div>
+      <div style="margin-top:8px;font-size:10.5px;font-weight:600;color:var(--gold-light);background:rgba(200,150,12,.1);border:1px solid rgba(200,150,12,.3);border-radius:8px;padding:7px 11px;line-height:1.5">💡 <b>For best results:</b> upload <b>a few pages</b> (one unit/chapter), not the whole book. Large file? <button onclick="openResizer()" style="margin-left:6px;background:var(--navy);color:#fff;font-size:10px;font-weight:800;padding:4px 11px;border-radius:99px;vertical-align:middle">🗜️ Open Resizer</button></div>
       <input type="file" id="crqFile" accept=".pdf,image/*" style="display:none" onchange="crqFileSel(event)">
       <div class="f-chip" id="crqChip" style="background:rgba(16,185,129,.12);border-color:rgba(16,185,129,.3);color:#10b981">✅ &nbsp;<span id="crqFName">-</span></div>
       <div class="crq-lbl">Difficulty</div>
@@ -420,37 +421,37 @@ button{cursor:pointer;border:none;background:none}
   <div class="view" id="view-resize">
     <div class="doc-head">
       <div class="dh-ico">🗜️</div>
-      <div class="dh-txt"><div class="dh-name">PDF / Image Resizer</div><div class="dh-sub">Bari files ko toolkit ki AI limit (PDF 20MB · Image 5MB) ke andar layein</div></div>
+      <div class="dh-txt"><div class="dh-name">PDF / Image Resizer</div><div class="dh-sub">Bring big files within the AI limit — PDF 20MB · Image 5MB</div></div>
       <div class="dh-right"><span class="mode-badge off">⚡ Instant · Offline</span></div>
     </div>
 
     <div class="sec-card">
-      <div class="sec-head"><div class="sec-bar"></div><div class="sec-title">1 · PDF Pages Nikaalen <span style="text-transform:none;font-weight:600;color:var(--green)">(Best tareeqa — zero quality loss)</span></div></div>
+      <div class="sec-head"><div class="sec-bar"></div><div class="sec-title">1 · Extract PDF Pages <span style="text-transform:none;font-weight:600;color:var(--green)">(Best — zero quality loss)</span></div></div>
       <div class="sec-body">
-        <div style="font-size:12px;color:var(--g600);margin-bottom:12px;line-height:1.6">200MB ki poori book ki zaroorat nahi — jis <b>unit/chapter</b> ka document banana hai sirf uske pages nikaal lein. 2 second mein chhota crisp PDF milega.</div>
-        <div class="upload-zone" onclick="document.getElementById('exFile').click()"><div class="uz-ico">📖</div><div class="uz-title">PDF book select karein</div><div class="uz-sub">Koi bhi size — 200MB+ bhi chalega</div></div>
+        <div style="font-size:12px;color:var(--g600);margin-bottom:12px;line-height:1.6">No need for the whole 200MB book — extract only the pages of the <b>unit/chapter</b> you need and get a small crisp PDF in seconds.</div>
+        <div class="upload-zone" onclick="document.getElementById('exFile').click()"><div class="uz-ico">📖</div><div class="uz-title">Select PDF book</div><div class="uz-sub">Any size — even 200MB+</div></div>
         <input type="file" id="exFile" accept=".pdf" style="display:none" onchange="exFileSel(event)">
         <div class="f-chip" id="exChip">✅ &nbsp;<span id="exInfo">-</span></div>
         <div class="form-row" style="margin-top:12px">
           <div class="fg"><label>Page From</label><input type="number" id="exFrom" min="1" value="1"></div>
           <div class="fg"><label>Page To</label><input type="number" id="exTo" min="1" value="15"></div>
         </div>
-        <button class="btn-gen" style="margin-top:12px;font-size:12.5px;padding:12px" onclick="extractPages()">✂️ Pages Nikaal Kar Download Karein</button>
+        <button class="btn-gen" style="margin-top:12px;font-size:12.5px;padding:12px" onclick="extractPages()">✂️ Extract Pages &amp; Download</button>
         <div id="exStatus" style="margin-top:10px;font-size:12px;font-weight:700"></div>
       </div>
     </div>
 
     <div class="sec-card">
-      <div class="sec-head"><div class="sec-bar"></div><div class="sec-title">2 · Poori PDF Compress Karein</div></div>
+      <div class="sec-head"><div class="sec-bar"></div><div class="sec-title">2 · Compress Full PDF</div></div>
       <div class="sec-body">
-        <div style="font-size:12px;color:var(--g600);margin-bottom:12px;line-height:1.6">Poori PDF ka size chhota karein (pages images ban kar dobara judte hain). <b>⚠️ 80MB+ files phone par slow/crash ho sakti hain — laptop par karein, ya upar wala Pages tool use karein.</b></div>
-        <div class="upload-zone" onclick="document.getElementById('cpFile').click()"><div class="uz-ico">🗜️</div><div class="uz-title">PDF select karein</div><div class="uz-sub">Compress ho kar 20MB ke andar aane ki koshish karega</div></div>
+        <div style="font-size:12px;color:var(--g600);margin-bottom:12px;line-height:1.6">Reduce the whole PDF's size — pages are re-rendered as compressed images. <b>⚠️ 80MB+ files can be slow or crash on phones — use a laptop, or the Pages tool above.</b></div>
+        <div class="upload-zone" onclick="document.getElementById('cpFile').click()"><div class="uz-ico">🗜️</div><div class="uz-title">Select PDF</div><div class="uz-sub">It will try to bring the file under 20MB</div></div>
         <input type="file" id="cpFile" accept=".pdf" style="display:none" onchange="cpFileSel(event)">
         <div class="f-chip" id="cpChip">✅ &nbsp;<span id="cpInfo">-</span></div>
         <div class="form-row" style="margin-top:12px">
-          <div class="fg"><label>Quality</label><select id="cpQuality"><option value="high">High — behtar text, bara size</option><option value="medium" selected>Medium — balanced (recommended)</option><option value="low">Low — sab se chhota size</option></select></div>
+          <div class="fg"><label>Quality</label><select id="cpQuality"><option value="high">High — better text, larger size</option><option value="medium" selected>Medium — balanced (recommended)</option><option value="low">Low — smallest size</option></select></div>
         </div>
-        <button class="btn-gen" style="margin-top:12px;font-size:12.5px;padding:12px" onclick="compressPdf()">🗜️ Compress Kar Ke Download Karein</button>
+        <button class="btn-gen" style="margin-top:12px;font-size:12.5px;padding:12px" onclick="compressPdf()">🗜️ Compress &amp; Download</button>
         <div id="cpStatus" style="margin-top:10px;font-size:12px;font-weight:700"></div>
       </div>
     </div>
@@ -458,11 +459,11 @@ button{cursor:pointer;border:none;background:none}
     <div class="sec-card">
       <div class="sec-head"><div class="sec-bar"></div><div class="sec-title">3 · Image Resize / Compress</div></div>
       <div class="sec-body">
-        <div style="font-size:12px;color:var(--g600);margin-bottom:12px;line-height:1.6">Koi bhi image (20MB+ bhi) → 5MB se kam. <b>Note:</b> toolkit mein image upload karte waqt ye <b>khud-ba-khud</b> bhi ho jata hai — ye tool alag se file save karne ke liye hai.</div>
-        <div class="upload-zone" onclick="document.getElementById('imFile').click()"><div class="uz-ico">🖼️</div><div class="uz-title">Image select karein</div><div class="uz-sub">JPG · PNG · koi bhi size</div></div>
+        <div style="font-size:12px;color:var(--g600);margin-bottom:12px;line-height:1.6">Any image (even 20MB+) → under 5MB. <b>Note:</b> this also happens <b>automatically</b> when you upload an image anywhere in the toolkit — this tool is for saving a resized copy separately.</div>
+        <div class="upload-zone" onclick="document.getElementById('imFile').click()"><div class="uz-ico">🖼️</div><div class="uz-title">Select image</div><div class="uz-sub">JPG · PNG · any size</div></div>
         <input type="file" id="imFile" accept="image/*" style="display:none" onchange="imFileSel(event)">
         <div class="f-chip" id="imChip">✅ &nbsp;<span id="imInfo">-</span></div>
-        <button class="btn-gen" style="margin-top:12px;font-size:12.5px;padding:12px" onclick="resizeImage()">🖼️ Resize Kar Ke Download Karein</button>
+        <button class="btn-gen" style="margin-top:12px;font-size:12.5px;padding:12px" onclick="resizeImage()">🖼️ Resize &amp; Download</button>
         <div id="imStatus" style="margin-top:10px;font-size:12px;font-weight:700"></div>
       </div>
     </div>
@@ -472,7 +473,7 @@ button{cursor:pointer;border:none;background:none}
   <div class="view" id="view-upload">
     <div class="doc-head">
       <div class="dh-ico">📸</div>
-      <div class="dh-txt"><div class="dh-name">Upload &amp; Generate</div><div class="dh-sub">Random books, syllabus ya koi bhi educational document</div></div>
+      <div class="dh-txt"><div class="dh-name">Upload &amp; Generate</div><div class="dh-sub">Random books, syllabus or any educational document</div></div>
       <div class="dh-right"><span class="mode-badge ai">AI Required</span></div>
     </div>
     <div class="sec-card">
@@ -480,10 +481,10 @@ button{cursor:pointer;border:none;background:none}
       <div class="sec-body">
         <div class="upload-zone" id="dropZone" ondrop="handleDrop(event)" ondragover="handleOver(event)" ondragleave="handleLeave(event)" onclick="document.getElementById('fileIn').click()">
           <div class="uz-ico">📸</div>
-          <div class="uz-title">Book, syllabus, notes ya koi bhi document yahan drop karein</div>
+          <div class="uz-title">Drop book, syllabus, notes or any document here</div>
           <div class="uz-sub">PDF: max 20MB (~100 pages) · Image: max 5MB</div>
         </div>
-        <div style="margin-top:8px;font-size:10.5px;font-weight:600;color:var(--gold);background:var(--gold-bg);border:1px solid rgba(200,150,12,.25);border-radius:8px;padding:7px 11px;line-height:1.5">💡 <b>Best result ke liye:</b> poori book ek sath nahi — <b>thore thore pages</b> (ek unit ya chapter) upload karein. AI focused content zyada accurate parhta hai. Bari file hai? <button onclick="openResizer()" style="margin-left:6px;background:var(--navy);color:#fff;font-size:10px;font-weight:800;padding:4px 11px;border-radius:99px;vertical-align:middle">🗜️ Resizer Kholo</button></div>
+        <div style="margin-top:8px;font-size:10.5px;font-weight:600;color:var(--gold);background:var(--gold-bg);border:1px solid rgba(200,150,12,.25);border-radius:8px;padding:7px 11px;line-height:1.5">💡 <b>For best results:</b> upload <b>a few pages at a time</b> (one unit/chapter), not the whole book — AI reads focused content more accurately. Large file? <button onclick="openResizer()" style="margin-left:6px;background:var(--navy);color:#fff;font-size:10px;font-weight:800;padding:4px 11px;border-radius:99px;vertical-align:middle">🗜️ Open Resizer</button></div>
         <input type="file" id="fileIn" accept=".pdf,image/*" style="display:none" onchange="onFileSel(event)">
         <div class="f-chip" id="fChip">✅ &nbsp;<span id="fName">-</span></div>
         <div class="form-row" style="margin-top:14px">
@@ -519,6 +520,50 @@ button{cursor:pointer;border:none;background:none}
   </div>
 
 </main>
+</div>
+
+<!-- AUTH MODAL -->
+<div class="overlay" id="authOverlay">
+  <div class="modal">
+    <div class="modal-head"><span id="authTitle">Teacher Login</span> <button class="modal-close" onclick="closeAuth()">✕</button></div>
+    <div class="modal-body">
+      <div style="display:flex;gap:8px;margin-bottom:14px">
+        <button class="mini-btn primary" id="tabLogin" onclick="authTab('login')">Login</button>
+        <button class="mini-btn" id="tabReg" onclick="authTab('reg')">Sign Up</button>
+      </div>
+      <div class="form-row one" style="grid-template-columns:1fr">
+        <div class="fg"><label>Mobile Number <b>*</b></label><input type="tel" id="a_phone" placeholder="03xx-xxxxxxx"></div>
+      </div>
+      <div class="form-row one" id="regNameRow" style="grid-template-columns:1fr;display:none">
+        <div class="fg"><label>Your Name <b>*</b></label><input type="text" id="a_name" placeholder="Full name"></div>
+      </div>
+      <div class="form-row one" style="grid-template-columns:1fr">
+        <div class="fg"><label>PIN (4+ digits) <b>*</b></label><input type="password" id="a_pin" inputmode="numeric" placeholder="••••"></div>
+      </div>
+      <div id="authMsg" style="font-size:12px;font-weight:700;color:var(--red);margin-top:4px"></div>
+      <button class="btn-gen" style="margin-top:12px;font-size:13px" id="authGo" onclick="authSubmit()">Login</button>
+      <div style="font-size:11px;color:var(--g400);margin-top:10px;text-align:center">🎁 New accounts get <b>1 FREE AI document</b> · Certificates are always free</div>
+    </div>
+  </div>
+</div>
+
+<!-- BUY CREDITS MODAL -->
+<div class="overlay" id="buyOverlay">
+  <div class="modal">
+    <div class="modal-head">💳 Buy Credits <button class="modal-close" onclick="closeBuy()">✕</button></div>
+    <div class="modal-body">
+      <div style="font-size:12.5px;line-height:1.7;color:var(--g600)">Your credits have run out. To buy more, send payment via <b>Easypaisa/JazzCash</b> to the number below, then send the screenshot on WhatsApp — your credits will be added right away.</div>
+      <div id="buyPlans" style="margin-top:12px"></div>
+      <div id="buyPrices" style="margin-top:10px"></div>
+      <div style="margin-top:12px;padding:14px;border:1.5px solid var(--gold);border-radius:var(--r);background:var(--gold-bg)">
+        <div style="font-size:10px;font-weight:800;color:var(--g400);text-transform:uppercase;letter-spacing:.7px">Easypaisa / JazzCash</div>
+        <div style="font-size:20px;font-weight:800;color:var(--navy);margin-top:4px" id="buyNumber">—</div>
+        <div style="font-size:12px;font-weight:700;color:var(--g600)" id="buyName">—</div>
+      </div>
+      <a id="buyWa" href="#" target="_blank" style="text-decoration:none"><button class="btn-gen" style="margin-top:12px;font-size:13px;background:linear-gradient(135deg,#0a7c5c,#10b981);border-bottom-color:#065f46">📱 Send Screenshot on WhatsApp</button></a>
+      <div style="font-size:11px;color:var(--g400);margin-top:10px;text-align:center">Certificates, Result Cards, Attendance — <b>always FREE</b> (No-AI)</div>
+    </div>
+  </div>
 </div>
 
 <!-- PROFILE MODAL -->
@@ -668,8 +713,8 @@ function hasStudentFields(doc){const c=DOC_CONFIG[doc];return c&&c.f.some(k=>F[k
 const SIDEBAR=[
  {sec:'Academic Documents',items:[
   {d:'Lesson Plan',i:'📚',s:"PPP + Bloom's Taxonomy"},
-  {v:'upload',n:'Upload & Generate',i:'📖',s:'Books, syllabus, koi bhi document'},
-  {v:'resize',n:'PDF / Image Resizer',i:'🗜️',s:'Bari books chhoti karein · Pages nikaalen'},
+  {v:'upload',n:'Upload & Generate',i:'📖',s:'Books, syllabus, any document'},
+  {v:'resize',n:'PDF / Image Resizer',i:'🗜️',s:'Compress books · Extract pages'},
   {d:'Worksheet',i:'✏️',s:'Printable activity sheets'},
   {d:'Exam Paper',i:'📝',s:'Mid-term / Final'},
   {v:'crq',n:'CRQ Generator',i:'🔍',s:'AI from textbook content'},
@@ -760,7 +805,7 @@ function renderProfile(){
     box.innerHTML='<button class="sb-edit" onclick="openProfile()">✏️</button><div class="sb-school">'+esc(p.school)+'</div>'+(p.hm?'<div class="sb-hm">'+(p.desig?esc(p.hm)+' ('+esc(p.desig)+')':esc(p.hm))+'</div>':'')+(p.semis?'<span class="sb-semis">SEMIS: '+esc(p.semis)+'</span>':'');
     document.getElementById('tbSub').textContent=p.school+' · Sindh Education Department';
   }else{
-    box.innerHTML='<div class="sb-setup">👋 Apna school profile set karein — har document mein automatically use hoga.<br><button onclick="openProfile()">⚙️ Setup School Profile</button></div>';
+    box.innerHTML='<div class="sb-setup">👋 Set up your school profile — it will be used in every document automatically.<br><button onclick="openProfile()">⚙️ Setup School Profile</button></div>';
     document.getElementById('tbSub').textContent='Sindh Education Department';
   }
   const hero=document.getElementById('hero');
@@ -783,7 +828,7 @@ function openProfile(){
 function closeProfile(){document.getElementById('profileOverlay').classList.remove('open');}
 function saveProfile(){
   const p={school:val('p_school'),addr:val('p_addr'),hm:val('p_hm'),desig:val('p_desig'),semis:val('p_semis'),session:val('p_session')};
-  if(!p.school){alert('School name zaroor likhein!');return;}
+  if(!p.school){alert('School name is required!');return;}
   localStorage.setItem('tt_profile',JSON.stringify(p));
   closeProfile();renderProfile();renderForm();
 }
@@ -837,9 +882,9 @@ function renderForm(){
     if(g.sec==='student'&&getDB().length)head='<button class="mini-btn" style="margin-left:auto;padding:5px 12px;font-size:10px" onclick="openPicker()">🗄️ Fill from Database</button>';
     html+=secCard(title,g.keys.map(fieldHTML).join(''),head);
   });
-  if(cfg.upload)html+='<div class="sec-card"><div class="sec-head"><div class="sec-bar"></div><div class="sec-title">Book / Syllabus Upload <span style="text-transform:none;font-weight:600;color:var(--g400)">(Optional — AI isko deeply parh kar isi se banayega)</span></div></div><div class="sec-body"><div class="upload-zone" id="docDrop" ondrop="docDropFn(event)" ondragover="docOver(event)" ondragleave="docLeave(event)" onclick="document.getElementById(\'docFile\').click()"><div class="uz-ico">📖</div><div class="uz-title">Book, syllabus, page ya koi bhi document yahan drop karein</div><div class="uz-sub">PDF: max 20MB (~100 pages) · Image: max 5MB</div></div><div style="margin-top:8px;font-size:10.5px;font-weight:600;color:var(--gold);background:var(--gold-bg);border:1px solid rgba(200,150,12,.25);border-radius:8px;padding:7px 11px;line-height:1.5">💡 <b>Best result ke liye:</b> poori book ek sath nahi — <b>thore thore pages</b> (ek unit ya chapter) upload karein. AI focused content zyada accurate parhta hai. Bari file hai? <button onclick="openResizer()" style="margin-left:6px;background:var(--navy);color:#fff;font-size:10px;font-weight:800;padding:4px 11px;border-radius:99px;vertical-align:middle">🗜️ Resizer Kholo</button></div><input type="file" id="docFile" accept=".pdf,image/*" style="display:none" onchange="docFileSel(event)"><div class="f-chip" id="docChip">✅ &nbsp;<span id="docFName">-</span> <button onclick="clearDocFile()" style="margin-left:8px;color:var(--red);font-weight:800">✕ Remove</button></div></div></div>';
-  if(cfg.marks)html+='<div class="sec-card"><div class="sec-head"><div class="sec-bar"></div><div class="sec-title">Subject-wise Marks <span style="text-transform:none;font-weight:600;color:var(--g400)">(class ke hisaab se auto)</span></div></div><div class="sec-body" style="padding:0"><div class="marks-head"><span>Subject</span><span>Total</span><span>Obtained</span></div><div id="marksRows"></div></div></div>';
-  html+=secCard('Extra Details','<div class="fg full"><label>Additional Information (Optional)</label><textarea id="f_extraData" placeholder="Koi khaas requirement — optional, khaali chhor sakte hain"></textarea></div>');
+  if(cfg.upload)html+='<div class="sec-card"><div class="sec-head"><div class="sec-bar"></div><div class="sec-title">Book / Syllabus Upload <span style="text-transform:none;font-weight:600;color:var(--g400)">(Optional — AI will read it deeply and build from it)</span></div></div><div class="sec-body"><div class="upload-zone" id="docDrop" ondrop="docDropFn(event)" ondragover="docOver(event)" ondragleave="docLeave(event)" onclick="document.getElementById(\'docFile\').click()"><div class="uz-ico">📖</div><div class="uz-title">Drop book, syllabus or any document here</div><div class="uz-sub">PDF: max 20MB (~100 pages) · Image: max 5MB</div></div><div style="margin-top:8px;font-size:10.5px;font-weight:600;color:var(--gold);background:var(--gold-bg);border:1px solid rgba(200,150,12,.25);border-radius:8px;padding:7px 11px;line-height:1.5">💡 <b>For best results:</b> upload <b>a few pages at a time</b> (one unit/chapter), not the whole book — AI reads focused content more accurately. Large file? <button onclick="openResizer()" style="margin-left:6px;background:var(--navy);color:#fff;font-size:10px;font-weight:800;padding:4px 11px;border-radius:99px;vertical-align:middle">🗜️ Open Resizer</button></div><input type="file" id="docFile" accept=".pdf,image/*" style="display:none" onchange="docFileSel(event)"><div class="f-chip" id="docChip">✅ &nbsp;<span id="docFName">-</span> <button onclick="clearDocFile()" style="margin-left:8px;color:var(--red);font-weight:800">✕ Remove</button></div></div></div>';
+  if(cfg.marks)html+='<div class="sec-card"><div class="sec-head"><div class="sec-bar"></div><div class="sec-title">Subject-wise Marks <span style="text-transform:none;font-weight:600;color:var(--g400)">(auto — by class)</span></div></div><div class="sec-body" style="padding:0"><div class="marks-head"><span>Subject</span><span>Total</span><span>Obtained</span></div><div id="marksRows"></div></div></div>';
+  html+=secCard('Extra Details','<div class="fg full"><label>Additional Information (Optional)</label><textarea id="f_extraData" placeholder="Any special requirement — optional"></textarea></div>');
   document.getElementById('dynForm').innerHTML=html;
   /* header */
   const m=DOC_META[S.doc]||{i:'📄',s:''};
@@ -920,12 +965,12 @@ function validate(fields,cfg){
   for(const k of cfg.f){
     const f=F[k];
     if(f.t==='unitsel'){
-      if(fields._unitMode==='single'&&!fields._unitName){alert('Unit / Topic Name zaroor bharein!');return false;}
-      if(fields._unitMode==='custom'&&!fields._customRange){alert('Lessons Range zaroor bharein!');return false;}
+      if(fields._unitMode==='single'&&!fields._unitName){alert('Unit / Topic Name is required!');return false;}
+      if(fields._unitMode==='custom'&&!fields._customRange){alert('Lessons Range is required! e.g. Lessons 3-7');return false;}
       continue;
     }
     if(f.req){const key=f.t==='class'?'className':(f.t==='subject'?'subject':k);
-      if(!fields[key]){alert('"'+(f.l||key)+'" zaroor bharein!');return false;}}
+      if(!fields[key]){alert('"'+(f.l||key)+'" is required!');return false;}}
   }
   return true;
 }
@@ -939,7 +984,7 @@ function renderDB(){
   const all=getDB();
   document.getElementById('dbCount').textContent=all.length+' students';
   const rows=all.map((s,i)=>({s,i})).filter(({s})=>!q||[s.name,s.fatherName,s.grNumber,s.rollNumber,s.className].join(' ').toLowerCase().includes(q));
-  if(!rows.length){list.innerHTML='<div class="db-empty">'+(all.length?'Koi match nahi mila.':'Abhi koi student nahi — "+ Add Student" par tap karein ya CSV import karein.')+'</div>';return;}
+  if(!rows.length){list.innerHTML='<div class="db-empty">'+(all.length?'No match found.':'No students yet — tap "+ Add Student" or import Excel/CSV.')+'</div>';return;}
   list.innerHTML='<table class="db-table"><thead><tr><th>Name</th><th>Father</th><th>G.R</th><th>Roll</th><th>Class</th><th></th></tr></thead><tbody>'+
     rows.map(({s,i})=>'<tr><td><b>'+esc(s.name)+'</b></td><td>'+esc(s.fatherName)+'</td><td>'+esc(s.grNumber)+'</td><td>'+esc(s.rollNumber)+'</td><td>'+esc(s.className)+'</td><td><div class="db-act"><button onclick="dbEdit('+i+')">Edit</button><button class="del" onclick="dbDel('+i+')">Del</button></div></td></tr>').join('')+'</tbody></table>';
 }
@@ -949,11 +994,11 @@ function dbEdit(i){const s=getDB()[i];if(!s)return;S.editIdx=i;document.getEleme
 function dbCancel(){document.getElementById('dbForm').classList.remove('open');S.editIdx=-1;}
 function dbSave(){
   const s={name:val('s_name'),fatherName:val('s_father'),grNumber:val('s_gr'),rollNumber:val('s_roll'),className:val('s_class'),dob:val('s_dob'),address:val('s_addr'),phone:val('s_phone')};
-  if(!s.name){alert('Student Name zaroor bharein!');return;}
+  if(!s.name){alert('Student Name is required!');return;}
   const db=getDB();if(S.editIdx>=0)db[S.editIdx]=s;else db.push(s);
-  setDBData(db);dbCancel();renderDB();
+  setDBData(db);dbCancel();renderDB();scheduleSync();
 }
-function dbDel(i){const db=getDB();if(!confirm('"'+db[i].name+'" delete karein?'))return;db.splice(i,1);setDBData(db);renderDB();}
+function dbDel(i){const db=getDB();if(!confirm('Delete "'+db[i].name+'"?'))return;db.splice(i,1);setDBData(db);renderDB();scheduleSync();}
 /* Sahi naam check — binary/garbage rows block (kam az kam 2 letters, koi control chars nahi) */
 function cleanName(v){
   const s=String(v==null?'':v).trim();
@@ -993,10 +1038,10 @@ function rowsToStudents(rows){
   return{students,skipped};
 }
 function finishImport(result){
-  if(!result.students.length){alert('Koi valid student nahi mila!\n\nCheck karein ke sheet mein "Student Name" ya "Name" wala column ho.'+(result.skipped?'\n('+result.skipped+' rows skip huien)':''));return;}
+  if(!result.students.length){alert('No valid students found! Make sure the sheet has a "Student Name" or "Name" column.'+(result.skipped?'\n('+result.skipped+' rows skipped)':''));return;}
   const db=getDB().concat(result.students);
-  setDBData(db);renderDB();
-  alert('✅ '+result.students.length+' students import ho gaye!'+(result.skipped?'\n('+result.skipped+' khaali/invalid rows skip huien)':''));
+  setDBData(db);renderDB();scheduleSync();
+  alert('✅ '+result.students.length+' students imported!'+(result.skipped?'\n('+result.skipped+' empty/invalid rows skipped)':''));
 }
 function dbImportFile(ev){
   const file=ev.target.files[0];ev.target.value='';
@@ -1004,7 +1049,7 @@ function dbImportFile(ev){
   const ext=(file.name.split('.').pop()||'').toLowerCase();
   /* Excel (.xlsx / .xls) — SheetJS se parse, binary garbage kabhi nahi banega */
   if(ext==='xlsx'||ext==='xls'){
-    if(typeof XLSX==='undefined'){alert('Excel library load nahi hui — internet check karein, ya file ko CSV bana kar import karein (Excel: File → Save As → CSV).');return;}
+    if(typeof XLSX==='undefined'){alert('Excel library did not load — check internet, or save the file as CSV and import (Excel: File → Save As → CSV).');return;}
     const reader=new FileReader();
     reader.onload=e=>{
       try{
@@ -1012,7 +1057,7 @@ function dbImportFile(ev){
         const ws=wb.Sheets[wb.SheetNames[0]];
         const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
         finishImport(rowsToStudents(rows));
-      }catch(err){alert('Excel file parhne mein error: '+err.message);}
+      }catch(err){alert('Error reading Excel file (parhne mein error): '+err.message);}
     };
     reader.readAsArrayBuffer(file);
     return;
@@ -1022,10 +1067,10 @@ function dbImportFile(ev){
   reader.onload=e=>{
     const text=e.target.result;
     if(/[\uFFFD]/.test(text.slice(0,500))||text.slice(0,2)==='PK'){
-      alert('Ye file text CSV nahi lagti (binary hai). Isay .xlsx ke tor par import karein ya Excel se "Save As → CSV" kar ke dobara try karein.');return;
+      alert('This does not look like a text CSV (it is binary). Import it as .xlsx, or use Excel "Save As → CSV" and try again.');return;
     }
     const lines=text.split(/\r?\n/).filter(l=>l.trim());
-    if(!lines.length){alert('File khaali hai!');return;}
+    if(!lines.length){alert('File is empty!');return;}
     const parse=l=>{const out=[];let cur='',inQ=false;for(const ch of l){if(ch==='"')inQ=!inQ;else if(ch===','&&!inQ){out.push(cur);cur='';}else cur+=ch;}out.push(cur);return out.map(c=>c.trim());};
     finishImport(rowsToStudents(lines.map(parse)));
   };
@@ -1033,23 +1078,23 @@ function dbImportFile(ev){
 }
 function dbClearAll(){
   const n=getDB().length;
-  if(!n){alert('Database pehle se khaali hai.');return;}
-  if(!confirm('Poora Student Database ('+n+' students) delete karein?\n\nYe wapas nahi aa sakta — pehle Export Excel kar lein agar backup chahiye.'))return;
-  setDBData([]);renderDB();
+  if(!n){alert('Database is already empty.');return;}
+  if(!confirm('Delete the ENTIRE Student Database ('+n+' students)?\n\nThis cannot be undone — Export Excel first if you need a backup.'))return;
+  setDBData([]);renderDB();scheduleSync();
 }
 async function dbExport(){
   const students=getDB();
-  if(!students.length){alert('Pehle students add karein!');return;}
+  if(!students.length){alert('Add students first!');return;}
   try{const r=await fetch('/download-excel',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({students,fileName:'Student_List'})});
     const blob=await r.blob();const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='Student_List.csv';a.click();URL.revokeObjectURL(url);}catch(e){alert('Export error!');}
 }
 /* Fill-from-DB picker (doc form ke andar) */
 function openPicker(){
-  const db=getDB();if(!db.length){alert('Database khaali hai!');return;}
-  const q=prompt('Student ka naam ya G.R number likhein:');if(q===null)return;
+  const db=getDB();if(!db.length){alert('Database is empty!');return;}
+  const q=prompt('Type student name or G.R number:');if(q===null)return;
   const ql=q.toLowerCase();
   const found=db.find(s=>[s.name,s.grNumber,s.rollNumber].join(' ').toLowerCase().includes(ql));
-  if(!found){alert('Koi student nahi mila: "'+q+'"');return;}
+  if(!found){alert('No student found: "'+q+'"');return;}
   dbFillFields(found);
 }
 function dbFillFields(s){
@@ -1060,8 +1105,14 @@ function dbFillFields(s){
 }
 
 /* ═══════════ SMART FETCH — streaming, JSON, purane-server 404, sab handle ═══════════ */
+function handleGenError(err){
+  if(err==='LOGIN_REQUIRED'){openAuth('Please login — new accounts get 1 FREE AI document 🎁');return;}
+  if(err==='NO_CREDITS'){openBuy();return;}
+  alert('Error: '+err);
+}
 async function fetchGen(url,opts){
   try{
+    opts=opts||{};opts.headers=Object.assign({},opts.headers||{},authHeaders());
     const r=await fetch(url,opts);
     if(r.headers.get('X-Content-Stream')){
       const reader=r.body.getReader();const dec=new TextDecoder();let txt='';
@@ -1070,7 +1121,7 @@ async function fetchGen(url,opts){
         const{done,value}=await reader.read();
         if(done)break;
         txt+=dec.decode(value,{stream:true});
-        if(ls)ls.textContent='✍️ Likha ja raha hai... '+txt.length+' characters';
+        if(ls)ls.textContent='✍️ Writing... '+txt.length+' characters';
       }
       const ei=txt.indexOf('[[GENERATION-ERROR]]');
       if(ei>=0)return{success:false,error:txt.slice(ei+20).trim()||'Generation error'};
@@ -1079,9 +1130,9 @@ async function fetchGen(url,opts){
     const ct=r.headers.get('content-type')||'';
     if(ct.includes('application/json'))return await r.json();
     const body=await r.text();
-    if(r.status===404)return{success:false,error:'⚠️ Server par PURANI server.js chal rahi hai — root wali server.js bhi nayi file se replace kar ke dobara deploy karein.'};
+    if(r.status===404)return{success:false,error:'⚠️ Old server.js is running on the server — replace the root server.js with the new file and redeploy.'};
     return{success:false,error:'HTTP '+r.status+' — '+body.replace(/<[^>]*>/g,'').slice(0,140)};
-  }catch(e){return{success:false,error:'Network/connection error: '+e.message+' — internet aur server check karein.'};}
+  }catch(e){return{success:false,error:'Network/connection error: '+e.message+' — check internet and server.'};}
 }
 
 /* ═══════════ PER-DOC BOOK UPLOAD + STUDENT PHOTO ═══════════ */
@@ -1097,12 +1148,12 @@ async function prepareUpload(f){
   if(!isPdf&&mb>5){
     try{
       const out=await compressImageFile(f,4.5);
-      alert('🖼️ Image '+mb.toFixed(1)+'MB thi — automatically resize kar di ('+(out.size/1024/1024).toFixed(1)+'MB). Ab AI ke liye ready hai. ✅');
+      alert('🖼️ Image was '+mb.toFixed(1)+'MB — automatically resized to '+(out.size/1024/1024).toFixed(1)+'MB. Ready for AI ✅');
       return out;
-    }catch(e){alert('❌ Image '+mb.toFixed(1)+'MB hai aur auto-resize fail hui — sidebar ke "PDF / Image Resizer" tool se compress karein.');return null;}
+    }catch(e){alert('❌ Image is '+mb.toFixed(1)+'MB and auto-resize failed — use the "PDF / Image Resizer" tool in the sidebar.');return null;}
   }
-  if(isPdf&&mb>20){alert('❌ PDF '+mb.toFixed(0)+'MB hai — AI max 20MB (~100 pages) tak parh sakta hai.\n\n🗜️ Sidebar mein "PDF / Image Resizer" tool kholo:\n• Pages Nikaalen — sirf zaroori unit ke pages (best)\n• Ya poori PDF Compress karein');return null;}
-  if(isPdf&&mb>10)alert('⚠️ File '+mb.toFixed(0)+'MB hai — chal jayegi, lekin best result ke liye thore pages (ek unit/chapter) upload karna behtar hai. Resizer tool se pages nikaal sakte ho.');
+  if(isPdf&&mb>20){alert('❌ PDF is '+mb.toFixed(0)+'MB — AI can read up to 20MB (~100 pages).\n\n🗜️ Open the "PDF / Image Resizer" tool in the sidebar:\n• Extract Pages — only the needed unit (best)\n• Or Compress the full PDF');return null;}
+  if(isPdf&&mb>10)alert('⚠️ File is '+mb.toFixed(0)+'MB — it will work, but for best results upload fewer pages (one unit/chapter). You can extract pages with the Resizer tool.');
   return f;
 }
 async function setDocFile(f){
@@ -1123,10 +1174,12 @@ async function generateDoc(){
   const{fields,marks,studentsList,cfg}=collect();
   if(!validate(fields,cfg))return;
   S.lastFields=fields;
+  const needsAI=!NO_AI.includes(S.doc);
+  if(needsAI&&CFG&&CFG.paidMode&&!token()){openAuth('Please login to generate AI documents — new accounts get 1 FREE document 🎁');return;}
   try{
     let d;
     if(S.docFile&&cfg.upload){
-      showLoader('AI book ko deeply parh raha hai...');
+      showLoader('AI is reading your book deeply...');
       const fd=new FormData();
       fd.append('file',S.docFile);
       fd.append('documentType',S.doc);
@@ -1137,7 +1190,8 @@ async function generateDoc(){
       showLoader(NO_AI.includes(S.doc)?'Building instantly — no AI needed...':'AI is crafting your document...');
       d=await fetchGen('/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({documentType:S.doc,language:lang(),fields,marks,studentsList})});
     }
-    d.success?showResult(d.content,S.doc):(hideLoader(),alert('Error: '+d.error));
+    if(d.success){showResult(d.content,S.doc);updateAuthUI();}
+    else{hideLoader();handleGenError(d.error);}
   }catch(e){hideLoader();alert('Error: '+e.message);}
 }
 function fileBase(){
@@ -1155,7 +1209,7 @@ function copyTxt(){navigator.clipboard.writeText(S.content).then(()=>alert('Copi
 /* ═══════════ AGE CALCULATOR (apni view — kisi ke sath stack nahi hoti) ═══════════ */
 function calcAge(){
   const dv=val('toolDob'),cv=val('toolCutoff');
-  if(!dv){alert('Date of Birth enter karein!');return;}
+  if(!dv){alert('Please enter Date of Birth!');return;}
   const a=ageParts(dv,cv);const ok=(a.y*12+a.m)>=60&&(a.y*12+a.m)<=96;
   document.getElementById('age-result').innerHTML='<div style="background:'+(ok?'var(--green-bg)':'var(--red-bg)')+';border:1px solid '+(ok?'var(--green)':'var(--red)')+';border-radius:var(--r);padding:16px;text-align:center"><div style="font-size:22px;font-weight:800;color:'+(ok?'var(--green)':'var(--red)')+'">'+a.y+' yrs '+a.m+' mo '+a.d+' days</div><div style="font-size:12px;font-weight:700;margin-top:6px;color:'+(ok?'var(--green)':'var(--red)')+'">'+(ok?'✅ ELIGIBLE for Class 1':'❌ NOT ELIGIBLE (5–8 years required)')+'</div></div>';
 }
@@ -1179,9 +1233,10 @@ function crqLeave(){document.getElementById('crqDrop').classList.remove('over');
 async function setCrqFile(f){f=await prepareUpload(f);if(!f)return;S.crqFile=f;document.getElementById('crqFName').textContent=f.name+' ('+(f.size/1024).toFixed(1)+' KB)';document.getElementById('crqChip').style.display='block';}
 async function genCRQ(){
   const t=val('crqTopic');
-  if(!t){alert('Unit / Lessons zaroor bharein (e.g. Unit 3 ya Lessons 3-7)!');return;}
+  if(!t){alert('Unit / Lessons is required — e.g. Unit 3 or Lessons 3-7!');return;}
   const bl=[...document.querySelectorAll('input[name="bloom"]:checked')].map(c=>c.value);
-  if(!bl.length){alert('Kam az kam ek Bloom level select karein!');return;}
+  if(!bl.length){alert('Select at least one Bloom level!');return;}
+  if(CFG&&CFG.paidMode&&!token()){openAuth('Please login to generate CRQ papers — new accounts get 1 FREE document 🎁');return;}
   const p=getProfile();
   document.getElementById('crqBtn').disabled=true;showLoader('Generating CRQ Paper...');
   const fd=new FormData();
@@ -1194,8 +1249,8 @@ async function genCRQ(){
   try{
     const d=await fetchGen('/generate-crq',{method:'POST',body:fd});
     document.getElementById('crqBtn').disabled=false;
-    if(d.success){S.doc='CRQ Paper';S.lastFields={className:val('crqClass')};showResult(d.content,'CRQ Paper — '+t);}
-    else{hideLoader();alert('Error: '+d.error);}
+    if(d.success){S.doc='CRQ Paper';S.lastFields={className:val('crqClass')};showResult(d.content,'CRQ Paper — '+t);updateAuthUI();}
+    else{hideLoader();handleGenError(d.error);}
   }catch(e){document.getElementById('crqBtn').disabled=false;hideLoader();alert('Error: '+e.message);}
 }
 
@@ -1215,16 +1270,16 @@ function upClassChange(keep){
   if(keep&&list.includes(cur))sub.value=cur;
 }
 async function uploadGen(){
-  if(!S.file){alert('Pehle file select karein!');return;}
+  if(!S.file){alert('Please select a file first!');return;}
   const p=getProfile();
   S.doc=val('upDocType');S.lastFields={className:val('upClass')};
-  showLoader('Reading page & generating...');
+  showLoader('Reading document & generating...');
   const fd=new FormData();
   fd.append('file',S.file);fd.append('documentType',val('upDocType'));
   fd.append('schoolName',p.school||'');fd.append('teacherName',p.hm||'');
   fd.append('className',val('upClass'));fd.append('subject',val('upSubject'));
   fd.append('language',lang());
-  try{const d=await fetchGen('/upload-generate',{method:'POST',body:fd});d.success?showResult(d.content,val('upDocType')):(hideLoader(),alert('Error: '+d.error));}catch(e){hideLoader();alert('Error: '+e.message);}
+  try{const d=await fetchGen('/upload-generate',{method:'POST',body:fd});if(d.success){showResult(d.content,val('upDocType'));updateAuthUI();}else{hideLoader();handleGenError(d.error);}}catch(e){hideLoader();alert('Error: '+e.message);}
 }
 
 /* ═══════════ PDF / IMAGE RESIZER (sab client-side — server par zero load) ═══════════ */
@@ -1246,14 +1301,14 @@ async function exFileSel(e){
     document.getElementById('exTo').max=n;document.getElementById('exFrom').max=n;
     if(+document.getElementById('exTo').value>n)document.getElementById('exTo').value=n;
     EX_FILE._bytes=bytes;EX_FILE._pages=n;
-  }catch(err){document.getElementById('exStatus').innerHTML='<span style="color:var(--red)">❌ PDF parh nahi saka: '+err.message+'</span>';}
+  }catch(err){document.getElementById('exStatus').innerHTML='<span style="color:var(--red)">❌ Could not read PDF (parh nahi saka): '+err.message+'</span>';}
 }
 async function extractPages(){
-  if(!EX_FILE||!EX_FILE._bytes){alert('Pehle PDF select karein!');return;}
+  if(!EX_FILE||!EX_FILE._bytes){alert('Please select a PDF first!');return;}
   let from=+val('exFrom'),to=+val('exTo');const n=EX_FILE._pages;
-  if(!from||!to||from<1||to>n||from>to){alert('Sahi page range likhein (1 se '+n+' tak)!');return;}
+  if(!from||!to||from<1||to>n||from>to){alert('Enter a valid page range: 1 to '+n+'!');return;}
   const st=document.getElementById('exStatus');
-  st.innerHTML='⏳ Pages nikal rahe hain...';
+  st.innerHTML='⏳ Extracting pages...';
   try{
     const srcDoc=await PDFLib.PDFDocument.load(EX_FILE._bytes,{ignoreEncryption:true});
     const out=await PDFLib.PDFDocument.create();
@@ -1263,7 +1318,7 @@ async function extractPages(){
     const bytes=await out.save();
     const name=EX_FILE.name.replace(/\.pdf$/i,'')+'_pages_'+from+'-'+to+'.pdf';
     dlBlob(new Blob([bytes],{type:'application/pdf'}),name);
-    st.innerHTML='<span style="color:var(--green)">✅ Done! '+(to-from+1)+' pages · '+mbOf(bytes.length)+' — '+(bytes.length<=20*1024*1024?'AI limit ke andar, seedha upload karein 🎯':'abhi bhi bara hai — kam pages lein ya Compress tool use karein')+'</span>';
+    st.innerHTML='<span style="color:var(--green)">✅ Done! '+(to-from+1)+' pages · '+mbOf(bytes.length)+' — '+(bytes.length<=20*1024*1024?'within AI limit — upload directly 🎯':'still too big — take fewer pages or use the Compress tool')+'</span>';
   }catch(err){st.innerHTML='<span style="color:var(--red)">❌ Error: '+err.message+'</span>';}
 }
 
@@ -1273,17 +1328,17 @@ function cpFileSel(e){
   CP_FILE=f;
   document.getElementById('cpInfo').textContent=f.name+' ('+mbOf(f.size)+')';
   document.getElementById('cpChip').style.display='block';
-  if(f.size>80*1024*1024)alert('⚠️ '+mbOf(f.size)+' — bohat bari file! Phone par crash ho sakti hai. Laptop par karein, ya behtar: upar wale tool se sirf zaroori pages nikaal lein.');
+  if(f.size>80*1024*1024)alert('⚠️ '+mbOf(f.size)+' — very large file! It may crash on a phone. Use a laptop, or better: extract only the needed pages with the tool above.');
 }
 async function compressPdf(){
-  if(!CP_FILE){alert('Pehle PDF select karein!');return;}
-  if(typeof pdfjsLib==='undefined'||typeof jspdf==='undefined'){alert('Libraries load nahi huin — internet check karein.');return;}
+  if(!CP_FILE){alert('Please select a PDF first!');return;}
+  if(typeof pdfjsLib==='undefined'||typeof jspdf==='undefined'){alert('Libraries did not load — check your internet.');return;}
   pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
   const q=val('cpQuality');
   const scale=q==='high'?1.5:(q==='medium'?1.2:0.95);
   const jpgQ=q==='high'?0.75:(q==='medium'?0.6:0.45);
   const st=document.getElementById('cpStatus');
-  st.innerHTML='⏳ File load ho rahi hai...';
+  st.innerHTML='⏳ Loading file...';
   try{
     const data=new Uint8Array(await CP_FILE.arrayBuffer());
     const pdf=await pdfjsLib.getDocument({data}).promise;
@@ -1291,7 +1346,7 @@ async function compressPdf(){
     let out=null;
     const canvas=document.createElement('canvas');const ctx=canvas.getContext('2d');
     for(let i=1;i<=n;i++){
-      st.innerHTML='⏳ Page '+i+' / '+n+' compress ho raha hai...';
+      st.innerHTML='⏳ Compressing page '+i+' / '+n+'...';
       const page=await pdf.getPage(i);
       const vp=page.getViewport({scale});
       canvas.width=vp.width;canvas.height=vp.height;
@@ -1308,8 +1363,8 @@ async function compressPdf(){
     const name=CP_FILE.name.replace(/\.pdf$/i,'')+'_compressed.pdf';
     dlBlob(blob,name);
     const pct=Math.round(100-(blob.size/CP_FILE.size*100));
-    st.innerHTML='<span style="color:var(--green)">✅ Done! '+mbOf(CP_FILE.size)+' → '+mbOf(blob.size)+' ('+pct+'% chhota) — '+(blob.size<=20*1024*1024?'AI limit ke andar 🎯':'abhi bhi bara hai — Low quality try karein ya Pages tool use karein')+'</span>';
-  }catch(err){st.innerHTML='<span style="color:var(--red)">❌ Error: '+err.message+' — file bohat bari ho to Pages tool use karein.</span>';}
+    st.innerHTML='<span style="color:var(--green)">✅ Done! '+mbOf(CP_FILE.size)+' → '+mbOf(blob.size)+' ('+pct+'% smaller) — '+(blob.size<=20*1024*1024?'within AI limit 🎯':'still too big — try Low quality or use the Pages tool')+'</span>';
+  }catch(err){st.innerHTML='<span style="color:var(--red)">❌ Error: '+err.message+' — for very large files use the Pages tool.</span>';}
 }
 
 /* --- Tool 3 + AUTO: image compress (canvas) --- */
@@ -1346,14 +1401,99 @@ function imFileSel(e){
   document.getElementById('imChip').style.display='block';
 }
 async function resizeImage(){
-  if(!IM_FILE){alert('Pehle image select karein!');return;}
+  if(!IM_FILE){alert('Please select an image first!');return;}
   const st=document.getElementById('imStatus');
-  st.innerHTML='⏳ Resize ho rahi hai...';
+  st.innerHTML='⏳ Resizing...';
   try{
     const out=await compressImageFile(IM_FILE,4.5);
     dlBlob(out,out.name);
-    st.innerHTML='<span style="color:var(--green)">✅ Done! '+mbOf(IM_FILE.size)+' → '+mbOf(out.size)+' — AI limit ke andar 🎯</span>';
+    st.innerHTML='<span style="color:var(--green)">✅ Done! '+mbOf(IM_FILE.size)+' → '+mbOf(out.size)+' — within AI limit 🎯</span>';
   }catch(err){st.innerHTML='<span style="color:var(--red)">❌ Error: '+err.message+'</span>';}
+}
+
+/* ═══════════ AUTH + CREDITS (Phase 1 Paid System) ═══════════ */
+let AUTH_MODE='login', CFG=null;
+function token(){return localStorage.getItem('tt_token')||'';}
+function authHeaders(){const t=token();return t?{'Authorization':'Bearer '+t}:{};}
+function openAuth(msg){
+  if(token()&&!msg){if(confirm('Sign out?')){localStorage.removeItem('tt_token');updateAuthUI();}return;}
+  document.getElementById('authMsg').textContent=msg||'';
+  document.getElementById('authOverlay').classList.add('open');
+}
+function closeAuth(){document.getElementById('authOverlay').classList.remove('open');}
+function authTab(m){
+  AUTH_MODE=m;
+  document.getElementById('tabLogin').className='mini-btn'+(m==='login'?' primary':'');
+  document.getElementById('tabReg').className='mini-btn'+(m==='reg'?' primary':'');
+  document.getElementById('regNameRow').style.display=m==='reg'?'grid':'none';
+  document.getElementById('authGo').textContent=m==='reg'?'Create Account':'Login';
+  document.getElementById('authTitle').textContent=m==='reg'?'New Teacher Account':'Teacher Login';
+}
+async function authSubmit(){
+  const phone=val('a_phone'),pin=val('a_pin'),name=val('a_name');
+  const msg=document.getElementById('authMsg');msg.textContent='';
+  if(!phone||!pin){msg.textContent='Enter phone number and PIN.';return;}
+  if(AUTH_MODE==='reg'&&!name){msg.textContent='Name is required.';return;}
+  const body=AUTH_MODE==='reg'?{phone,pin,name,school:(getProfile().school||'')}:{phone,pin};
+  try{
+    const r=await fetch('/auth/'+(AUTH_MODE==='reg'?'register':'login'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    const d=await r.json();
+    if(!d.success){msg.textContent=d.error;return;}
+    localStorage.setItem('tt_token',d.token);
+    closeAuth();updateAuthUI();syncStudentsOnLogin();
+    if(AUTH_MODE==='reg')alert('🎉 Account created! You have 1 FREE AI document. Welcome!');
+  }catch(e){msg.textContent='Network error — please try again.';}
+}
+async function updateAuthUI(){
+  const chip=document.getElementById('credChip'),btn=document.getElementById('authBtn');
+  if(!token()){chip.style.display='none';btn.innerHTML='👤 Login';return;}
+  try{
+    const r=await fetch('/wallet',{headers:authHeaders()});const d=await r.json();
+    if(!d.success){localStorage.removeItem('tt_token');chip.style.display='none';btn.innerHTML='👤 Login';return;}
+    chip.style.display='inline-block';
+    if(d.plan&&d.planLeft>0){
+      const days=Math.max(0,Math.ceil((new Date(d.planExpires)-Date.now())/86400000));
+      chip.innerHTML='⭐ <em>'+d.planLeft+'</em> docs · '+days+'d left';
+    }else{
+      chip.innerHTML='💳 <em>'+d.credits+'</em> credits';
+    }
+    btn.innerHTML='👤 '+esc((d.name||'').split(' ')[0]);
+  }catch(e){}
+}
+function creditChipClick(){openBuy();}
+async function loadCfg(){if(CFG)return CFG;try{const r=await fetch('/config');CFG=await r.json();}catch(e){CFG={paidMode:false};}return CFG;}
+async function openBuy(){
+  const c=await loadCfg();
+  document.getElementById('buyNumber').textContent=c.easypaisa||'—';
+  document.getElementById('buyName').textContent=c.easypaisaName||'';
+  document.getElementById('buyPlans').innerHTML=(c.plans||[]).map(p=>'<div style="border:2px solid var(--gold);border-radius:var(--r);padding:14px;background:linear-gradient(135deg,var(--gold-bg),#fff)"><div style="display:flex;justify-content:space-between;align-items:center"><div><div style="font-size:15px;font-weight:800;color:var(--navy)">⭐ '+p.name+' — Rs. '+p.rs+'/month</div><div style="font-size:12px;color:var(--g600);margin-top:3px;font-weight:600">'+p.docs+' AI documents · '+p.days+' days · unlimited certificates</div></div><div style="font-size:10px;font-weight:800;background:var(--navy);color:#fff;padding:4px 10px;border-radius:99px">BEST VALUE</div></div></div>').join('');
+  document.getElementById('buyPrices').innerHTML='<div style="font-size:10px;font-weight:800;color:var(--g400);text-transform:uppercase;letter-spacing:.7px;margin:6px 0 6px">Or buy credits</div><table class="db-table"><thead><tr><th>Package</th><th>AI documents</th><th>Per doc</th></tr></thead><tbody>'+
+    (c.prices||[]).map(p=>'<tr><td><b>Rs. '+p.rs+'</b></td><td>'+p.credits+'</td><td>Rs. '+Math.round(p.rs/p.credits)+'</td></tr>').join('')+'</tbody></table>';
+  const wa=document.getElementById('buyWa');
+  const txt=encodeURIComponent('Assalam o Alaikum! I have sent payment for Teacher Toolkit. Screenshot attached. My registered number: ');
+  wa.href=c.whatsapp?('https://wa.me/'+c.whatsapp+'?text='+txt):'#';
+  document.getElementById('buyOverlay').classList.add('open');
+}
+function closeBuy(){document.getElementById('buyOverlay').classList.remove('open');}
+
+/* Students auto-sync (backup) */
+let syncTimer=null;
+function scheduleSync(){
+  if(!token())return;
+  clearTimeout(syncTimer);
+  syncTimer=setTimeout(async()=>{
+    try{await fetch('/students-sync',{method:'POST',headers:{'Content-Type':'application/json',...authHeaders()},body:JSON.stringify({students:getDB()})});}catch(e){}
+  },1500);
+}
+async function syncStudentsOnLogin(){
+  if(!token())return;
+  try{
+    const r=await fetch('/students-sync',{headers:authHeaders()});const d=await r.json();
+    if(!d.success)return;
+    const local=getDB();
+    if(local.length===0&&d.students.length>0){setDBData(d.students);renderDB();}
+    else if(local.length>0)scheduleSync();
+  }catch(e){}
 }
 
 /* ═══════════ INIT ═══════════ */
@@ -1370,6 +1510,8 @@ async function resizeImage(){
   const first=document.querySelector('.sb-item');if(first)first.classList.add('active');
   renderForm();
   renderDB();
+  loadCfg().then(()=>updateAuthUI());
+  authTab('login');
   /* first run — profile setup */
   if(!getProfile().school)setTimeout(openProfile,600);
   /* server version check — purani server.js ho to warning */
@@ -1378,7 +1520,7 @@ async function resizeImage(){
   }).catch(()=>{
     const w=document.createElement('div');
     w.style.cssText='background:#b91c1c;color:#fff;font-size:12px;font-weight:700;text-align:center;padding:9px 14px;position:sticky;top:56px;z-index:150';
-    w.textContent='⚠️ Server par purani server.js chal rahi hai — book upload kaam nahi karega. Root wali server.js nayi file se replace kar ke dobara deploy karein.';
+    w.textContent='⚠️ Old server.js is running — book upload will not work. Replace the root server.js with the new file and redeploy.';
     document.querySelector('.layout').before(w);
   });
 })();

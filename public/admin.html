@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin — Teacher Toolkit</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--navy:#1a2744;--navy-dark:#0f1a2e;--gold:#c8960c;--gold-bg:#fef9e7;--g100:#f1f4f9;--g200:#e2e8f4;--g400:#8898b8;--g600:#4a5878;--g800:#1e2d4a;--green:#0a7c5c;--green-bg:#eafaf4;--red:#b91c1c;--r:10px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Plus Jakarta Sans',sans-serif;background:#f4f6fb;color:var(--g800);font-size:14px;padding-bottom:60px}
+.top{background:var(--navy-dark);border-bottom:3px solid var(--gold);color:#fff;padding:14px 20px;font-weight:800;display:flex;justify-content:space-between;align-items:center}
+.wrap{max-width:900px;margin:20px auto;padding:0 14px}
+.card{background:#fff;border:1px solid var(--g200);border-radius:14px;padding:18px;margin-bottom:14px;box-shadow:0 1px 3px rgba(26,39,68,.08)}
+h3{font-size:12px;text-transform:uppercase;letter-spacing:.8px;color:var(--g600);margin-bottom:12px;border-left:3px solid var(--gold);padding-left:8px}
+input,select{padding:10px 12px;border:1.5px solid var(--g200);border-radius:10px;font-size:13px;background:var(--g100);outline:none;font-family:inherit;width:100%}
+input:focus{border-color:var(--navy);background:#fff}
+button{padding:11px 18px;border:none;border-radius:10px;background:var(--navy);color:#fff;font-weight:800;font-size:13px;cursor:pointer;font-family:inherit}
+button:hover{opacity:.9}
+.row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th{background:var(--g100);text-align:left;padding:8px 10px;font-size:10px;text-transform:uppercase;color:var(--g600)}
+td{padding:8px 10px;border-bottom:1px solid var(--g100)}
+.stat{display:inline-block;background:var(--gold-bg);border:1px solid var(--gold);border-radius:99px;padding:6px 16px;font-weight:800;color:var(--navy);margin-right:8px;font-size:13px}
+.ok{color:var(--green);font-weight:800}.err{color:var(--red);font-weight:800}
+@media(max-width:600px){.row{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="top"><span>🔐 Teacher Toolkit — Admin Panel</span><span id="who"></span></div>
+<div class="wrap">
+
+<div class="card" id="loginCard">
+  <h3>Admin Login</h3>
+  <div class="row" style="grid-template-columns:2fr 1fr">
+    <input type="password" id="pw" placeholder="Admin password (ADMIN_PASSWORD from .env)">
+    <button onclick="login()">Login</button>
+  </div>
+  <div id="loginMsg" class="err"></div>
+</div>
+
+<div id="panel" style="display:none">
+  <div class="card">
+    <h3>Revenue</h3>
+    <span class="stat">💰 Total: Rs. <span id="revenue">0</span></span>
+    <span class="stat">🧾 Payments: <span id="txCount">0</span></span>
+    <span class="stat">👥 Teachers: <span id="userCount">0</span></span>
+  </div>
+
+  <div class="card">
+    <h3>⭐ Activate Monthly Pro (on Easypaisa payment)</h3>
+    <div class="row">
+      <input type="tel" id="s_phone" placeholder="Teacher phone (03xx...)">
+      <input type="number" id="s_days" placeholder="Days" value="30">
+      <input type="number" id="s_quota" placeholder="AI docs quota" value="60">
+    </div>
+    <div class="row" style="grid-template-columns:1fr 1fr 1fr">
+      <input type="number" id="s_amount" placeholder="Rs. received" value="999">
+      <input type="text" id="s_note" placeholder="Note (optional)">
+      <button onclick="addSub()">⭐ Activate Pro</button>
+    </div>
+    <div id="subMsg"></div>
+  </div>
+
+  <div class="card">
+    <h3>Add Credits (pay-per-doc, on Easypaisa payment)</h3>
+    <div class="row">
+      <input type="tel" id="c_phone" placeholder="Teacher phone (03xx...)">
+      <input type="number" id="c_credits" placeholder="Credits">
+      <input type="number" id="c_amount" placeholder="Rs. received">
+    </div>
+    <div class="row" style="grid-template-columns:2fr 1fr">
+      <input type="text" id="c_note" placeholder="Note (optional)">
+      <button onclick="addCredits()">➕ Add Credits</button>
+    </div>
+    <div id="addMsg"></div>
+  </div>
+
+  <div class="card">
+    <h3>Registered Teachers</h3>
+    <input type="text" id="search" placeholder="Search name / phone..." oninput="renderUsers()" style="margin-bottom:10px">
+    <div style="overflow-x:auto"><table><thead><tr><th>Name</th><th>Phone</th><th>School</th><th>Credits</th><th>Joined</th></tr></thead><tbody id="rows"></tbody></table></div>
+  </div>
+</div>
+
+</div>
+<script>
+let USERS=[];
+function key(){return localStorage.getItem('tt_admin')||'';}
+function hdr(){return{'x-admin-key':key(),'Content-Type':'application/json'};}
+async function login(){
+  localStorage.setItem('tt_admin',document.getElementById('pw').value.trim());
+  const ok=await load();
+  document.getElementById('loginMsg').textContent=ok?'':'Wrong password.';
+}
+async function load(){
+  try{
+    const r=await fetch('/admin/users',{headers:hdr()});
+    if(!r.ok)return false;
+    const d=await r.json();
+    if(!d.success)return false;
+    USERS=d.users;
+    document.getElementById('loginCard').style.display='none';
+    document.getElementById('panel').style.display='block';
+    document.getElementById('who').textContent='✅ Logged in';
+    document.getElementById('revenue').textContent=d.revenue.toLocaleString();
+    document.getElementById('txCount').textContent=d.txCount;
+    document.getElementById('userCount').textContent=d.users.length;
+    renderUsers();
+    return true;
+  }catch(e){return false;}
+}
+function renderUsers(){
+  const q=(document.getElementById('search').value||'').toLowerCase();
+  document.getElementById('rows').innerHTML=USERS
+    .filter(u=>!q||[u.name,u.phone,u.school].join(' ').toLowerCase().includes(q))
+    .map(u=>'<tr><td><b>'+u.name+'</b></td><td>'+u.phone+'</td><td>'+(u.school||'—')+'</td><td><b>'+u.credits+'</b></td><td>'+new Date(u.created_at).toLocaleDateString()+'</td></tr>').join('');
+}
+async function addSub(){
+  const msg=document.getElementById('subMsg');msg.textContent='';
+  try{
+    const r=await fetch('/admin/add-subscription',{method:'POST',headers:hdr(),body:JSON.stringify({
+      phone:document.getElementById('s_phone').value,
+      days:document.getElementById('s_days').value,
+      quota:document.getElementById('s_quota').value,
+      amount_rs:document.getElementById('s_amount').value,
+      note:document.getElementById('s_note').value
+    })});
+    const d=await r.json();
+    if(d.success){msg.innerHTML='<span class="ok">✅ '+d.name+' is now Monthly Pro until '+new Date(d.expires).toLocaleDateString()+'</span>';document.getElementById('s_phone').value='';load();}
+    else msg.innerHTML='<span class="err">❌ '+d.error+'</span>';
+  }catch(e){msg.innerHTML='<span class="err">❌ Network error</span>';}
+}
+async function addCredits(){
+  const msg=document.getElementById('addMsg');msg.textContent='';
+  try{
+    const r=await fetch('/admin/add-credits',{method:'POST',headers:hdr(),body:JSON.stringify({
+      phone:document.getElementById('c_phone').value,
+      credits:document.getElementById('c_credits').value,
+      amount_rs:document.getElementById('c_amount').value,
+      note:document.getElementById('c_note').value
+    })});
+    const d=await r.json();
+    if(d.success){msg.innerHTML='<span class="ok">✅ Credits added to '+d.name+' — new balance: '+d.newBalance+'</span>';['c_phone','c_credits','c_amount','c_note'].forEach(i=>document.getElementById(i).value='');load();}
+    else msg.innerHTML='<span class="err">❌ '+d.error+'</span>';
+  }catch(e){msg.innerHTML='<span class="err">❌ Network error</span>';}
+}
+if(key())load();
+</script>
+</body>
+</html>

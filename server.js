@@ -6,13 +6,190 @@ const multer = require('multer');
 const fs = require('fs');
 const path = require('path');
 
+const { createClient } = require('@supabase/supabase-js');
+const crypto = require('crypto');
+
 const app = express();
+app.use(require('compression')());
 app.use(require('cors')());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(express.static('public'));
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+/* ═══════════════ SUPABASE + AUTH + WALLET (Phase 1 Paid System) ═══════════════ */
+const sb = (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_KEY)
+  ? createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY)
+  : null;
+if (!sb) console.log('⚠️  Supabase not configured — FREE MODE (login/credits off). Add SUPABASE_URL + SUPABASE_SERVICE_KEY to .env.');
+
+function hashPin(pin) {
+  const salt = crypto.randomBytes(8).toString('hex');
+  return salt + ':' + crypto.scryptSync(String(pin), salt, 32).toString('hex');
+}
+function checkPin(pin, stored) {
+  try { const [salt, h] = stored.split(':'); return crypto.scryptSync(String(pin), salt, 32).toString('hex') === h; }
+  catch (e) { return false; }
+}
+async function userFromReq(req) {
+  if (!sb) return null;
+  const t = (req.headers.authorization || '').replace('Bearer ', '').trim();
+  if (!t) return null;
+  const { data } = await sb.from('tt_users').select('*').eq('token', t).maybeSingle();
+  return data || null;
+}
+/* AI generation se PEHLE credit kaato (reserve); fail ho to refund */
+function planActive(u) {
+  return u && u.plan && u.plan_expires && new Date(u.plan_expires) > new Date() && (u.plan_used || 0) < (u.plan_quota || 0);
+}
+async function takeCredit(req, res) {
+  if (!sb) return { user: null, free: true };  // free mode when Supabase not configured
+  const user = await userFromReq(req);
+  if (!user) { res.json({ success: false, error: 'LOGIN_REQUIRED' }); return null; }
+  /* 1) Active monthly plan? Use plan quota first */
+  if (planActive(user)) {
+    const { data } = await sb.from('tt_users')
+      .update({ plan_used: (user.plan_used || 0) + 1 })
+      .eq('id', user.id).eq('plan_used', user.plan_used || 0)
+      .select().maybeSingle();
+    if (data) return { user: data, viaPlan: true };
+  }
+  /* 2) Otherwise pay-per-doc credits */
+  const { data } = await sb.from('tt_users')
+    .update({ credits: user.credits - 1 }).eq('id', user.id).eq('credits', user.credits).gt('credits', 0)
+    .select().maybeSingle();
+  if (!data) {
+    const { data: fresh } = await sb.from('tt_users').select('*').eq('id', user.id).maybeSingle();
+    if (fresh && planActive(fresh)) {
+      const { data: retryP } = await sb.from('tt_users').update({ plan_used: fresh.plan_used + 1 }).eq('id', user.id).eq('plan_used', fresh.plan_used).select().maybeSingle();
+      if (retryP) return { user: retryP, viaPlan: true };
+    }
+    if (fresh && fresh.credits > 0) {
+      const { data: retry } = await sb.from('tt_users').update({ credits: fresh.credits - 1 }).eq('id', user.id).eq('credits', fresh.credits).select().maybeSingle();
+      if (retry) return { user: retry };
+    }
+    res.json({ success: false, error: 'NO_CREDITS' }); return null;
+  }
+  return { user: data };
+}
+async function refundCredit(gateUser, viaPlan) {
+  if (!sb || !gateUser) return;
+  try {
+    if (viaPlan) await sb.from('tt_users').update({ plan_used: Math.max(0, (gateUser.plan_used || 1) - 1) }).eq('id', gateUser.id);
+    else await sb.from('tt_users').update({ credits: gateUser.credits + 1 }).eq('id', gateUser.id);
+  } catch (e) {}
+}
+async function saveDoc(user, docType, title, content) {
+  if (!sb || !user) return;
+  try { await sb.from('tt_documents').insert({ user_id: user.id, doc_type: docType, title: (title || docType).slice(0, 120), content }); } catch (e) {}
+}
+function cleanPhone(p) { return String(p || '').replace(/[^0-9]/g, '').replace(/^0/, '92').slice(0, 12); }
+
+/* ── Auth routes ── */
+app.post('/auth/register', async (req, res) => {
+  if (!sb) return res.json({ success: false, error: 'Database is not configured on the server.' });
+  const phone = cleanPhone(req.body.phone);
+  const { pin, name, school } = req.body;
+  if (!phone || phone.length < 11) return res.json({ success: false, error: 'Enter a valid mobile number (03xx-xxxxxxx).' });
+  if (!pin || String(pin).length < 4) return res.json({ success: false, error: 'PIN must be at least 4 digits.' });
+  if (!name) return res.json({ success: false, error: 'Name is required.' });
+  const token = crypto.randomUUID();
+  const { data, error } = await sb.from('tt_users')
+    .insert({ phone, name, school: school || '', pin_hash: hashPin(pin), token })
+    .select().maybeSingle();
+  if (error) {
+    if (String(error.message).includes('duplicate')) return res.json({ success: false, error: 'This number is already registered — please Login.' });
+    return res.json({ success: false, error: error.message });
+  }
+  res.json({ success: true, token, user: { name: data.name, phone: data.phone, credits: data.credits } });
+});
+app.post('/auth/login', async (req, res) => {
+  if (!sb) return res.json({ success: false, error: 'Database is not configured on the server.' });
+  const phone = cleanPhone(req.body.phone);
+  const { data: user } = await sb.from('tt_users').select('*').eq('phone', phone).maybeSingle();
+  if (!user || !checkPin(req.body.pin, user.pin_hash)) return res.json({ success: false, error: 'Wrong phone number or PIN.' });
+  const token = crypto.randomUUID();
+  await sb.from('tt_users').update({ token }).eq('id', user.id);
+  res.json({ success: true, token, user: { name: user.name, phone: user.phone, credits: user.credits } });
+});
+app.get('/wallet', async (req, res) => {
+  const user = await userFromReq(req);
+  if (!user) return res.json({ success: false, error: 'LOGIN_REQUIRED' });
+  res.json({
+    success: true, credits: user.credits, name: user.name, phone: user.phone,
+    plan: planActive(user) ? user.plan : null,
+    planLeft: planActive(user) ? (user.plan_quota - (user.plan_used || 0)) : 0,
+    planExpires: user.plan_expires || null
+  });
+});
+app.get('/config', (req, res) => {
+  res.json({
+    paidMode: !!sb,
+    easypaisa: process.env.EASYPAISA_NUMBER || '03XX-XXXXXXX',
+    easypaisaName: process.env.EASYPAISA_NAME || 'Account Holder',
+    whatsapp: cleanPhone(process.env.WHATSAPP_NUMBER || process.env.EASYPAISA_NUMBER || ''),
+    plans: [
+      { name: 'Monthly Pro', rs: 999, docs: 60, days: 30 }
+    ],
+    prices: [
+      { rs: 300, credits: 6 },
+      { rs: 500, credits: 12 },
+      { rs: 1000, credits: 28 }
+    ]
+  });
+});
+
+/* ── Students backup/sync ── */
+app.get('/students-sync', async (req, res) => {
+  const user = await userFromReq(req);
+  if (!user) return res.json({ success: false, error: 'LOGIN_REQUIRED' });
+  const { data } = await sb.from('tt_students').select('data').eq('user_id', user.id).maybeSingle();
+  res.json({ success: true, students: (data && data.data) || [] });
+});
+app.post('/students-sync', async (req, res) => {
+  const user = await userFromReq(req);
+  if (!user) return res.json({ success: false, error: 'LOGIN_REQUIRED' });
+  const students = Array.isArray(req.body.students) ? req.body.students.slice(0, 2000) : [];
+  await sb.from('tt_students').upsert({ user_id: user.id, data: students, updated_at: new Date().toISOString() });
+  res.json({ success: true, count: students.length });
+});
+
+/* ── Admin (sirf tumhare liye — ADMIN_PASSWORD .env mein) ── */
+function isAdmin(req) { return process.env.ADMIN_PASSWORD && req.headers['x-admin-key'] === process.env.ADMIN_PASSWORD; }
+app.get('/admin/users', async (req, res) => {
+  if (!isAdmin(req)) return res.status(403).json({ success: false, error: 'Wrong admin password' });
+  const { data: users } = await sb.from('tt_users').select('id,phone,name,school,credits,created_at').order('created_at', { ascending: false }).limit(500);
+  const { data: tx } = await sb.from('tt_transactions').select('amount_rs,credits,created_at');
+  const revenue = (tx || []).reduce((s, t) => s + (t.amount_rs || 0), 0);
+  res.json({ success: true, users: users || [], revenue, txCount: (tx || []).length });
+});
+app.post('/admin/add-subscription', async (req, res) => {
+  if (!isAdmin(req)) return res.status(403).json({ success: false, error: 'Wrong admin password' });
+  const phone = cleanPhone(req.body.phone);
+  const days = parseInt(req.body.days) || 30;
+  const quota = parseInt(req.body.quota) || 60;
+  const amount = parseInt(req.body.amount_rs) || 0;
+  if (!phone) return res.json({ success: false, error: 'Enter a valid phone' });
+  const { data: user } = await sb.from('tt_users').select('*').eq('phone', phone).maybeSingle();
+  if (!user) return res.json({ success: false, error: 'This number is not registered: ' + phone });
+  const expires = new Date(Date.now() + days * 86400000).toISOString();
+  await sb.from('tt_users').update({ plan: 'Monthly Pro', plan_quota: quota, plan_used: 0, plan_expires: expires }).eq('id', user.id);
+  await sb.from('tt_transactions').insert({ user_id: user.id, credits: quota, amount_rs: amount, note: 'Monthly Pro ' + days + 'd (' + (req.body.note || 'Easypaisa') + ')' });
+  res.json({ success: true, name: user.name, expires });
+});
+app.post('/admin/add-credits', async (req, res) => {
+  if (!isAdmin(req)) return res.status(403).json({ success: false, error: 'Wrong admin password' });
+  const phone = cleanPhone(req.body.phone);
+  const credits = parseInt(req.body.credits) || 0;
+  const amount = parseInt(req.body.amount_rs) || 0;
+  if (!phone || credits <= 0) return res.json({ success: false, error: 'Enter a valid phone and credits' });
+  const { data: user } = await sb.from('tt_users').select('*').eq('phone', phone).maybeSingle();
+  if (!user) return res.json({ success: false, error: 'This number is not registered: ' + phone });
+  await sb.from('tt_users').update({ credits: user.credits + credits }).eq('id', user.id);
+  await sb.from('tt_transactions').insert({ user_id: user.id, credits, amount_rs: amount, note: req.body.note || 'Easypaisa manual' });
+  res.json({ success: true, name: user.name, newBalance: user.credits + credits });
+});
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -112,19 +289,19 @@ function buildDetailLines(fields) {
 }
 
 /* ─── Version (frontend isse check karta hai ke server nayi hai ya nahi) ── */
-app.get('/version', (req, res) => res.json({ v: '2.2', features: ['generate-with-file', 'streaming', 'pdf-books'] }));
+app.get('/version', (req, res) => res.json({ v: '3.0', features: ['generate-with-file', 'streaming', 'pdf-books', 'paid-system'] }));
 
 /* ─── Streaming: AI jo likhta jaye foran bhejo — Render ki 100s timeout kabhi nahi lagegi ─── */
 function friendlyError(msg) {
   msg = msg || 'Unknown error';
-  if (/request_too_large|exceeds|too large|maximum/i.test(msg)) return 'File AI ki limit se bari hai — Resizer tool se sirf relevant unit/chapter ke pages nikaal kar upload karein.';
-  if (/overloaded/i.test(msg)) return 'AI abhi busy hai — 30 second baad dobara try karein.';
-  if (/authentication|invalid.*key|401/i.test(msg)) return 'API key ghalat ya missing hai — Render ke Environment mein ANTHROPIC_API_KEY check karein.';
-  if (/credit|billing|insufficient/i.test(msg)) return 'API credits khatam hain — console.anthropic.com par balance check karein.';
+  if (/request_too_large|exceeds|too large|maximum/i.test(msg)) return 'File exceeds the AI limit — use the Resizer tool to extract only the relevant unit/chapter pages.';
+  if (/overloaded/i.test(msg)) return 'AI is busy right now — please try again in 30 seconds.';
+  if (/authentication|invalid.*key|401/i.test(msg)) return 'API key is wrong or missing — check ANTHROPIC_API_KEY in Render Environment.';
+  if (/credit|billing|insufficient/i.test(msg)) return 'API credits exhausted — check balance at console.anthropic.com.';
   return msg;
 }
-async function streamToRes(res, params) {
-  let started = false;
+async function streamToRes(res, params, onDone, onFail) {
+  let started = false, full = '';
   try {
     const s = client.messages.stream(params);
     s.on('text', (t) => {
@@ -134,15 +311,18 @@ async function streamToRes(res, params) {
         res.setHeader('Cache-Control', 'no-cache');
         started = true;
       }
+      full += t;
       res.write(t);
     });
     await s.finalMessage();
-    if (!started) { res.json({ success: false, error: 'AI ne khaali jawab diya — dobara try karein.' }); return; }
+    if (!started) { res.json({ success: false, error: 'AI returned an empty response — please try again.' }); if (onFail) onFail(); return; }
     res.end();
+    if (onDone) onDone(full);
   } catch (error) {
     const msg = friendlyError(error.message);
     if (!started) res.json({ success: false, error: msg });
     else res.end('\n[[GENERATION-ERROR]] ' + msg);
+    if (onFail) onFail();
   }
 }
 
@@ -180,11 +360,15 @@ RULES:
 - Use markdown headings (#, ##, ###) and pipe tables (| col | col |) where a table improves clarity.
 - Generate COMPLETE content — no placeholders like [insert here].`;
 
+  const gate = await takeCredit(req, res);
+  if (!gate) return;
   await streamToRes(res, {
     model: 'claude-sonnet-4-6',
     max_tokens: 8000,
     messages: [{ role: 'user', content: prompt }]
-  });
+  },
+  (text) => saveDoc(gate.user, documentType, (fields.subject || '') + ' ' + (fields.unitInfo || fields.className || ''), text),
+  () => refundCredit(gate.user, gate.viaPlan));
 });
 
 /* ─── GENERATE WITH UPLOADED BOOK/DOCUMENT ─────────────────────────────────
@@ -216,11 +400,15 @@ RULES:
 - Use markdown headings (#, ##, ###) and pipe tables (| col | col |) where a table improves clarity.
 - Generate COMPLETE content — no placeholders.`;
 
+    const gate = await takeCredit(req, res);
+    if (!gate) { try { fs.unlinkSync(req.file.path); } catch (e) {} return; }
     await streamToRes(res, {
       model: 'claude-sonnet-4-6',
       max_tokens: 8000,
       messages: [{ role: 'user', content: [block, { type: 'text', text: prompt }] }]
-    });
+    },
+    (text) => saveDoc(gate.user, documentType, (fields.subject || '') + ' ' + (fields.unitInfo || ''), text),
+    () => refundCredit(gate.user, gate.viaPlan));
     try { fs.unlinkSync(req.file.path); } catch (e) {}
   } catch (error) {
     try { fs.unlinkSync(req.file.path); } catch (e) {}
@@ -254,10 +442,14 @@ Generate a complete, professional exam paper with all sections and marks distrib
 
   try {
     const content = srcBlock ? [srcBlock, { type: 'text', text: prompt }] : prompt;
+    const gate = await takeCredit(req, res);
+    if (!gate) return;
     await streamToRes(res, {
       model: 'claude-sonnet-4-6', max_tokens: 8000,
       messages: [{ role: 'user', content }]
-    });
+    },
+    (text) => saveDoc(gate.user, 'CRQ Paper', subject + ' ' + unitName, text),
+    () => refundCredit(gate.user, gate.viaPlan));
   } catch (error) {
     res.json({ success: false, error: friendlyError(error.message) });
   }
@@ -269,13 +461,17 @@ app.post('/upload-generate', upload.single('file'), async (req, res) => {
   const { documentType, schoolName, teacherName, className, subject, language } = req.body;
   try {
     const block = fileToBlock(req.file.path, req.file.originalname);
+    const gate = await takeCredit(req, res);
+    if (!gate) { try { fs.unlinkSync(req.file.path); } catch (e) {} return; }
     await streamToRes(res, {
       model: 'claude-sonnet-4-6', max_tokens: 8000,
       messages: [{ role: 'user', content: [
         block,
         { type: 'text', text: `Create a ${documentType}${schoolName ? ' for ' + schoolName : ''}${className ? ', ' + className : ''}${subject ? ', Subject: ' + subject : ''}${teacherName ? ', Prepared by: ' + teacherName : ''}. LANGUAGE INSTRUCTION: ${LANG_INSTRUCTIONS[language] || LANG_INSTRUCTIONS.bilingual_en_ur} ${DOC_GUIDE[documentType] || ''} READ the attached book/document DEEPLY, word by word, and base the document EXACTLY and completely on its content. Do NOT include any student personal details. Use markdown headings and pipe tables where helpful.` }
       ]}]
-    });
+    },
+    (text) => saveDoc(gate.user, documentType, subject || '', text),
+    () => refundCredit(gate.user, gate.viaPlan));
     try { fs.unlinkSync(req.file.path); } catch(e) {}
   } catch (error) {
     try { fs.unlinkSync(req.file.path); } catch(e) {}
