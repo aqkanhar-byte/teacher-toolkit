@@ -200,6 +200,121 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage, limits: { fileSize: 25 * 1024 * 1024 } }); // AI reading capacity ke mutabiq (PDF ~20MB / 100 pages)
 
+/* ═══════════════ BOOK BANK (Supabase Storage — curated STB books) ═══════════════ */
+app.get('/books', async (req, res) => {
+  if (!sb) return res.json({ success: true, books: [] });
+  let q = sb.from('tt_books').select('id,class_name,subject,title,unit_label,size_mb').order('created_at', { ascending: false });
+  if (req.query.className) q = q.eq('class_name', req.query.className);
+  if (req.query.subject) q = q.eq('subject', req.query.subject);
+  const { data } = await q;
+  res.json({ success: true, books: data || [] });
+});
+app.post('/admin/upload-book', upload.single('file'), async (req, res) => {
+  if (!isAdmin(req)) { try { fs.unlinkSync(req.file.path); } catch(e) {} return res.status(403).json({ success: false, error: 'Wrong admin password' }); }
+  if (!sb) return res.json({ success: false, error: 'Supabase not configured' });
+  if (!req.file) return res.json({ success: false, error: 'No file' });
+  const { className, subject, title, unitLabel } = req.body;
+  if (!className || !subject || !title) { try { fs.unlinkSync(req.file.path); } catch(e) {} return res.json({ success: false, error: 'Class, subject and title are required' }); }
+  try {
+    const ext = path.extname(req.file.originalname).toLowerCase() || '.pdf';
+    const storagePath = (className + '/' + subject + '/' + Date.now() + ext).replace(/[^A-Za-z0-9/._-]+/g, '_');
+    const buf = fs.readFileSync(req.file.path);
+    const { error: upErr } = await sb.storage.from('books').upload(storagePath, buf, { contentType: ext === '.pdf' ? 'application/pdf' : 'image/jpeg', upsert: false });
+    if (upErr) throw new Error(upErr.message);
+    const { data } = await sb.from('tt_books').insert({ class_name: className, subject, title, unit_label: unitLabel || '', storage_path: storagePath, size_mb: +(req.file.size / 1048576).toFixed(2) }).select().maybeSingle();
+    try { fs.unlinkSync(req.file.path); } catch(e) {}
+    res.json({ success: true, book: data });
+  } catch (e) {
+    try { fs.unlinkSync(req.file.path); } catch(err) {}
+    res.json({ success: false, error: e.message });
+  }
+});
+app.post('/admin/delete-book', async (req, res) => {
+  if (!isAdmin(req)) return res.status(403).json({ success: false, error: 'Wrong admin password' });
+  const { data: book } = await sb.from('tt_books').select('*').eq('id', req.body.id).maybeSingle();
+  if (book) {
+    try { await sb.storage.from('books').remove([book.storage_path]); } catch(e) {}
+    await sb.from('tt_books').delete().eq('id', book.id);
+  }
+  res.json({ success: true });
+});
+/* Book Bank se file utha kar temp par lao (generate ke liye) */
+async function fetchBookToTemp(bookId) {
+  const { data: book } = await sb.from('tt_books').select('*').eq('id', bookId).maybeSingle();
+  if (!book) throw new Error('Book not found in Book Bank');
+  const { data: blob, error } = await sb.storage.from('books').download(book.storage_path);
+  if (error) throw new Error('Could not download book: ' + error.message);
+  const buf = Buffer.from(await blob.arrayBuffer());
+  if (!fs.existsSync('uploads')) fs.mkdirSync('uploads');
+  const tmp = 'uploads/bank_' + Date.now() + path.extname(book.storage_path);
+  fs.writeFileSync(tmp, buf);
+  return { path: tmp, originalname: book.title + path.extname(book.storage_path), book };
+}
+
+/* ═══════════════ SLO BANK — official curriculum SLOs, prompts mein inject ═══════════════ */
+app.post('/admin/add-slos', async (req, res) => {
+  if (!isAdmin(req)) return res.status(403).json({ success: false, error: 'Wrong admin password' });
+  const { className, subject, lines } = req.body;
+  if (!className || !subject || !lines) return res.json({ success: false, error: 'Class, subject and SLO lines are required' });
+  const rows = [];
+  for (const raw of String(lines).split('\n')) {
+    const p = raw.split('|').map(s => s.trim());
+    if (p.length < 4 || !p[3]) continue;
+    rows.push({ class_name: className, subject, unit_no: parseInt(p[0]) || null, unit_name: p[1] || '', slo_code: p[2] || '', slo_text: p[3], bloom_level: p[4] || '' });
+  }
+  if (!rows.length) return res.json({ success: false, error: 'No valid lines. Format per line: UnitNo | Unit Name | SLO-Code | SLO text | Bloom level' });
+  const { error } = await sb.from('tt_slos').insert(rows);
+  if (error) return res.json({ success: false, error: error.message });
+  res.json({ success: true, added: rows.length });
+});
+app.get('/admin/slos', async (req, res) => {
+  if (!isAdmin(req)) return res.status(403).json({ success: false, error: 'Wrong admin password' });
+  const { data } = await sb.from('tt_slos').select('class_name,subject,unit_no').limit(2000);
+  const summary = {};
+  (data || []).forEach(s => { const k = s.class_name + ' — ' + s.subject; summary[k] = (summary[k] || 0) + 1; });
+  res.json({ success: true, summary });
+});
+/* Prompt ke liye SLOs nikaalo */
+async function slosFor(className, subject, unitInfo) {
+  if (!sb || !className || !subject) return '';
+  let q = sb.from('tt_slos').select('unit_no,unit_name,slo_code,slo_text,bloom_level').eq('class_name', className).eq('subject', subject).order('unit_no');
+  const m = /^Unit (\d+)/.exec(unitInfo || '');
+  if (m) q = q.eq('unit_no', parseInt(m[1]));
+  const { data } = await q.limit(200);
+  if (!data || !data.length) return '';
+  const lines = data.map(s => `- [Unit ${s.unit_no || '-'}${s.unit_name ? ': ' + s.unit_name : ''}] ${s.slo_code ? s.slo_code + ' — ' : ''}${s.slo_text}${s.bloom_level ? ' (' + s.bloom_level + ')' : ''}`).join('\n');
+  return `\nOFFICIAL CURRICULUM SLOs (from the Sindh SLO Bank — this is the authoritative list. Base ALL objectives, activities and questions on these EXACT SLOs; cover EVERY one in scope; do not invent or substitute SLOs):\n${lines}\n`;
+}
+
+/* ═══════════════ QUALITY VERIFICATION — doosra AI pass, document ko rubric par janchta hai ═══════════════ */
+const SLO_DOC_TYPES = ['Lesson Plan', 'Worksheet', 'Exam Paper', 'Assessment Rubric', 'CRQ Paper', 'Annual Teaching Plan', 'Monthly Teaching Plan'];
+app.post('/verify', async (req, res) => {
+  const user = await userFromReq(req);
+  if (sb && !user) return res.json({ success: false, error: 'LOGIN_REQUIRED' });
+  const { content, documentType, className, subject, unitInfo } = req.body;
+  if (!content) return res.json({ success: false, error: 'Nothing to verify' });
+  try {
+    const sloBlock = SLO_DOC_TYPES.includes(documentType) ? await slosFor(className, subject, unitInfo) : '';
+    const response = await client.messages.create({
+      model: 'claude-sonnet-4-6', max_tokens: 1200,
+      messages: [{ role: 'user', content: `You are a strict educational quality reviewer for Government of Sindh school materials.
+${sloBlock ? sloBlock + '\nCheck SLO coverage against the official list above.' : ''}
+Review this ${documentType || 'document'}${className ? ' (' + className + (subject ? ', ' + subject : '') + ')' : ''} against: (1) curriculum/SLO alignment, (2) factual accuracy, (3) age-appropriateness, (4) language quality (including Urdu/Sindhi if present), (5) completeness and formatting, (6) pedagogical soundness.
+
+DOCUMENT:
+${String(content).slice(0, 24000)}
+
+Respond ONLY with JSON, no markdown fences:
+{"score": <0-100>, "verdict": "<one line>", "issues": ["<specific issue>", ...max 6], "strengths": ["<specific strength>", ...max 4]}` }]
+    });
+    let txt = response.content[0].text.replace(/```json|```/g, '').trim();
+    const j = JSON.parse(txt.slice(txt.indexOf('{'), txt.lastIndexOf('}') + 1));
+    res.json({ success: true, report: j });
+  } catch (e) {
+    res.json({ success: false, error: friendlyError(e.message) });
+  }
+});
+
 /* ─── NO-AI document types — instant, offline, zero API cost ─────────────── */
 const NO_AI_TYPES = [
   'Result Card','Attendance Sheet','Student Profile','Enrollment Form',
@@ -289,7 +404,7 @@ function buildDetailLines(fields) {
 }
 
 /* ─── Version (frontend isse check karta hai ke server nayi hai ya nahi) ── */
-app.get('/version', (req, res) => res.json({ v: '3.0', features: ['generate-with-file', 'streaming', 'pdf-books', 'paid-system'] }));
+app.get('/version', (req, res) => res.json({ v: '3.1', features: ['generate-with-file', 'streaming', 'pdf-books', 'paid-system', 'book-bank', 'slo-bank', 'verify'] }));
 
 /* ─── Streaming: AI jo likhta jaye foran bhejo — Render ki 100s timeout kabhi nahi lagegi ─── */
 function friendlyError(msg) {
@@ -326,12 +441,38 @@ async function streamToRes(res, params, onDone, onFail) {
   }
 }
 
+/* ─── 11-Part Canonical Lesson Plan Book Pattern (Pro) ─────────────────── */
+const LP_BOOK_PATTERN = `
+PREMIUM BOOK MODE — For EVERY unit, follow this exact 11-part structure (do not skip any part):
+1. COVER/TITLE BLOCK: unit number + title with Bismillah line.
+2. BASIC INFO TABLE: school, class, subject, unit, duration, teacher.
+3. SLO TABLE: every Student Learning Outcome of the unit with its Bloom's level, in English AND Urdu.
+4. WEEKLY SCHEDULE TABLE: day-by-day breakdown of the unit's lessons.
+5. INDIVIDUAL LESSON BLOCKS: for each lesson — PPP model (Presentation/Practice/Production) with TPR activities, time allocation per phase, and Urdu translations of key instructions.
+6. NURSERY RHYME / TEXT BOX: where the unit contains one.
+7. DIFFERENTIATION TABLE: two columns — Struggling learners vs Advanced learners strategies.
+8. HOMEWORK TABLE: per lesson, with Urdu instructions.
+9. ASSESSMENT RUBRIC: per SLO, three levels — Beginning / Developing / Achieved.
+10. PREPARED BY + SUPERVISOR REMARKS block with signature lines.
+11. PRINTABLE WORKSHEET: trace/write, circle/match, fill-in, speak-aloud items + a Self-Check box.
+Cover the units sequentially and completely. Bilingual throughout (English + Urdu). This is a professional publishable book — maintain consistent formatting across all units.`;
+
 /* ─── GENERATE ───────────────────────────────────────────────────────────── */
 app.post('/generate', async (req, res) => {
   const { documentType, language } = req.body;
   const fields = req.body.fields || {};
   const marks = req.body.marks || [];
   const studentsList = req.body.studentsList || [];
+
+  /* Full-Class Result Cards — poori class ek file mein, har card apne page par */
+  if (documentType === 'Result Card' && req.body.fullClass && Array.isArray(req.body.studentsMarks)) {
+    try {
+      const cards = req.body.studentsMarks.map(sm =>
+        OFFLINE_BUILDERS['Result Card']({ ...fields, ...sm.student }, sm.marks || [])
+      );
+      return res.json({ success: true, content: cards.join('\n\n[[PAGEBREAK]]\n\n'), offline: true });
+    } catch (e) { return res.json({ success: false, error: e.message }); }
+  }
 
   /* Instant offline documents — no API call */
   if (NO_AI_TYPES.includes(documentType)) {
@@ -344,6 +485,7 @@ app.post('/generate', async (req, res) => {
   }
 
   const detailLines = buildDetailLines(fields);
+  const sloBlock = SLO_DOC_TYPES.includes(documentType) ? await slosFor(fields.className, fields.subject, fields.unitInfo) : '';
 
   const prompt = `You are a professional educator creating a ${documentType} for a Government of Sindh school in Pakistan.
 
@@ -351,7 +493,7 @@ DETAILS:
 ${detailLines || '(none provided)'}
 
 DOCUMENT INSTRUCTIONS: ${DOC_GUIDE[documentType] || 'Create a complete, professional, classroom-ready document.'}
-
+${documentType === 'Lesson Plan' && /Full Book/i.test(fields.unitInfo || '') ? LP_BOOK_PATTERN : ''}${sloBlock}
 LANGUAGE INSTRUCTION: ${resolveLangInstruction(language, fields)}
 
 RULES:
@@ -375,14 +517,19 @@ RULES:
    Lesson Plan, Worksheet, Exam Paper, Rubric, Annual/Monthly Plan —
    AI uploaded book/PDF/image ko deeply parh kar EXACTLY usi se banata hai */
 app.post('/generate-with-file', upload.single('file'), async (req, res) => {
-  if (!req.file) return res.json({ success: false, error: 'No file uploaded' });
-  const { documentType, language } = req.body;
+  const { documentType, language, bookId } = req.body;
   let fields = {};
   try { fields = JSON.parse(req.body.fieldsJson || '{}'); } catch (e) {}
+  /* File ya Book Bank — dono mein se ek */
+  if (!req.file && bookId && sb) {
+    try { req.file = await fetchBookToTemp(bookId); } catch (e) { return res.json({ success: false, error: e.message }); }
+  }
+  if (!req.file) return res.json({ success: false, error: 'No file uploaded' });
 
   try {
     const block = fileToBlock(req.file.path, req.file.originalname);
     const detailLines = buildDetailLines(fields);
+    const sloBlock = SLO_DOC_TYPES.includes(documentType) ? await slosFor(fields.className, fields.subject, fields.unitInfo) : '';
     const prompt = `You are a professional educator creating a ${documentType} for a Government of Sindh school in Pakistan.
 
 DETAILS:
@@ -391,7 +538,7 @@ ${detailLines || '(none provided)'}
 SOURCE MATERIAL: A book/syllabus/document is attached. READ IT DEEPLY, word by word, page by page. The ${documentType} must be based EXACTLY and COMPLETELY on this attached content — its actual topics, vocabulary, exercises, and sequence. Do NOT invent content that is not in the source. If a unit/lesson range is specified in DETAILS, cover that range from the source; if "Full Book" is specified, cover the entire attached content.
 
 DOCUMENT INSTRUCTIONS: ${DOC_GUIDE[documentType] || 'Create a complete, professional, classroom-ready document.'}
-
+${documentType === 'Lesson Plan' && /Full Book/i.test(fields.unitInfo || '') ? LP_BOOK_PATTERN : ''}${sloBlock}
 LANGUAGE INSTRUCTION: ${resolveLangInstruction(language, fields)}
 
 RULES:
@@ -437,7 +584,7 @@ MCQs: ${mcqCount} | Short Questions: ${shortCount} | Long Questions: ${longCount
 Include Answer Key: ${includeAnswerKey}
 ${srcBlock ? 'SOURCE MATERIAL: A book/document is attached. READ IT DEEPLY, word by word. Base every question EXACTLY on its content — its topics, concepts, facts and exercises. Cover the specified unit/lesson range from it; do NOT invent content not present in the source.' : ''}
 Language: ${language === 'bilingual_en_ur' ? 'Bilingual English + Urdu' : language}
-Follow the Sindh Textbook Board curriculum. Do NOT include any student personal details.
+${await slosFor(className, subject, unitName)}Follow the Sindh Textbook Board curriculum. Do NOT include any student personal details.
 Generate a complete, professional exam paper with all sections and marks distribution.`;
 
   try {
@@ -495,7 +642,7 @@ function blank(v, len) { return v && String(v).trim() ? String(v).trim() : '_'.r
 function sd(name) { return name ? `son/daughter of ${name}` : 'son/daughter of ' + '_'.repeat(20); }
 
 function headerBlock(f, title) {
-  return `${BISMILLAH}\n\n# ${blank(f.schoolName, 40)}\n## ${title}\n\nDate: ${today()}${f.refNumber ? '\nRef / Inward-Outward No: ' + f.refNumber : ''}\n`;
+  return `[[LOGO]]\n${BISMILLAH}\n\n# ${blank(f.schoolName, 40)}\n## ${title}\n\nDate: ${today()}${f.refNumber ? '\nRef / Inward-Outward No: ' + f.refNumber : ''}\n`;
 }
 function signBlock3() {
   return `\n\n| Class Teacher | Head Master / Principal | Beat Officer / Supervisor |\n|---|---|---|\n| \u00A0 | \u00A0 | \u00A0 |\n| \u00A0 | \u00A0 | \u00A0 |\n| Signature & Stamp | Signature & Stamp | Signature & Stamp |`;
@@ -672,6 +819,8 @@ Father/Guardian Signature & Thumb Impression: ____________________  Date: ______
     const overallPct = (allFilled && totMax) ? Math.round((totObt / totMax) * 100) : null;
     return headerBlock(f, 'STUDENT RESULT CARD') +
 `
+[[PHOTO]]
+
 | Field | Detail | Field | Detail |
 |---|---|---|---|
 | Student Name | ${blank(f.studentName, 22)} | G.R Number | ${blank(f.grNumber, 8)} |
@@ -767,8 +916,16 @@ function isSeparatorLine(l) { return /^\s*\|[\s\-:|]+\|\s*$/.test(l); }
 function splitCells(l) {
   return l.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map(c => c.trim());
 }
+const AR_RE = /[\u0600-\u06FF]/;
+function isArabicLine(t) {
+  const ar = (t.match(/[\u0600-\u06FF]/g) || []).length;
+  const lat = (t.match(/[A-Za-z]/g) || []).length;
+  return ar > 0 && ar >= lat;  /* Urdu/Sindhi ghalib ho to RTL */
+}
 function runFromText(text, opts) {
   const parts = [];
+  const rtl = isArabicLine(text);
+  if (rtl) opts = { ...opts, font: 'Jameel Noori Nastaleeq', rightToLeft: true, size: Math.round((opts.size || 22) * 1.15) };
   const re = /\*\*(.+?)\*\*/g;
   let last = 0, m;
   while ((m = re.exec(text)) !== null) {
@@ -782,11 +939,15 @@ function runFromText(text, opts) {
 }
 
 app.post('/download-docx', async (req, res) => {
-  const { content, fileName, photo } = req.body;
-  let photoBuf = null, photoType = 'jpg';
+  const { content, fileName, photo, logo } = req.body;
+  let photoBuf = null, photoType = 'jpg', logoBuf = null, logoType = 'png';
   if (photo && /^data:image\/(png|jpe?g);base64,/.test(photo)) {
     photoType = photo.includes('image/png') ? 'png' : 'jpg';
     try { photoBuf = Buffer.from(photo.split(',')[1], 'base64'); } catch(e) {}
+  }
+  if (logo && /^data:image\/(png|jpe?g);base64,/.test(logo)) {
+    logoType = logo.includes('image/png') ? 'png' : 'jpg';
+    try { logoBuf = Buffer.from(logo.split(',')[1], 'base64'); } catch(e) {}
   }
   try {
     const lines = content.split('\n');
@@ -798,7 +959,25 @@ app.post('/download-docx', async (req, res) => {
     while (i < lines.length) {
       const line = lines[i];
 
+      /* Page break (full-class result cards) */
+      if (line.trim() === '[[PAGEBREAK]]') {
+        children.push(new Paragraph({ pageBreakBefore: true }));
+        i++; continue;
+      }
+      /* School logo — center top */
+      if (line.trim() === '[[LOGO]]') {
+        if (logoBuf) children.push(new Paragraph({
+          alignment: AlignmentType.CENTER, spacing: { after: 80 },
+          children: [new ImageRun({ data: logoBuf, transformation: { width: 84, height: 84 }, type: logoType })]
+        }));
+        i++; continue;
+      }
       /* Student photo placeholder */
+      if (line.trim() === '[[PAGEBREAK]]') { html += '<div style="page-break-before:always"></div>'; i++; continue; }
+      if (line.trim() === '[[LOGO]]') {
+        if (logoOk) html += `<div style="text-align:center;margin-bottom:6px"><img src="${logo}" style="width:74px;height:74px;object-fit:contain"></div>`;
+        i++; continue;
+      }
       if (line.trim() === '[[PHOTO]]') {
         if (photoBuf) {
           children.push(new Paragraph({
@@ -830,7 +1009,9 @@ app.post('/download-docx', async (req, res) => {
                 shading: isHead ? { type: ShadingType.CLEAR, fill: '1a2744' } : undefined,
                 margins: { top: 60, bottom: 60, left: 100, right: 100 },
                 children: [new Paragraph({
-                  children: runFromText(c, { size: 19, font: 'Arial', bold: isHead, color: isHead ? 'FFFFFF' : '1e2d4a' })
+                  bidirectional: isArabicLine(c),
+                  alignment: isArabicLine(c) ? AlignmentType.RIGHT : undefined,
+                  children: runFromText(c, { size: 20, font: 'Calibri', bold: isHead, color: isHead ? 'FFFFFF' : '1e2d4a' })
                 })]
               }))
             });
@@ -852,15 +1033,26 @@ app.post('/download-docx', async (req, res) => {
       if (isBis) {
         children.push(new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 200 }, children: [new TextRun({ text: text.replace(/\*\*/g, ''), size: 28, bold: true, color: 'C8960C', font: 'Amiri' })] }));
       } else if (isH1) {
-        children.push(new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 240, after: 120 }, children: runFromText(text, { size: 32, bold: true, color: '1a2744', font: 'Arial' }) }));
+        children.push(new Paragraph({
+          alignment: AlignmentType.CENTER, spacing: { before: 200, after: 60 },
+          border: { bottom: { style: BorderStyle.SINGLE, size: 12, color: 'C8960C', space: 6 } },
+          children: runFromText(text, { size: 34, bold: true, color: '1a2744', font: 'Cambria' })
+        }));
       } else if (isH2) {
-        children.push(new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 180, after: 80 }, children: runFromText(text, { size: 26, bold: true, color: '243257', font: 'Arial' }) }));
+        children.push(new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 100, after: 140 }, children: runFromText(text, { size: 26, bold: true, color: '243257', font: 'Cambria', characterSpacing: 20 }) }));
       } else if (isH3) {
-        children.push(new Paragraph({ spacing: { before: 120, after: 60 }, children: runFromText(text, { size: 22, bold: true, color: 'C8960C', font: 'Arial' }) }));
+        children.push(new Paragraph({
+          spacing: { before: 160, after: 70 },
+          border: { left: { style: BorderStyle.SINGLE, size: 18, color: 'C8960C', space: 4 } },
+          indent: { left: 120 },
+          children: runFromText(text, { size: 23, bold: true, color: '1a2744', font: 'Cambria' })
+        }));
       } else if (isBullet) {
-        children.push(new Paragraph({ spacing: { after: 60 }, indent: { left: 360 }, children: runFromText('• ' + text, { size: 20, font: 'Arial' }) }));
+        const rtlB = isArabicLine(text);
+        children.push(new Paragraph({ spacing: { after: 70, line: 300 }, indent: { left: 360 }, bidirectional: rtlB, alignment: rtlB ? AlignmentType.RIGHT : undefined, children: runFromText('• ' + text, { size: 22, font: 'Calibri' }) }));
       } else {
-        children.push(new Paragraph({ spacing: { after: 60 }, children: runFromText(text, { size: 20, font: 'Arial' }) }));
+        const rtlP = isArabicLine(text);
+        children.push(new Paragraph({ spacing: { after: 70, line: 300 }, bidirectional: rtlP, alignment: rtlP ? AlignmentType.RIGHT : undefined, children: runFromText(text, { size: 22, font: 'Calibri' }) }));
       }
       i++;
     }
@@ -882,8 +1074,9 @@ app.post('/download-docx', async (req, res) => {
 
 /* ─── DOWNLOAD PDF (HTML-based, with table support) ──────────────────────── */
 app.post('/download-pdf', async (req, res) => {
-  const { content, fileName, photo } = req.body;
+  const { content, fileName, photo, logo } = req.body;
   const photoOk = photo && /^data:image\/(png|jpe?g);base64,/.test(photo);
+  const logoOk = logo && /^data:image\/(png|jpe?g);base64,/.test(logo);
   try {
     const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     const inline = s => esc(s).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
@@ -906,6 +1099,11 @@ app.post('/download-pdf', async (req, res) => {
         html += '</table>';
         continue;
       }
+      if (line.trim() === '[[PAGEBREAK]]') { html += '<div style="page-break-before:always"></div>'; i++; continue; }
+      if (line.trim() === '[[LOGO]]') {
+        if (logoOk) html += `<div style="text-align:center;margin-bottom:6px"><img src="${logo}" style="width:74px;height:74px;object-fit:contain"></div>`;
+        i++; continue;
+      }
       if (line.trim() === '[[PHOTO]]') {
         html += photoOk
           ? `<div style="text-align:right"><img src="${photo}" style="width:110px;height:130px;object-fit:cover;border:1.5px solid #c8d3e8;border-radius:4px"></div>`
@@ -917,8 +1115,8 @@ app.post('/download-pdf', async (req, res) => {
       else if (line.startsWith('# ')) html += `<h1>${inline(line.slice(2))}</h1>`;
       else if (line.startsWith('## ')) html += `<h2>${inline(line.slice(3))}</h2>`;
       else if (line.startsWith('### ')) html += `<h3>${inline(line.slice(4))}</h3>`;
-      else if (line.startsWith('- ') || line.startsWith('• ')) html += `<li>${inline(line.slice(2))}</li>`;
-      else html += `<p>${inline(line)}</p>`;
+      else if (line.startsWith('- ') || line.startsWith('• ')) html += `<li${isArabicLine(line) ? ' dir="rtl" class="ur"' : ''}>${inline(line.slice(2))}</li>`;
+      else html += `<p${isArabicLine(line) ? ' dir="rtl" class="ur"' : ''}>${inline(line)}</p>`;
       i++;
     }
 
@@ -937,6 +1135,7 @@ app.post('/download-pdf', async (req, res) => {
   .bismillah { text-align: center; font-size: 16pt; color: #c8960c; font-family: 'Noto Nastaliq Urdu', serif; margin-bottom: 16px; }
   table { width: 100%; border-collapse: collapse; margin: 10px 0; }
   td, th { border: 1px solid #c8d3e8; padding: 6px 10px; font-size: 10.5pt; }
+  .ur { font-family: 'Noto Nastaliq Urdu', 'Jameel Noori Nastaleeq', serif; font-size: 12.5pt; line-height: 2.1; text-align: right; }
   th { background: #1a2744; color: white; }
   li { margin: 4px 0 4px 18px; }
   @media print { body { margin: 1.5cm; } }

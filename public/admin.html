@@ -77,6 +77,37 @@ td{padding:8px 10px;border-bottom:1px solid var(--g100)}
   </div>
 
   <div class="card">
+    <h3>📚 Book Bank — Upload curated STB books (teachers select these, no upload needed)</h3>
+    <div class="row">
+      <select id="b_class"></select>
+      <input type="text" id="b_subject" placeholder="Subject (e.g. English)">
+      <input type="text" id="b_title" placeholder="Book title (e.g. My English Book 1 — STB 2023)">
+    </div>
+    <div class="row" style="grid-template-columns:1fr 1fr 1fr">
+      <input type="text" id="b_unit" placeholder="Unit label (optional, e.g. Unit 3)">
+      <input type="file" id="b_file" accept=".pdf,image/*" style="padding:8px">
+      <button onclick="uploadBook()">📤 Upload to Book Bank</button>
+    </div>
+    <div id="bookMsg"></div>
+    <div style="overflow-x:auto;margin-top:10px"><table><thead><tr><th>Class</th><th>Subject</th><th>Title</th><th>Unit</th><th>Size</th><th></th></tr></thead><tbody id="bookRows"></tbody></table></div>
+  </div>
+
+  <div class="card">
+    <h3>🎯 SLO Bank — official curriculum SLOs (AI in par lock hota hai)</h3>
+    <div class="row" style="grid-template-columns:1fr 1fr">
+      <select id="sl_class"></select>
+      <input type="text" id="sl_subject" placeholder="Subject (e.g. English)">
+    </div>
+    <div style="font-size:11px;color:var(--g600);margin-bottom:6px">One SLO per line — format: <b>UnitNo | Unit Name | SLO-Code | SLO text | Bloom level</b><br>Example: <code>1 | My Family | E1-U1-01 | Identify and name immediate family members | Remember</code></div>
+    <textarea id="sl_lines" rows="6" style="width:100%;padding:10px;border:1.5px solid var(--g200);border-radius:10px;font-size:12px;font-family:monospace;background:var(--g100)" placeholder="1 | My Family | E1-U1-01 | Identify and name immediate family members | Remember"></textarea>
+    <div class="row" style="grid-template-columns:1fr 1fr;margin-top:10px">
+      <button onclick="addSlos()">➕ Add SLOs</button>
+      <div id="sloMsg" style="align-self:center"></div>
+    </div>
+    <div id="sloSummary" style="margin-top:8px;font-size:12px;color:var(--g600)"></div>
+  </div>
+
+  <div class="card">
     <h3>Registered Teachers</h3>
     <input type="text" id="search" placeholder="Search name / phone..." oninput="renderUsers()" style="margin-bottom:10px">
     <div style="overflow-x:auto"><table><thead><tr><th>Name</th><th>Phone</th><th>School</th><th>Credits</th><th>Joined</th></tr></thead><tbody id="rows"></tbody></table></div>
@@ -86,6 +117,59 @@ td{padding:8px 10px;border-bottom:1px solid var(--g100)}
 </div>
 <script>
 let USERS=[];
+const CLS=['ECCE (Katchi)','Class 1','Class 2','Class 3','Class 4','Class 5','Class 6','Class 7','Class 8','Class 9','Class 10','Class 11','Class 12'];
+function fillCls(){['b_class','sl_class'].forEach(id=>{const e=document.getElementById(id);if(e&&!e.options.length)e.innerHTML=CLS.map(c=>'<option>'+c+'</option>').join('');});}
+async function uploadBook(){
+  const msg=document.getElementById('bookMsg');msg.textContent='';
+  const f=document.getElementById('b_file').files[0];
+  if(!f){msg.innerHTML='<span class="err">Select a PDF/image file</span>';return;}
+  if(f.size>20*1024*1024){msg.innerHTML='<span class="err">Max 20MB (AI reading limit) — split the book into unit-wise PDFs</span>';return;}
+  const fd=new FormData();
+  fd.append('file',f);
+  fd.append('className',document.getElementById('b_class').value);
+  fd.append('subject',document.getElementById('b_subject').value.trim());
+  fd.append('title',document.getElementById('b_title').value.trim());
+  fd.append('unitLabel',document.getElementById('b_unit').value.trim());
+  msg.innerHTML='⏳ Uploading...';
+  try{
+    const r=await fetch('/admin/upload-book',{method:'POST',headers:{'x-admin-key':key()},body:fd});
+    const d=await r.json();
+    if(d.success){msg.innerHTML='<span class="ok">✅ Uploaded!</span>';document.getElementById('b_file').value='';document.getElementById('b_title').value='';loadBooks();}
+    else msg.innerHTML='<span class="err">❌ '+d.error+'</span>';
+  }catch(e){msg.innerHTML='<span class="err">❌ '+e.message+'</span>';}
+}
+async function loadBooks(){
+  try{
+    const r=await fetch('/books');const d=await r.json();
+    document.getElementById('bookRows').innerHTML=(d.books||[]).map(b=>'<tr><td>'+b.class_name+'</td><td>'+b.subject+'</td><td><b>'+b.title+'</b></td><td>'+(b.unit_label||'—')+'</td><td>'+b.size_mb+'MB</td><td><button style="background:var(--red);padding:5px 12px;font-size:11px" onclick="delBook(\''+b.id+'\')">Del</button></td></tr>').join('')||'<tr><td colspan="6" style="color:var(--g400)">No books yet — upload unit-wise STB PDFs above.</td></tr>';
+  }catch(e){}
+}
+async function delBook(id){
+  if(!confirm('Delete this book from the Book Bank?'))return;
+  await fetch('/admin/delete-book',{method:'POST',headers:hdr(),body:JSON.stringify({id})});
+  loadBooks();
+}
+async function addSlos(){
+  const msg=document.getElementById('sloMsg');msg.textContent='';
+  try{
+    const r=await fetch('/admin/add-slos',{method:'POST',headers:hdr(),body:JSON.stringify({
+      className:document.getElementById('sl_class').value,
+      subject:document.getElementById('sl_subject').value.trim(),
+      lines:document.getElementById('sl_lines').value
+    })});
+    const d=await r.json();
+    if(d.success){msg.innerHTML='<span class="ok">✅ '+d.added+' SLOs added</span>';document.getElementById('sl_lines').value='';loadSlos();}
+    else msg.innerHTML='<span class="err">❌ '+d.error+'</span>';
+  }catch(e){msg.innerHTML='<span class="err">❌ '+e.message+'</span>';}
+}
+async function loadSlos(){
+  try{
+    const r=await fetch('/admin/slos',{headers:hdr()});const d=await r.json();
+    if(!d.success)return;
+    const keys=Object.keys(d.summary||{});
+    document.getElementById('sloSummary').innerHTML=keys.length?('<b>SLO Bank coverage:</b> '+keys.map(k=>k+' ('+d.summary[k]+')').join(' · ')):'SLO Bank is empty — paste SLOs from official curriculum documents above.';
+  }catch(e){}
+}
 function key(){return localStorage.getItem('tt_admin')||'';}
 function hdr(){return{'x-admin-key':key(),'Content-Type':'application/json'};}
 async function login(){
@@ -107,6 +191,7 @@ async function load(){
     document.getElementById('txCount').textContent=d.txCount;
     document.getElementById('userCount').textContent=d.users.length;
     renderUsers();
+    fillCls();loadBooks();loadSlos();
     return true;
   }catch(e){return false;}
 }
