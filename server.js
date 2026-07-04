@@ -19,7 +19,7 @@ app.use(express.urlencoded({ limit: '25mb', extended: true }));
 app.use((req, res, next) => {
   const host = req.headers.host || '';
   if (/^(localhost|127\.0\.0\.1)(:\d+)?$/.test(host)) return next(); // local dev — never redirect
-  const proto = req.headers['x-forwarded-proto'] || req.protocol;
+  const proto = ((req.headers['x-forwarded-proto'] || req.protocol) + '').split(',')[0].trim();
   const isWww = host.startsWith('www.');
   if (isWww || proto !== 'https') {
     const cleanHost = isWww ? host.slice(4) : host;
