@@ -219,6 +219,17 @@ app.get('/admin/users', async (req, res) => {
   const revenue = (tx || []).reduce((s, t) => s + (t.amount_rs || 0), 0);
   res.json({ success: true, users: users || [], revenue, txCount: (tx || []).length });
 });
+app.post('/admin/reset-pin', async (req, res) => {
+  if (!adminGate(req, res)) return;
+  const phone = cleanPhone(req.body.phone);
+  const newPin = String(req.body.newPin || '');
+  if (!phone) return res.json({ success: false, error: 'Enter a valid phone' });
+  if (newPin.length < 4 || !/^\d+$/.test(newPin)) return res.json({ success: false, error: 'New PIN must be at least 4 digits' });
+  const { data: user } = await sb.from('tt_users').select('id,name').eq('phone', phone).maybeSingle();
+  if (!user) return res.json({ success: false, error: 'This number is not registered: ' + phone });
+  await sb.from('tt_users').update({ pin_hash: hashPin(newPin), token: crypto.randomUUID() }).eq('id', user.id);
+  res.json({ success: true, name: user.name });
+});
 app.post('/admin/add-subscription', async (req, res) => {
   if (!adminGate(req, res)) return;
   const phone = cleanPhone(req.body.phone);

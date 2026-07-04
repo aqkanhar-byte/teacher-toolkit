@@ -109,6 +109,17 @@ td{padding:8px 10px;border-bottom:1px solid var(--g100)}
   </div>
 
   <div class="card">
+    <h3>🔑 Reset Teacher PIN (if a teacher forgets their login PIN)</h3>
+    <div style="font-size:11px;color:var(--g600);margin-bottom:8px">Verify the teacher's identity (name/school) in the table below before resetting. Tell them the new PIN yourself — it's not visible anywhere (PINs are encrypted, not stored in readable form).</div>
+    <div class="row" style="grid-template-columns:2fr 1fr 1fr">
+      <input type="tel" id="r_phone" placeholder="Teacher phone (03xx...)">
+      <input type="text" id="r_pin" placeholder="New PIN (4+ digits)" inputmode="numeric">
+      <button onclick="resetPin()">🔑 Reset PIN</button>
+    </div>
+    <div id="resetMsg"></div>
+  </div>
+
+  <div class="card">
     <h3>Registered Teachers</h3>
     <input type="text" id="search" placeholder="Search name / phone..." oninput="renderUsers()" style="margin-bottom:10px">
     <div style="overflow-x:auto"><table><thead><tr><th>Name</th><th>Phone</th><th>School</th><th>Credits</th><th>Joined</th></tr></thead><tbody id="rows"></tbody></table></div>
@@ -214,6 +225,18 @@ function renderUsers(){
   document.getElementById('rows').innerHTML=USERS
     .filter(u=>!q||[u.name,u.phone,u.school].join(' ').toLowerCase().includes(q))
     .map(u=>'<tr><td><b>'+esc(u.name)+'</b></td><td>'+esc(u.phone)+'</td><td>'+esc(u.school||'—')+'</td><td><b>'+esc(u.credits)+'</b></td><td>'+new Date(u.created_at).toLocaleDateString()+'</td></tr>').join('');
+}
+async function resetPin(){
+  const msg=document.getElementById('resetMsg');msg.textContent='';
+  const phone=document.getElementById('r_phone').value.trim();
+  const newPin=document.getElementById('r_pin').value.trim();
+  if(!phone||!newPin){msg.innerHTML='<span class="err">Enter phone and new PIN</span>';return;}
+  try{
+    const r=await fetch('/admin/reset-pin',{method:'POST',headers:hdr(),body:JSON.stringify({phone,newPin})});
+    const d=await r.json();
+    if(d.success){msg.innerHTML='<span class="ok">✅ PIN reset for '+esc(d.name)+'. Tell them the new PIN directly.</span>';document.getElementById('r_phone').value='';document.getElementById('r_pin').value='';}
+    else msg.innerHTML='<span class="err">❌ '+esc(d.error)+'</span>';
+  }catch(e){msg.innerHTML='<span class="err">❌ '+esc(e.message)+'</span>';}
 }
 async function addSub(){
   const msg=document.getElementById('subMsg');msg.textContent='';

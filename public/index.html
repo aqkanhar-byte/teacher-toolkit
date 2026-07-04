@@ -831,6 +831,9 @@ button{cursor:pointer;border:none;background:none}
       <div class="form-row one" style="grid-template-columns:1fr">
         <div class="fg"><label>PIN (4+ digits) <b>*</b></label><input type="password" id="a_pin" inputmode="numeric" placeholder="••••"></div>
       </div>
+      <div id="forgotPinRow" style="text-align:right;margin-top:4px">
+        <a href="#" onclick="forgotPin();return false" style="font-size:11.5px;font-weight:700;color:var(--blue,#2563eb);text-decoration:none">PIN bhool gaye? / Forgot PIN?</a>
+      </div>
       <div id="authMsg" style="font-size:12px;font-weight:700;color:var(--red);margin-top:4px"></div>
       <button class="btn-gen" style="margin-top:12px;font-size:13px" id="authGo" onclick="authSubmit()">Login</button>
       <div style="font-size:11px;color:var(--g400);margin-top:10px;text-align:center">🎁 New accounts get <b>1 FREE AI document</b> · Certificates are always free</div>
@@ -1968,6 +1971,14 @@ function authTab(m){
   document.getElementById('regNameRow').style.display=m==='reg'?'grid':'none';
   document.getElementById('authGo').textContent=m==='reg'?'Create Account':'Login';
   document.getElementById('authTitle').textContent=m==='reg'?'New Teacher Account':'Teacher Login';
+}
+async function forgotPin(){
+  const phone=val('a_phone');
+  await loadCfg();
+  const num=phone?('My phone number: '+phone+'. '):'';
+  const txt='Assalam o Alaikum! I forgot my Teacher Toolkit PIN. '+num+'Please reset it for me.';
+  if(CFG&&CFG.whatsapp)window.open('https://wa.me/'+CFG.whatsapp+'?text='+encodeURIComponent(txt),'_blank');
+  else toast('Please contact support to reset your PIN.');
 }
 async function authSubmit(){
   const phone=val('a_phone'),pin=val('a_pin'),name=val('a_name');
