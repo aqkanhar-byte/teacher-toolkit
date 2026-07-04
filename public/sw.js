@@ -1,7 +1,7 @@
 /* Teacher Toolkit — PWA Service Worker
    App shell cache: baar baar kholne par foran khulta hai, weak internet par bhi.
    API/generation routes hamesha network se (fresh data). */
-const CACHE = 'tt-shell-v3';
+const CACHE = 'tt-shell-v4';
 const SHELL = ['/', '/index.html', '/shared-data.js', '/manifest.json', '/icon-192.png', '/icon-512.png'];
 
 self.addEventListener('install', e => {
@@ -14,7 +14,7 @@ self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
   if (e.request.method !== 'GET') return;
   // API routes: kabhi cache nahi
-  if (/^\/(generate|download|auth|wallet|admin|students-sync|verify|books|config|version|upload|documents)/.test(url.pathname)) return;
+  if (/^\/(generate|download|auth|wallet|admin|students-sync|verify|books|config|version|upload|documents|stats)/.test(url.pathname)) return;
   // Fonts/CDN libs: cache-first (offline bhi chalein)
   if (url.origin !== location.origin) {
     e.respondWith(caches.open(CACHE).then(async c => {

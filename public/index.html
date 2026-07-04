@@ -1733,7 +1733,7 @@ async function verifyDoc(){
     const f=S.lastFields||{};
     const r=await fetch('/verify',{method:'POST',headers:{'Content-Type':'application/json',...authHeaders()},body:JSON.stringify({content:S.content,documentType:S.doc,className:f.className||'',subject:f.subject||'',unitInfo:f.unitInfo||''})});
     const d=await r.json();
-    if(!d.success){vp.innerHTML='<div style="font-size:12px;font-weight:700;color:var(--red)">❌ '+(d.error==='LOGIN_REQUIRED'?'Please login to use Quality Verification.':d.error)+'</div>';}
+    if(!d.success){vp.innerHTML='<div style="font-size:12px;font-weight:700;color:var(--red)">❌ '+(d.error==='LOGIN_REQUIRED'?'Please login to use Quality Verification.':esc(d.error))+'</div>';}
     else{
       const rep=d.report||{};const s=Math.max(0,Math.min(100,parseInt(rep.score)||0));
       const col=s>=85?'var(--green)':(s>=65?'var(--gold)':'var(--red)');

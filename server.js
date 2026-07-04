@@ -117,7 +117,8 @@ async function refundCredit(gateUser, viaPlan) {
       const { data } = await q.select().maybeSingle();
       if (data) return;
     }
-  } catch (e) {}
+    logError('refundCredit', new Error('all 3 optimistic-lock retries exhausted'), { userId: gateUser.id, viaPlan });
+  } catch (e) { logError('refundCredit', e, { userId: gateUser.id, viaPlan }); }
 }
 async function saveDoc(user, docType, title, content) {
   if (!sb || !user) return;
@@ -1413,7 +1414,7 @@ app.use((req, res) => {
 /* ─── GLOBAL ERROR HANDLER — HTML 500 ki jagah hamesha friendly JSON ─────── */
 app.use((err, req, res, next) => {
   if (res.headersSent) return next(err);
-  console.error('Unhandled route error:', err.message);
+  logError('unhandled-route', err, { path: req.path, method: req.method });
   res.status(err.status || 500).json({ success: false, error: friendlyError(err.message) });
 });
 
