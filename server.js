@@ -15,16 +15,12 @@ app.use(require('compression')());
 app.use(require('cors')());
 app.use(express.json({ limit: '25mb' }));
 app.use(express.urlencoded({ limit: '25mb', extended: true }));
-/* ── Canonical host + HTTPS enforcement (SEO: avoid duplicate content across www/apex and http/https) ── */
+/* ── HTTPS enforcement (Render handles www↔apex redirect at infra level) ── */
 app.use((req, res, next) => {
   const host = req.headers.host || '';
-  if (/^(localhost|127\.0\.0\.1)(:\d+)?$/.test(host)) return next(); // local dev — never redirect
+  if (/^(localhost|127\.0\.0\.1)(:\d+)?$/.test(host)) return next();
   const proto = ((req.headers['x-forwarded-proto'] || req.protocol) + '').split(',')[0].trim();
-  const isWww = host.startsWith('www.');
-  if (isWww || proto !== 'https') {
-    const cleanHost = isWww ? host.slice(4) : host;
-    return res.redirect(301, `https://${cleanHost}${req.originalUrl}`);
-  }
+  if (proto !== 'https') return res.redirect(301, `https://${host}${req.originalUrl}`);
   next();
 });
 app.use(express.static('public'));
