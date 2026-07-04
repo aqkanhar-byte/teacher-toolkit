@@ -2031,7 +2031,7 @@ async function authSubmit(){
     }
   }catch(e){msg.textContent='Network error — please try again.';}
 }
-let MY_PHONE='';
+let MY_PHONE='',MY_NAME='',MY_SCHOOL='';
 async function updateAuthUI(){
   const chip=document.getElementById('credChip'),btn=document.getElementById('authBtn'),refBtn=document.getElementById('referBtn');
   if(!token()){chip.style.display='none';refBtn.style.display='none';btn.innerHTML='👤 Login';return;}
@@ -2040,7 +2040,7 @@ async function updateAuthUI(){
     if(!d.success){localStorage.removeItem('tt_token');chip.style.display='none';refBtn.style.display='none';btn.innerHTML='👤 Login';return;}
     chip.style.display='inline-block';
     refBtn.style.display='inline-block';
-    MY_PHONE=d.phone||'';
+    MY_PHONE=d.phone||'';MY_NAME=d.name||'';MY_SCHOOL=d.school||'';
     if(d.plan&&d.planLeft>0){
       const days=Math.max(0,Math.ceil((new Date(d.planExpires)-Date.now())/86400000));
       chip.innerHTML='⭐ <em>'+d.planLeft+'</em> docs · '+days+'d left';
@@ -2278,7 +2278,7 @@ function phFmtDate(v){if(!v)return '____';try{return new Date(v).toLocaleDateStr
 function phCtx(s){
   const p=getProfile(),L=val('phLang');
   const fatherFallback=L==='urdu'?'والدین':(L==='roman'?'walidain':'Parent');
-  const c={student:s.name,father:s.fatherName||fatherFallback,cls:s.className||'',school:p.school||'our school',teacher:p.hm||'Class Teacher'};
+  const c={student:s.name,father:s.fatherName||fatherFallback,cls:s.className||'',school:p.school||MY_SCHOOL||'the school',teacher:p.hm||MY_NAME||'Class Teacher'};
   const t=PH_TPL[val('phTpl')];
   (t.fields||[]).forEach(f=>{let v=val('phf_'+f.id);if(f.t==='date')v=phFmtDate(v);c[f.id]=v||'____';});
   /* Progress template: Analyzer ke saved marks se auto-remarks */

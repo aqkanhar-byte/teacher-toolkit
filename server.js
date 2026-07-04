@@ -180,7 +180,7 @@ app.get('/wallet', async (req, res) => {
   const user = await userFromReq(req);
   if (!user) return res.json({ success: false, error: 'LOGIN_REQUIRED' });
   res.json({
-    success: true, credits: user.credits, name: user.name, phone: user.phone,
+    success: true, credits: user.credits, name: user.name, phone: user.phone, school: user.school || '',
     plan: planActive(user) ? user.plan : null,
     planLeft: planActive(user) ? (user.plan_quota - (user.plan_used || 0)) : 0,
     planExpires: user.plan_expires || null
