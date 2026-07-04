@@ -9,10 +9,30 @@ const path = require('path');
 const { createClient } = require('@supabase/supabase-js');
 const crypto = require('crypto');
 
+const { rlBlocked, rlHit, rateLimit, tooMany, startCleanup } = require('./lib/rateLimit');
+const { cleanPhone } = require('./lib/phone');
+const { hashPin, checkPin } = require('./lib/pin');
+const { planActive, REFERRAL_CREDITS, PLANS, PRICES } = require('./lib/pricing');
+const { logError } = require('./lib/logger');
+
 const app = express();
+app.disable('x-powered-by');
 app.set('trust proxy', 1); /* Render/proxy ke pichhe sahi client IP (rate limiting ke liye) */
 app.use(require('compression')());
-app.use(require('cors')());
+/* CORS restricted to the real frontend + local dev — was wide open (any origin) before */
+const ALLOWED_ORIGINS = [
+  'https://teachertoolkitsindh.com',
+  'https://www.teachertoolkitsindh.com',
+  /^http:\/\/localhost(:\d+)?$/,
+  /^http:\/\/127\.0\.0\.1(:\d+)?$/
+];
+app.use(require('cors')({
+  origin: (origin, cb) => {
+    if (!origin) return cb(null, true); // same-origin / server-to-server / curl
+    const ok = ALLOWED_ORIGINS.some(o => o instanceof RegExp ? o.test(origin) : o === origin);
+    cb(null, ok);
+  }
+}));
 app.use(express.json({ limit: '25mb' }));
 app.use(express.urlencoded({ limit: '25mb', extended: true }));
 /* ── HTTPS enforcement (Render handles www↔apex redirect at infra level) ── */
@@ -25,25 +45,7 @@ app.use((req, res, next) => {
 });
 app.use(express.static('public'));
 
-/* ── Lightweight in-memory rate limiter (no extra deps) ── */
-const rlBuckets = new Map();
-function rlBlocked(key, max, windowMs) {
-  const b = rlBuckets.get(key);
-  return !!(b && Date.now() - b.start <= windowMs && b.n >= max);
-}
-function rlHit(key, windowMs) {
-  const now = Date.now();
-  const b = rlBuckets.get(key);
-  if (!b || now - b.start > windowMs) rlBuckets.set(key, { start: now, n: 1 });
-  else b.n++;
-}
-function rateLimit(key, max, windowMs) {
-  if (rlBlocked(key, max, windowMs)) return false;
-  rlHit(key, windowMs);
-  return true;
-}
-setInterval(() => { const now = Date.now(); for (const [k, b] of rlBuckets) if (now - b.start > 3600000) rlBuckets.delete(k); }, 600000).unref();
-function tooMany(res) { return res.status(429).json({ success: false, error: 'Too many attempts — please wait a few minutes and try again.' }); }
+startCleanup();
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -53,14 +55,7 @@ const sb = (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_KEY)
   : null;
 if (!sb) console.log('⚠️  Supabase not configured — FREE MODE (login/credits off). Add SUPABASE_URL + SUPABASE_SERVICE_KEY to .env.');
 
-function hashPin(pin) {
-  const salt = crypto.randomBytes(8).toString('hex');
-  return salt + ':' + crypto.scryptSync(String(pin), salt, 32).toString('hex');
-}
-function checkPin(pin, stored) {
-  try { const [salt, h] = stored.split(':'); return crypto.scryptSync(String(pin), salt, 32).toString('hex') === h; }
-  catch (e) { return false; }
-}
+const TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000; /* sessions expire 30 days after last use (sliding) */
 async function userFromReq(req) {
   if (!sb) return null;
   /* NOTE: custom domain's edge proxy strips the standard "Authorization" header —
@@ -69,11 +64,15 @@ async function userFromReq(req) {
   const t = (req.headers['x-auth-token'] || (req.headers.authorization || '').replace('Bearer ', '')).trim();
   if (!t) return null;
   const { data } = await sb.from('tt_users').select('*').eq('token', t).maybeSingle();
-  return data || null;
-}
-/* AI generation se PEHLE credit kaato (reserve); fail ho to refund */
-function planActive(u) {
-  return u && u.plan && u.plan_expires && new Date(u.plan_expires) > new Date() && (u.plan_used || 0) < (u.plan_quota || 0);
+  if (!data) return null;
+  if (data.token_expires_at && new Date(data.token_expires_at) < new Date()) return null; /* expired session */
+  /* sliding expiry — touch it forward on activity, but not on every single request (once/day is enough) */
+  const expiresAt = new Date(Date.now() + TOKEN_TTL_MS).toISOString();
+  const lastTouch = data.token_expires_at ? new Date(data.token_expires_at).getTime() - TOKEN_TTL_MS : 0;
+  if (Date.now() - lastTouch > 24 * 60 * 60 * 1000) {
+    sb.from('tt_users').update({ token_expires_at: expiresAt }).eq('id', data.id).then(() => {}, () => {});
+  }
+  return data;
 }
 async function takeCredit(req, res) {
   if (!sb) return { user: null, free: true };  // free mode when Supabase not configured
@@ -122,10 +121,10 @@ async function refundCredit(gateUser, viaPlan) {
 }
 async function saveDoc(user, docType, title, content) {
   if (!sb || !user) return;
-  try { await sb.from('tt_documents').insert({ user_id: user.id, doc_type: docType, title: (title || docType).slice(0, 120), content }); } catch (e) {}
-  maybeRewardReferral(user).catch(() => {});
+  try { await sb.from('tt_documents').insert({ user_id: user.id, doc_type: docType, title: (title || docType).slice(0, 120), content }); }
+  catch (e) { logError('saveDoc', e, { userId: user.id }); }
+  maybeRewardReferral(user).catch(e => logError('maybeRewardReferral', e, { userId: user.id }));
 }
-const REFERRAL_CREDITS = 2; /* both referrer + referred get this many free credits, once, on the referred teacher's FIRST successful AI document */
 async function maybeRewardReferral(user) {
   if (!sb || !user || !user.referred_by || user.referral_rewarded) return;
   const { count } = await sb.from('tt_documents').select('id', { count: 'exact', head: true }).eq('user_id', user.id);
@@ -139,7 +138,6 @@ async function maybeRewardReferral(user) {
     { user_id: user.id, credits: REFERRAL_CREDITS, amount_rs: 0, note: 'Referral bonus (signed up via invite)' }
   ]);
 }
-function cleanPhone(p) { return String(p || '').replace(/[^0-9]/g, '').replace(/^0/, '92').slice(0, 12); }
 
 /* ── Auth routes ── */
 app.post('/auth/register', async (req, res) => {
@@ -158,8 +156,9 @@ app.post('/auth/register', async (req, res) => {
     if (!refUser) referredBy = '';
   }
   const token = crypto.randomUUID();
+  const token_expires_at = new Date(Date.now() + TOKEN_TTL_MS).toISOString();
   const { data, error } = await sb.from('tt_users')
-    .insert({ phone, name, school: school || '', pin_hash: hashPin(pin), token, referred_by: referredBy || null })
+    .insert({ phone, name, school: school || '', pin_hash: hashPin(pin), token, token_expires_at, referred_by: referredBy || null })
     .select().maybeSingle();
   if (error) {
     if (String(error.message).includes('duplicate')) return res.json({ success: false, error: 'This number is already registered — please Login.' });
@@ -176,7 +175,8 @@ app.post('/auth/login', async (req, res) => {
   const { data: user } = await sb.from('tt_users').select('*').eq('phone', phone).maybeSingle();
   if (!user || !checkPin(req.body.pin, user.pin_hash)) { rlHit(rk, 15 * 60 * 1000); return res.json({ success: false, error: 'Wrong phone number or PIN.' }); }
   const token = crypto.randomUUID();
-  await sb.from('tt_users').update({ token }).eq('id', user.id);
+  const token_expires_at = new Date(Date.now() + TOKEN_TTL_MS).toISOString();
+  await sb.from('tt_users').update({ token, token_expires_at }).eq('id', user.id);
   res.json({ success: true, token, user: { name: user.name, phone: user.phone, credits: user.credits } });
 });
 app.get('/wallet', async (req, res) => {
@@ -189,24 +189,28 @@ app.get('/wallet', async (req, res) => {
     planExpires: user.plan_expires || null
   });
 });
+/* Usage impact — for the "My Documents" screen: how much this teacher has actually used the app */
+const MINUTES_SAVED_PER_DOC = 25; /* rough estimate: hand-writing a lesson plan/exam paper vs generating one */
+app.get('/stats', async (req, res) => {
+  const user = await userFromReq(req);
+  if (!user) return res.json({ success: false, error: 'LOGIN_REQUIRED' });
+  const { count } = await sb.from('tt_documents').select('id', { count: 'exact', head: true }).eq('user_id', user.id);
+  const totalDocuments = count || 0;
+  res.json({
+    success: true,
+    totalDocuments,
+    estimatedMinutesSaved: totalDocuments * MINUTES_SAVED_PER_DOC,
+    memberSince: user.created_at
+  });
+});
 app.get('/config', (req, res) => {
   res.json({
     paidMode: !!sb,
     easypaisa: process.env.EASYPAISA_NUMBER || '03XX-XXXXXXX',
     easypaisaName: process.env.EASYPAISA_NAME || 'Account Holder',
     whatsapp: cleanPhone(process.env.WHATSAPP_NUMBER || process.env.EASYPAISA_NUMBER || ''),
-    plans: [
-      { name: 'Monthly Pro', rs: 1500, docs: 40, days: 30, tag: 'Best for regular use' }
-    ],
-    /* 5 packages, small → big. Per-credit price drops with volume but never below cost+margin
-       (real AI cost ~Rs 15-45/doc depending on book attachments) — every tier stays profitable. */
-    prices: [
-      { name: 'Starter', rs: 200, credits: 4, tag: '' },
-      { name: 'Basic', rs: 450, credits: 10, tag: '' },
-      { name: 'Popular', rs: 850, credits: 20, tag: 'Most Popular' },
-      { name: 'Pro', rs: 1600, credits: 40, tag: 'Best Value' },
-      { name: 'School', rs: 3600, credits: 100, tag: 'For whole staff' }
-    ]
+    plans: PLANS,
+    prices: PRICES
   });
 });
 
@@ -639,6 +643,7 @@ async function streamToRes(res, params, onDone, onFail) {
     res.end();
     if (onDone) onDone(full);
   } catch (error) {
+    logError('streamToRes', error);
     const msg = friendlyError(error.message);
     if (!started) res.json({ success: false, error: msg });
     else res.end('\n[[GENERATION-ERROR]] ' + msg);
@@ -707,6 +712,7 @@ RULES:
 - Use markdown headings (#, ##, ###) and pipe tables (| col | col |) where a table improves clarity.
 - Generate COMPLETE content — no placeholders like [insert here].`;
 
+  if (!rateLimit('gen:' + req.ip, 20, 10 * 60 * 1000)) return tooMany(res);
   const gate = await takeCredit(req, res);
   if (!gate) return;
   await streamToRes(res, {
@@ -752,6 +758,7 @@ RULES:
 - Use markdown headings (#, ##, ###) and pipe tables (| col | col |) where a table improves clarity.
 - Generate COMPLETE content — no placeholders.`;
 
+    if (!rateLimit('gen:' + req.ip, 20, 10 * 60 * 1000)) { try { fs.unlinkSync(req.file.path); } catch (e) {} return tooMany(res); }
     const gate = await takeCredit(req, res);
     if (!gate) { try { fs.unlinkSync(req.file.path); } catch (e) {} return; }
     await streamToRes(res, {
@@ -764,6 +771,7 @@ RULES:
     try { fs.unlinkSync(req.file.path); } catch (e) {}
   } catch (error) {
     try { fs.unlinkSync(req.file.path); } catch (e) {}
+    logError('generate-with-file', error);
     res.json({ success: false, error: friendlyError(error.message) });
   }
 });
@@ -795,6 +803,7 @@ Generate a complete, professional exam paper with all sections and marks distrib
 
   try {
     const content = srcBlock ? [srcBlock, { type: 'text', text: prompt }] : prompt;
+    if (!rateLimit('gen:' + req.ip, 20, 10 * 60 * 1000)) return tooMany(res);
     const gate = await takeCredit(req, res);
     if (!gate) return;
     await streamToRes(res, {
@@ -804,6 +813,7 @@ Generate a complete, professional exam paper with all sections and marks distrib
     (text) => saveDoc(gate.user, 'CRQ Paper', subject + ' ' + unitName, text),
     () => refundCredit(gate.user, gate.viaPlan));
   } catch (error) {
+    logError('generate-crq', error);
     res.json({ success: false, error: friendlyError(error.message) });
   }
 });
@@ -814,6 +824,7 @@ app.post('/upload-generate', upload.single('file'), async (req, res) => {
   const { documentType, schoolName, teacherName, className, subject, language } = req.body;
   try {
     const block = fileToBlock(req.file.path, req.file.originalname);
+    if (!rateLimit('gen:' + req.ip, 20, 10 * 60 * 1000)) { try { fs.unlinkSync(req.file.path); } catch (e) {} return tooMany(res); }
     const gate = await takeCredit(req, res);
     if (!gate) { try { fs.unlinkSync(req.file.path); } catch (e) {} return; }
     await streamToRes(res, {
@@ -828,6 +839,7 @@ app.post('/upload-generate', upload.single('file'), async (req, res) => {
     try { fs.unlinkSync(req.file.path); } catch(e) {}
   } catch (error) {
     try { fs.unlinkSync(req.file.path); } catch(e) {}
+    logError('upload-generate', error);
     res.json({ success: false, error: friendlyError(error.message) });
   }
 });

@@ -759,6 +759,7 @@ button{cursor:pointer;border:none;background:none}
       <div class="dh-txt"><div class="dh-name">My Documents</div><div class="dh-sub">Every AI document you generate is saved here automatically</div></div>
       <div class="dh-right"><button class="mini-btn" onclick="loadMyDocs()">↻ Refresh</button></div>
     </div>
+    <div id="impactBanner"></div>
     <div class="sec-card"><div class="sec-body" id="myDocsList"><div class="db-empty">Loading...</div></div></div>
   </div>
 
@@ -1582,9 +1583,25 @@ function onBankSel(){
   if(S.bookId)clearDocFile();
 }
 
+/* ═══════════ USAGE IMPACT — how much this teacher has actually used the app ═══════════ */
+async function loadImpactStats(){
+  const banner=document.getElementById('impactBanner');if(!banner)return;
+  if(!token()){banner.innerHTML='';return;}
+  try{
+    const r=await fetch('/stats',{headers:authHeaders()});
+    const d=await r.json();
+    if(!d.success||!d.totalDocuments){banner.innerHTML='';return;}
+    const hours=Math.round(d.estimatedMinutesSaved/60*10)/10;
+    banner.innerHTML='<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">'
+      +'<div style="flex:1;min-width:140px;background:var(--white);border:1px solid var(--g200);border-radius:var(--r);padding:13px 14px;box-shadow:var(--sh-sm)"><div style="font-size:21px;font-weight:800;color:var(--heading)">'+d.totalDocuments+'</div><div style="font-size:9.5px;font-weight:800;color:var(--g400);text-transform:uppercase;letter-spacing:.6px;margin-top:3px">Documents Generated</div></div>'
+      +'<div style="flex:1;min-width:140px;background:var(--white);border:1px solid var(--g200);border-radius:var(--r);padding:13px 14px;box-shadow:var(--sh-sm)"><div style="font-size:21px;font-weight:800;color:var(--heading)">~'+hours+'h</div><div style="font-size:9.5px;font-weight:800;color:var(--g400);text-transform:uppercase;letter-spacing:.6px;margin-top:3px">Estimated Time Saved</div></div>'
+      +'</div>';
+  }catch(e){banner.innerHTML='';}
+}
 /* ═══════════ MY DOCUMENTS — saved AI docs wapas kholo ═══════════ */
 async function loadMyDocs(){
   const box=document.getElementById('myDocsList');
+  loadImpactStats();
   if(!token()){box.innerHTML='<div class="db-empty">🔒 Please <a href="#" onclick="openAuth(\'Login to see your saved documents\');return false" style="color:var(--blue);font-weight:700">login</a> — every AI document you generate is saved to your account automatically.</div>';return;}
   box.innerHTML='<div class="db-empty">⏳ Loading your documents...</div>';
   try{
