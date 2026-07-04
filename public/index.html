@@ -434,6 +434,7 @@ button{cursor:pointer;border:none;background:none}
     <button class="dev-badge" id="installBtn" onclick="installApp()" style="cursor:pointer;display:none">⬇️ Install App</button>
     <button class="theme-btn" id="themeBtn" onclick="toggleTheme()" aria-label="Switch to dark mode" title="Switch theme"></button>
     <button class="dev-badge" id="credChip" onclick="creditChipClick()" style="cursor:pointer;display:none">💳 <em id="credCount">0</em> credits</button>
+    <button class="dev-badge" id="referBtn" onclick="openRefer()" style="cursor:pointer;display:none">🎁 Refer &amp; Earn</button>
     <button class="dev-badge" id="authBtn" onclick="openAuth()" style="cursor:pointer">👤 Login</button>
     <div class="ai-badge">✦ AI Powered</div>
   </div>
@@ -828,8 +829,16 @@ button{cursor:pointer;border:none;background:none}
       <div class="form-row one" id="regNameRow" style="grid-template-columns:1fr;display:none">
         <div class="fg"><label>Your Name <b>*</b></label><input type="text" id="a_name" placeholder="Full name"></div>
       </div>
+      <div class="form-row one" id="refRow" style="grid-template-columns:1fr;display:none">
+        <div style="font-size:11.5px;font-weight:700;color:var(--green,#0a7c5c);background:var(--green-bg,#eafaf4);padding:8px 12px;border-radius:8px">🎁 Referred by: <span id="refPhoneShow"></span> — you'll both get bonus credits!</div>
+      </div>
       <div class="form-row one" style="grid-template-columns:1fr">
-        <div class="fg"><label>PIN (4+ digits) <b>*</b></label><input type="password" id="a_pin" inputmode="numeric" placeholder="••••"></div>
+        <div class="fg"><label>PIN (4+ digits) <b>*</b></label>
+          <div style="position:relative">
+            <input type="password" id="a_pin" inputmode="numeric" placeholder="••••" style="width:100%;padding-right:38px">
+            <button type="button" onclick="togglePinView()" aria-label="Show/hide PIN" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;padding:6px;cursor:pointer;font-size:15px;line-height:1" id="pinEyeBtn">👁️</button>
+          </div>
+        </div>
       </div>
       <div id="forgotPinRow" style="text-align:right;margin-top:4px">
         <a href="#" onclick="forgotPin();return false" style="font-size:11.5px;font-weight:700;color:var(--blue,#2563eb);text-decoration:none">PIN bhool gaye? / Forgot PIN?</a>
@@ -1969,8 +1978,27 @@ function authTab(m){
   document.getElementById('tabLogin').className='mini-btn'+(m==='login'?' primary':'');
   document.getElementById('tabReg').className='mini-btn'+(m==='reg'?' primary':'');
   document.getElementById('regNameRow').style.display=m==='reg'?'grid':'none';
+  const ref=localStorage.getItem('tt_ref_pending')||'';
+  document.getElementById('refRow').style.display=(m==='reg'&&ref)?'grid':'none';
+  if(ref)document.getElementById('refPhoneShow').textContent=ref;
   document.getElementById('authGo').textContent=m==='reg'?'Create Account':'Login';
   document.getElementById('authTitle').textContent=m==='reg'?'New Teacher Account':'Teacher Login';
+}
+function togglePinView(){
+  const inp=document.getElementById('a_pin'),btn=document.getElementById('pinEyeBtn');
+  const show=inp.type==='password';
+  inp.type=show?'text':'password';
+  btn.textContent=show?'🙈':'👁️';
+}
+function captureReferral(){
+  const ref=new URLSearchParams(location.search).get('ref');
+  if(ref)localStorage.setItem('tt_ref_pending',ref.replace(/[^0-9]/g,''));
+}
+function openRefer(){
+  if(!MY_PHONE){toast('Please login first.');return;}
+  const link='https://teachertoolkitsindh.com/?ref='+MY_PHONE;
+  const txt='Assalam o Alaikum! Main Teacher Toolkit app use kar raha/rahi hun — lesson plans, exam papers, certificates, result cards sab kuch minutes mein ban jate hain, Urdu/Sindhi mein bhi! Aap bhi sign up karein is link se, dono ko bonus credits milenge:\n'+link;
+  window.open('https://wa.me/?text='+encodeURIComponent(txt),'_blank');
 }
 async function forgotPin(){
   const phone=val('a_phone');
@@ -1985,7 +2013,7 @@ async function authSubmit(){
   const msg=document.getElementById('authMsg');msg.textContent='';
   if(!phone||!pin){msg.textContent='Enter phone number and PIN.';return;}
   if(AUTH_MODE==='reg'&&!name){msg.textContent='Name is required.';return;}
-  const body=AUTH_MODE==='reg'?{phone,pin,name,school:(getProfile().school||'')}:{phone,pin};
+  const body=AUTH_MODE==='reg'?{phone,pin,name,school:(getProfile().school||''),referredBy:localStorage.getItem('tt_ref_pending')||''}:{phone,pin};
   try{
     const r=await fetch('/auth/'+(AUTH_MODE==='reg'?'register':'login'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
     const d=await r.json();
@@ -1993,6 +2021,7 @@ async function authSubmit(){
     localStorage.setItem('tt_token',d.token);
     closeAuth();updateAuthUI();syncStudentsOnLogin();
     if(AUTH_MODE==='reg'){
+      localStorage.removeItem('tt_ref_pending');
       toast('🎉 Account created! You have 1 FREE AI document. Welcome!');
       const ph=phPhone(phone);
       if(ph){
@@ -2002,13 +2031,16 @@ async function authSubmit(){
     }
   }catch(e){msg.textContent='Network error — please try again.';}
 }
+let MY_PHONE='';
 async function updateAuthUI(){
-  const chip=document.getElementById('credChip'),btn=document.getElementById('authBtn');
-  if(!token()){chip.style.display='none';btn.innerHTML='👤 Login';return;}
+  const chip=document.getElementById('credChip'),btn=document.getElementById('authBtn'),refBtn=document.getElementById('referBtn');
+  if(!token()){chip.style.display='none';refBtn.style.display='none';btn.innerHTML='👤 Login';return;}
   try{
     const r=await fetch('/wallet',{headers:authHeaders()});const d=await r.json();
-    if(!d.success){localStorage.removeItem('tt_token');chip.style.display='none';btn.innerHTML='👤 Login';return;}
+    if(!d.success){localStorage.removeItem('tt_token');chip.style.display='none';refBtn.style.display='none';btn.innerHTML='👤 Login';return;}
     chip.style.display='inline-block';
+    refBtn.style.display='inline-block';
+    MY_PHONE=d.phone||'';
     if(d.plan&&d.planLeft>0){
       const days=Math.max(0,Math.ceil((new Date(d.planExpires)-Date.now())/86400000));
       chip.innerHTML='⭐ <em>'+d.planLeft+'</em> docs · '+days+'d left';
@@ -2383,7 +2415,7 @@ const TT_KB=[
  {id:'result',t:'Result Cards (single & full class)',k:'result card marks grade full class mode report annual natija',b:'• <b>Single student:</b> sidebar → Result Card → fill details, enter subject-wise marks → Generate. Grades are calculated automatically.<br>• <b>Whole class at once:</b> turn on <b>👥 Full Class Mode</b> — students load from your Student Database, you enter marks in one table, and you get every student\'s card in a single Word file (each on its own page). 100% free, no AI needed.'},
  {id:'attendance',t:'Attendance Sheet',k:'attendance sheet register hazri month monthly',b:'Sidebar → <b>Attendance Sheet</b> → choose Class and Month (or a custom duration).<br>If your Student Database has students of that class, their names, G.R and roll numbers are <b>pre-filled automatically</b>. Instant and free — no AI needed.'},
  {id:'certs',t:'Certificates (always free)',k:'certificate character bonafide transfer leaving noc experience salary prize free instant',b:'All certificates are <b>instant and always free</b> (no login, no credits):<br>🏅 Character · 📜 Bonafide · 🔄 Transfer · 🎓 School Leaving · ✅ NOC · 🎖️ Experience · 💼 Salary · 🏆 Prize<br>Fill the short form → Generate → download Word/PDF. Your school logo (from School Profile) appears on top, with proper signature blocks.'},
- {id:'credits',t:'Credits, plans & payment',k:'credit price plan buy pay easypaisa jazzcash monthly pro subscription paisa rupees free',b:'• Certificates, result cards & attendance are <b>always free</b>.<br>• AI documents (lesson plans, exam papers...) use <b>credits</b> — new accounts get <b>1 free AI document</b> 🎁.<br>• Buy credits or the <b>Monthly Pro plan</b> (60 docs/month): tap the 💳 credits chip on the top bar, send payment via Easypaisa/JazzCash, then send the screenshot on WhatsApp — credits are added right away.<br>• If a generation fails, your credit is <b>refunded automatically</b>.'},
+ {id:'credits',t:'Credits, plans & payment',k:'credit price plan buy pay easypaisa jazzcash monthly pro subscription paisa rupees free refer earn invite',b:'• Certificates, result cards & attendance are <b>always free</b>.<br>• AI documents (lesson plans, exam papers...) use <b>credits</b> — new accounts get <b>1 free AI document</b> 🎁.<br>• Buy a credit package or the <b>Monthly Pro plan</b>: tap the 💳 credits chip on the top bar, send payment via Easypaisa/JazzCash, then send the screenshot on WhatsApp — credits are added right away.<br>• <b>🎁 Refer & Earn:</b> tap the Refer &amp; Earn button and share your link with a fellow teacher on WhatsApp — when they sign up and generate their first document, you <b>both</b> get free bonus credits!<br>• If a generation fails, your credit is <b>refunded automatically</b>.'},
  {id:'account',t:'Login, PIN & account',k:'login account register pin password forgot phone number sign signup logout',b:'• <b>Sign up</b> with your mobile number and a 4+ digit PIN (👤 button, top-right).<br>• Your documents and student list are saved to your account.<br>• <b>Forgot PIN?</b> Message us on WhatsApp (💳 chip → WhatsApp button) and we\'ll reset it.<br>• Logging in on a new phone signs you out of the old one — this keeps your account safe.'},
  {id:'verify',t:'Verify Quality (second AI check)',k:'verify quality check review score curriculum slo',b:'After generating an AI document, press <b>🔍 Verify Quality</b> on the result bar.<br>A second AI reviewer checks curriculum/SLO alignment, factual accuracy, language quality and completeness, then gives a score with specific issues and strengths.<br>💡 You can edit the document right in the result box, then verify again — verification is free.'},
  {id:'download',t:'Download, edit & WhatsApp share',k:'download word docx pdf print share whatsapp copy edit',b:'On the result bar:<br>• <b>Word (.docx)</b> — real tables, Urdu/Sindhi fonts, logo & photo embedded.<br>• <b>PDF / Print</b> — opens print-ready; choose "Save as PDF" in the print dialog.<br>• <b>📱 WhatsApp</b> — on mobile, shares the Word file directly into WhatsApp.<br>• ✏️ You can <b>click and edit the text</b> in the result box before downloading.'},
@@ -2578,6 +2610,7 @@ function applyShortcutParams() {
   renderForm();
   renderDB();
   applyShortcutParams();
+  captureReferral();
   if (isRunningInstalled()) { const b=document.getElementById('installBtn'); if(b) b.style.display='none'; }
   loadCfg().then(()=>updateAuthUI());
   if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});

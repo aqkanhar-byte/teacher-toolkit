@@ -120,6 +120,21 @@ async function refundCredit(gateUser, viaPlan) {
 async function saveDoc(user, docType, title, content) {
   if (!sb || !user) return;
   try { await sb.from('tt_documents').insert({ user_id: user.id, doc_type: docType, title: (title || docType).slice(0, 120), content }); } catch (e) {}
+  maybeRewardReferral(user).catch(() => {});
+}
+const REFERRAL_CREDITS = 2; /* both referrer + referred get this many free credits, once, on the referred teacher's FIRST successful AI document */
+async function maybeRewardReferral(user) {
+  if (!sb || !user || !user.referred_by || user.referral_rewarded) return;
+  const { count } = await sb.from('tt_documents').select('id', { count: 'exact', head: true }).eq('user_id', user.id);
+  if (count !== 1) return; /* only fire on the very first document */
+  const { data: referrer } = await sb.from('tt_users').select('id,credits').eq('phone', user.referred_by).maybeSingle();
+  if (!referrer) return;
+  await sb.from('tt_users').update({ credits: referrer.credits + REFERRAL_CREDITS }).eq('id', referrer.id);
+  await sb.from('tt_users').update({ credits: user.credits + REFERRAL_CREDITS, referral_rewarded: true }).eq('id', user.id);
+  await sb.from('tt_transactions').insert([
+    { user_id: referrer.id, credits: REFERRAL_CREDITS, amount_rs: 0, note: 'Referral bonus (invited a teacher)' },
+    { user_id: user.id, credits: REFERRAL_CREDITS, amount_rs: 0, note: 'Referral bonus (signed up via invite)' }
+  ]);
 }
 function cleanPhone(p) { return String(p || '').replace(/[^0-9]/g, '').replace(/^0/, '92').slice(0, 12); }
 
@@ -132,9 +147,16 @@ app.post('/auth/register', async (req, res) => {
   if (!phone || phone.length < 11) return res.json({ success: false, error: 'Enter a valid mobile number (03xx-xxxxxxx).' });
   if (!pin || String(pin).length < 4) return res.json({ success: false, error: 'PIN must be at least 4 digits.' });
   if (!name) return res.json({ success: false, error: 'Name is required.' });
+  /* Referral — only accepted if it's a real registered teacher and not a self-referral */
+  let referredBy = cleanPhone(req.body.referredBy || '');
+  if (referredBy === phone) referredBy = '';
+  if (referredBy) {
+    const { data: refUser } = await sb.from('tt_users').select('id').eq('phone', referredBy).maybeSingle();
+    if (!refUser) referredBy = '';
+  }
   const token = crypto.randomUUID();
   const { data, error } = await sb.from('tt_users')
-    .insert({ phone, name, school: school || '', pin_hash: hashPin(pin), token })
+    .insert({ phone, name, school: school || '', pin_hash: hashPin(pin), token, referred_by: referredBy || null })
     .select().maybeSingle();
   if (error) {
     if (String(error.message).includes('duplicate')) return res.json({ success: false, error: 'This number is already registered — please Login.' });
