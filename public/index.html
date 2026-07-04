@@ -1750,7 +1750,7 @@ async function shareWA(){
     /* 2) Fallback (PC / purane phones): file download + WhatsApp open */
     const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=fn+'.docx';a.click();
     setTimeout(()=>URL.revokeObjectURL(url),4000);
-    alert('📄 Document downloaded!\n\nWhatsApp is opening now — press the attach (📎) button in your chat and select the downloaded file:\n'+fn+'.docx\n\n(One-tap direct share works on mobile phones.)');
+    alert('📄 '+fn+'.docx downloaded — attach it (📎) in the WhatsApp chat that just opened.');
     window.open('https://wa.me/','_blank');
   }catch(e){alert('Share error: '+e.message);}
   btns.forEach(b=>b.disabled=false);
