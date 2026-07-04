@@ -2017,9 +2017,20 @@ async function openBuy(){
   const c=await loadCfg();
   document.getElementById('buyNumber').textContent=c.easypaisa||'—';
   document.getElementById('buyName').textContent=c.easypaisaName||'';
-  document.getElementById('buyPlans').innerHTML=(c.plans||[]).map(p=>'<div style="border:2px solid var(--gold);border-radius:var(--r);padding:14px;background:linear-gradient(135deg,var(--gold-bg),var(--white))"><div style="display:flex;justify-content:space-between;align-items:center"><div><div style="font-size:15px;font-weight:800;color:var(--heading)">⭐ '+p.name+' — Rs. '+p.rs+'/month</div><div style="font-size:12px;color:var(--g600);margin-top:3px;font-weight:600">'+p.docs+' AI documents · '+p.days+' days · unlimited certificates</div></div><div style="font-size:10px;font-weight:800;background:var(--navy);color:#fff;padding:4px 10px;border-radius:99px">BEST VALUE</div></div></div>').join('');
-  document.getElementById('buyPrices').innerHTML='<div style="font-size:10px;font-weight:800;color:var(--g400);text-transform:uppercase;letter-spacing:.7px;margin:6px 0 6px">Or buy credits</div><table class="db-table"><thead><tr><th>Package</th><th>AI documents</th><th>Per doc</th></tr></thead><tbody>'+
-    (c.prices||[]).map(p=>'<tr><td><b>Rs. '+p.rs+'</b></td><td>'+p.credits+'</td><td>Rs. '+Math.round(p.rs/p.credits)+'</td></tr>').join('')+'</tbody></table>';
+  document.getElementById('buyPlans').innerHTML=(c.plans||[]).map(p=>'<div style="border:2px solid var(--gold);border-radius:var(--r);padding:14px;background:linear-gradient(135deg,var(--gold-bg),var(--white))"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div><div style="font-size:15px;font-weight:800;color:var(--heading)">⭐ '+esc(p.name)+' — Rs. '+p.rs+'/month</div><div style="font-size:12px;color:var(--g600);margin-top:3px;font-weight:600">'+p.docs+' AI documents · '+p.days+' days · unlimited certificates</div></div><div style="font-size:9.5px;font-weight:800;background:var(--navy);color:#fff;padding:4px 9px;border-radius:99px;white-space:nowrap">'+esc(p.tag||'SUBSCRIPTION')+'</div></div></div>').join('');
+  document.getElementById('buyPrices').innerHTML='<div style="font-size:10px;font-weight:800;color:var(--g400);text-transform:uppercase;letter-spacing:.7px;margin:10px 0 8px">Or buy a one-time credit package</div>'+
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'+
+    (c.prices||[]).map(p=>{
+      const per=Math.round(p.rs/p.credits);
+      const highlight=p.tag==='Most Popular'||p.tag==='Best Value';
+      return '<div style="position:relative;border:1.5px solid '+(highlight?'var(--gold)':'var(--g200)')+';border-radius:10px;padding:11px;background:'+(highlight?'var(--gold-bg)':'var(--white)')+'">'
+        +(p.tag?'<div style="position:absolute;top:-9px;left:9px;font-size:8.5px;font-weight:800;background:'+(highlight?'linear-gradient(135deg,#c8960c,#f5c842)':'var(--navy)')+';color:'+(highlight?'#0f1a2e':'#fff')+';padding:2px 8px;border-radius:99px;letter-spacing:.3px">'+esc(p.tag.toUpperCase())+'</div>':'')
+        +'<div style="font-size:12.5px;font-weight:800;color:var(--g800);margin-top:2px">'+esc(p.name)+'</div>'
+        +'<div style="font-size:18px;font-weight:800;color:var(--heading);margin-top:2px">Rs. '+p.rs+'</div>'
+        +'<div style="font-size:11px;color:var(--g600);font-weight:700;margin-top:2px">'+p.credits+' AI documents</div>'
+        +'<div style="font-size:10px;color:var(--g400);margin-top:1px">≈ Rs. '+per+' / doc</div>'
+        +'</div>';
+    }).join('')+'</div>';
   const wa=document.getElementById('buyWa');
   const txt=encodeURIComponent('Assalam o Alaikum! I have sent payment for Teacher Toolkit. Screenshot attached. My registered number: ');
   wa.href=c.whatsapp?('https://wa.me/'+c.whatsapp+'?text='+txt):'#';
@@ -2322,6 +2333,26 @@ function phCopyAll(){
 }
 
 /* ═══════════ TOOLKIT ASSISTANT — offline knowledge base (no API, no credits) ═══════════ */
+/* Casual chit-chat — greetings/small talk answered directly, before searching the help articles */
+const SMALL_TALK=[
+ {k:['assalam','salam','السلام','آداب'],r:'Wa alaikum assalam! 👋 Khush aamdeed. Bataiye, kis document ya feature mein madad chahiye?'},
+ {k:['hello','hi','hey','oye'],r:'Hello! 👋 Main yahan hun madad ke liye. Bataiye kya karna hai?'},
+ {k:['kaisay ho','kaise ho','kesay ho','kesy ho','kya hal','kya haal','how are you',"what's up",'whats up','kaisi ho'],r:'Main theek hun, shukriya poochne ke liye! 😊 Aap batayen — Teacher Toolkit mein kis cheez mein madad chahiye?'},
+ {k:['shukriya','shukria','thanks','thank you','mehrbani','bohot khoob','zabardast'],r:'Khushi hui madad kar ke! 🙏 Aur kuch poochna ho to bataiye, main yahin hun.'},
+ {k:['bye','khuda hafiz','allah hafiz','good night','ok bye','theek hai bye'],r:'Allah Hafiz! 👋 Zaroorat parhe to phir aa jaiyega. Happy teaching! 🎓'},
+ {k:['who are you','tum kon ho','aap kon','tumhara naam','naam kia hai','kon ho tum'],r:'Main <b>Toolkit Assistant</b> hun — Teacher Toolkit ka apna madadgar. Offline chalta hun, aur kabhi bhi aapke credits use nahi karta. 😊'},
+ {k:['good morning'],r:'Good morning! ☀️ Aaj kis document mein madad chahiye?'},
+ {k:['ok','okay','acha','theek hai','thik hai'],r:'Theek hai! 👍 Aur kuch poochna ho to bataiye, ya neeche se ek topic chun lein.'},
+ {k:['sorry','maaf'],r:'Koi baat nahi! 🙏 Bataiye, kis mein madad chahiye?'}
+];
+function astSmallTalk(q){
+  const ql=q.toLowerCase().trim();
+  const words=ql.split(/[^a-z0-9؀-ۿ]+/i).filter(Boolean);
+  for(const st of SMALL_TALK){
+    if(st.k.some(p=>p.includes(' ')?ql.includes(p):words.includes(p)))return st.r;
+  }
+  return null;
+}
 const TT_KB=[
  {id:'start',t:'Getting started',k:'start begin new first shuru welcome intro use kaise',b:'Welcome! Creating a document takes 3 easy steps:<br>1️⃣ Pick a document type from the <b>sidebar</b> (Lesson Plan, Exam Paper, Certificate...).<br>2️⃣ Fill the short form — your School Profile fills school details automatically.<br>3️⃣ Press <b>⚡ Generate</b>, then download as Word/PDF or share on WhatsApp.<br><br>💡 Documents marked <b>No AI</b> (certificates, result cards, attendance) are instant and always free.'},
  {id:'profile',t:'School Profile & logo',k:'profile school name logo semis address setup change edit head master',b:'Your School Profile is used on <b>every document</b> automatically.<br>• Open it from the <b>✏️ button</b> on the sidebar card (top-left).<br>• Enter school name, address, head master, SEMIS code and session.<br>• Upload a <b>school logo</b> — it appears at the top of certificates and documents.<br>Everything is saved on your device — set it once and forget it.'},
@@ -2413,6 +2444,8 @@ function astSend(){
 }
 function astAsk(q){
   astMsg(esc(q),'user');
+  const stReply=astSmallTalk(q);
+  if(stReply){astMsg(stReply);astChips([{l:'📂 Browse all articles',fn:astBrowse},{l:'💡 More suggestions',fn:astSuggest}]);return;}
   const results=astSearchKB(q);
   if(results.length){
     const top=results[0];

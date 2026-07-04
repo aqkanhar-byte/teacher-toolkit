@@ -63,17 +63,19 @@ td{padding:8px 10px;border-bottom:1px solid var(--g100)}
   </div>
 
   <div class="card">
-    <h3>Add Credits (pay-per-doc, on Easypaisa payment)</h3>
-    <div class="row">
+    <h3>💳 Manage Credits (pay-per-doc, on Easypaisa/JazzCash payment)</h3>
+    <div class="row" style="grid-template-columns:2fr 1fr 1fr;margin-bottom:0">
       <input type="tel" id="c_phone" placeholder="Teacher phone (03xx...)">
       <input type="number" id="c_credits" placeholder="Credits">
-      <input type="number" id="c_amount" placeholder="Rs. received">
+      <input type="number" id="c_amount" placeholder="Rs. received (0 for corrections)">
     </div>
-    <div class="row" style="grid-template-columns:2fr 1fr">
+    <div class="row" style="grid-template-columns:2fr 1fr 1fr;margin-top:10px">
       <input type="text" id="c_note" placeholder="Note (optional)">
-      <button onclick="addCredits()">➕ Add Credits</button>
+      <button onclick="addCredits()" style="background:var(--green)">➕ Add Credits</button>
+      <button onclick="removeCredits()" style="background:var(--red)">➖ Remove / Undo</button>
     </div>
-    <div id="addMsg"></div>
+    <div style="font-size:11px;color:var(--g600);margin-top:6px">💡 Made a mistake adding credits? Use <b>Remove / Undo</b> with the same phone + credit amount to reverse it — it never goes below 0.</div>
+    <div id="addMsg" style="margin-top:6px"></div>
   </div>
 
   <div class="card">
@@ -264,6 +266,20 @@ async function addCredits(){
     })});
     const d=await r.json();
     if(d.success){msg.innerHTML='<span class="ok">✅ Credits added to '+esc(d.name)+' — new balance: '+esc(d.newBalance)+'</span>';['c_phone','c_credits','c_amount','c_note'].forEach(i=>document.getElementById(i).value='');load();}
+    else msg.innerHTML='<span class="err">❌ '+esc(d.error)+'</span>';
+  }catch(e){msg.innerHTML='<span class="err">❌ Network error</span>';}
+}
+async function removeCredits(){
+  const msg=document.getElementById('addMsg');msg.textContent='';
+  if(!confirm('Remove '+(document.getElementById('c_credits').value||'0')+' credits from '+(document.getElementById('c_phone').value||'this number')+'?'))return;
+  try{
+    const r=await fetch('/admin/remove-credits',{method:'POST',headers:hdr(),body:JSON.stringify({
+      phone:document.getElementById('c_phone').value,
+      credits:document.getElementById('c_credits').value,
+      note:document.getElementById('c_note').value
+    })});
+    const d=await r.json();
+    if(d.success){msg.innerHTML='<span class="ok">✅ Credits removed from '+esc(d.name)+' — new balance: '+esc(d.newBalance)+'</span>';['c_phone','c_credits','c_amount','c_note'].forEach(i=>document.getElementById(i).value='');load();}
     else msg.innerHTML='<span class="err">❌ '+esc(d.error)+'</span>';
   }catch(e){msg.innerHTML='<span class="err">❌ Network error</span>';}
 }

@@ -171,12 +171,16 @@ app.get('/config', (req, res) => {
     easypaisaName: process.env.EASYPAISA_NAME || 'Account Holder',
     whatsapp: cleanPhone(process.env.WHATSAPP_NUMBER || process.env.EASYPAISA_NUMBER || ''),
     plans: [
-      { name: 'Monthly Pro', rs: 999, docs: 60, days: 30 }
+      { name: 'Monthly Pro', rs: 1500, docs: 40, days: 30, tag: 'Best for regular use' }
     ],
+    /* 5 packages, small → big. Per-credit price drops with volume but never below cost+margin
+       (real AI cost ~Rs 15-45/doc depending on book attachments) — every tier stays profitable. */
     prices: [
-      { rs: 300, credits: 6 },
-      { rs: 500, credits: 12 },
-      { rs: 1000, credits: 28 }
+      { name: 'Starter', rs: 200, credits: 4, tag: '' },
+      { name: 'Basic', rs: 450, credits: 10, tag: '' },
+      { name: 'Popular', rs: 850, credits: 20, tag: 'Most Popular' },
+      { name: 'Pro', rs: 1600, credits: 40, tag: 'Best Value' },
+      { name: 'School', rs: 3600, credits: 100, tag: 'For whole staff' }
     ]
   });
 });
@@ -255,6 +259,19 @@ app.post('/admin/add-credits', async (req, res) => {
   await sb.from('tt_users').update({ credits: user.credits + credits }).eq('id', user.id);
   await sb.from('tt_transactions').insert({ user_id: user.id, credits, amount_rs: amount, note: req.body.note || 'Easypaisa manual' });
   res.json({ success: true, name: user.name, newBalance: user.credits + credits });
+});
+/* Undo/correct an accidental Add Credits — subtracts, clamped at 0, logged as a negative transaction */
+app.post('/admin/remove-credits', async (req, res) => {
+  if (!adminGate(req, res)) return;
+  const phone = cleanPhone(req.body.phone);
+  const credits = parseInt(req.body.credits) || 0;
+  if (!phone || credits <= 0) return res.json({ success: false, error: 'Enter a valid phone and credits' });
+  const { data: user } = await sb.from('tt_users').select('*').eq('phone', phone).maybeSingle();
+  if (!user) return res.json({ success: false, error: 'This number is not registered: ' + phone });
+  const newBalance = Math.max(0, user.credits - credits);
+  await sb.from('tt_users').update({ credits: newBalance }).eq('id', user.id);
+  await sb.from('tt_transactions').insert({ user_id: user.id, credits: -(user.credits - newBalance), amount_rs: 0, note: req.body.note || 'Manual correction' });
+  res.json({ success: true, name: user.name, newBalance });
 });
 
 const storage = multer.diskStorage({
