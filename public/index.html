@@ -1016,6 +1016,7 @@ const SEC_TITLES={school:'School & Teacher Details',class:'Class & Subject',stud
 /* ═══════════ PER-DOCUMENT CONFIG ═══════════ */
 const NO_AI=['Result Card','Attendance Sheet','Student Profile','Enrollment Form','Character Certificate','Bonafide Certificate','Transfer Certificate','School Leaving Certificate','NOC Letter','Experience Certificate','Salary Certificate','Prize Certificate','Affidavit','Scholarship Form'];
 const DOC_CONFIG={
+ 'Weekly Pack':{f:['schoolName','teacherName','className','subject','unitName'],extra:1,upload:1,isPack:1},
  'Lesson Plan':{f:['schoolName','teacherName','className','subject','unitSel','duration'],extra:1,upload:1},
  'Worksheet':{f:['schoolName','teacherName','className','subject','unitSel'],extra:1,upload:1},
  'Homework Sheet':{f:['schoolName','teacherName','className','subject','unitSel','hwScope','includeKey'],extra:1,upload:1},
@@ -1053,6 +1054,7 @@ function hasStudentFields(doc){const c=DOC_CONFIG[doc];return c&&c.f.some(k=>F[k
 /* ═══════════ SIDEBAR ═══════════ */
 const SIDEBAR=[
  {sec:'Academic Documents',items:[
+  {d:'Weekly Pack',i:'📦',s:'Lesson Plan + Worksheet + Homework in 1 click'},
   {d:'Lesson Plan',i:'📚',s:"PPP + Bloom's Taxonomy"},
   {v:'upload',n:'Upload & Generate',i:'📖',s:'Books, syllabus, any document'},
   {v:'resize',n:'PDF / Image Resizer',i:'🗜️',s:'Compress books · Extract pages'},
@@ -1252,7 +1254,7 @@ function renderForm(){
     html+=secCard(title,g.keys.map(fieldHTML).join(''),head);
   });
   if(cfg.upload)html+='<div class="sec-card"><div class="sec-head"><div class="sec-bar"></div><div class="sec-title">Book / Syllabus Upload <span style="text-transform:none;font-weight:600;color:var(--g400)">(Optional — AI will read it deeply and build from it)</span></div></div><div class="sec-body">'
-    +'<div class="fg" style="margin-bottom:12px"><label>📚 Book Bank — curated STB books (no upload needed)</label><select id="bankSel" onchange="onBankSel()"><option value="">— Select a book from the Book Bank —</option></select></div><div class="upload-zone" id="docDrop" ondrop="docDropFn(event)" ondragover="docOver(event)" ondragleave="docLeave(event)" onclick="document.getElementById(\'docFile\').click()"><div class="uz-ico">📖</div><div class="uz-title">Drop book, syllabus or any document here</div><div class="uz-sub">PDF: max 20MB (~100 pages) · Image: max 5MB</div></div><div style="margin-top:8px;font-size:10.5px;font-weight:600;color:var(--gold);background:var(--gold-bg);border:1px solid rgba(200,150,12,.25);border-radius:8px;padding:7px 11px;line-height:1.5">💡 <b>For best results:</b> upload <b>a few pages at a time</b> (one unit/chapter), not the whole book — AI reads focused content more accurately. Large file? <button onclick="openResizer()" style="margin-left:6px;background:var(--navy);color:#fff;font-size:10px;font-weight:800;padding:4px 11px;border-radius:99px;vertical-align:middle">🗜️ Open Resizer</button></div><input type="file" id="docFile" accept=".pdf,image/*" style="display:none" onchange="docFileSel(event)"><div class="f-chip" id="docChip">✅ &nbsp;<span id="docFName">-</span> <button onclick="clearDocFile()" style="margin-left:8px;color:var(--red);font-weight:800">✕ Remove</button></div></div></div>';
+    +'<div class="fg" style="margin-bottom:12px"><label>📚 Book Bank — curated STB books (no upload needed)</label><select id="bankSel" onchange="onBankSel()"><option value="">— Select a book from the Book Bank —</option></select></div><div class="upload-zone" id="docDrop" ondrop="docDropFn(event)" ondragover="docOver(event)" ondragleave="docLeave(event)" onclick="document.getElementById(\'docFile\').click()"><div class="uz-ico">📖</div><div class="uz-title">Drop book, syllabus or any document here</div><div class="uz-sub">PDF: max 20MB (~100 pages) · Image: max 5MB</div></div><div style="margin-top:8px;font-size:10.5px;font-weight:600;color:var(--gold);background:var(--gold-bg);border:1px solid rgba(200,150,12,.25);border-radius:8px;padding:7px 11px;line-height:1.5">💡 <b>For best results:</b> upload <b>a few pages at a time</b> (one unit/chapter), not the whole book — AI reads focused content more accurately. Large file? <button onclick="openResizer()" style="margin-left:6px;background:var(--navy);color:#fff;font-size:10px;font-weight:800;padding:4px 11px;border-radius:99px;vertical-align:middle">🗜️ Open Resizer</button></div><input type="file" id="docFile" accept=".pdf,image/*" style="display:none" onchange="docFileSel(event)"><div class="f-chip" id="docChip">✅ &nbsp;<span id="docFName">-</span> <button onclick="clearDocFile()" style="margin-left:8px;color:var(--red);font-weight:800">✕ Remove</button></div><div id="detectBanner" style="display:none;margin-top:8px;font-size:11.5px;font-weight:700;color:var(--navy);background:var(--gold-bg);border:1.5px solid var(--gold);border-radius:8px;padding:9px 12px"></div></div></div>';
   if(cfg.marks){
     html+='<div class="sec-card"><div class="sec-head"><div class="sec-bar"></div><div class="sec-title">Subject-wise Marks <span style="text-transform:none;font-weight:600;color:var(--g400)">(auto — by class)</span></div><div class="ch-right" style="margin-left:auto"><label style="display:flex;align-items:center;gap:6px;font-size:11px;font-weight:800;color:var(--heading);cursor:pointer"><input type="checkbox" id="fcMode" onchange="toggleFC()"> 👥 Full Class Mode</label></div></div><div class="sec-body" style="padding:0">';
     html+='<div id="singleMarks"><div class="marks-head"><span>Subject</span><span>Total</span><span>Obtained</span></div><div id="marksRows"></div></div>';
@@ -1268,7 +1270,7 @@ function renderForm(){
   document.getElementById('dhSub').textContent=m.s;
   const off=NO_AI.includes(S.doc);
   const mb=document.getElementById('modeBadge');
-  mb.textContent=off?'⚡ Instant · No AI':'AI Required';
+  mb.textContent=off?'⚡ Instant · No AI':(S.doc==='Weekly Pack'?'AI Required · 3 credits':'AI Required');
   mb.className='mode-badge '+(off?'off':'ai');
   document.getElementById('genBtn').textContent=off?'⚡ Generate Instantly':'⚡ Generate Document';
   /* profile prefill */
@@ -1655,6 +1657,45 @@ async function setDocFile(f){
   f=await prepareUpload(f);if(!f)return;
   S.bookId='';const bs=document.getElementById('bankSel');if(bs)bs.value='';
   S.docFile=f;document.getElementById('docFName').textContent=f.name+' ('+(f.size/1024/1024).toFixed(1)+' MB)';document.getElementById('docChip').style.display='block';
+  autoDetectBook(f);
+}
+/* ═══════════ AUTO-DETECT — AI reads the uploaded page and suggests Class/Subject/Unit ═══════════ */
+let DETECTED=null;
+async function autoDetectBook(f){
+  const banner=document.getElementById('detectBanner');if(!banner)return;
+  banner.style.display='block';banner.innerHTML='🔍 Detecting class, subject &amp; unit from your file...';
+  try{
+    const fd=new FormData();fd.append('file',f);
+    const r=await fetch('/detect-book',{method:'POST',body:fd});
+    const d=await r.json();
+    if(!d.success||(!d.className&&!d.subject&&!d.unitName)){banner.style.display='none';return;}
+    DETECTED=d;
+    banner.innerHTML='✨ Looks like: <b>'+esc(d.className||'?')+'</b> · <b>'+esc(d.subject||'?')+'</b>'+(d.unitName?' · <b>'+esc(d.unitName)+'</b>':'')
+      +' <button onclick="applyDetection()" style="margin-left:8px;background:var(--navy);color:#fff;font-size:10px;font-weight:800;padding:5px 12px;border-radius:99px">✓ Apply</button>'
+      +' <button onclick="document.getElementById(\'detectBanner\').style.display=\'none\'" style="margin-left:4px;background:none;color:var(--g600);font-size:10px;font-weight:700">Dismiss</button>';
+  }catch(e){banner.style.display='none';}
+}
+function applyDetection(){
+  if(!DETECTED)return;
+  const clsEl=document.getElementById('f_className');
+  if(clsEl&&DETECTED.className){
+    const match=[...clsEl.options].find(o=>o.value.toLowerCase()===DETECTED.className.toLowerCase());
+    if(match){clsEl.value=match.value;onClassChange();}
+  }
+  if(DETECTED.subject){
+    const subEl=document.getElementById('f_subject');
+    if(subEl){
+      const match=[...subEl.options].find(o=>o.value.toLowerCase()===DETECTED.subject.toLowerCase());
+      if(match)subEl.value=match.value;
+      onSubjectChange();
+    }
+  }
+  if(DETECTED.unitName){
+    const unitEl=document.getElementById('f_unitName');
+    if(unitEl)unitEl.value=DETECTED.unitName;
+  }
+  toast('✅ Applied — please double-check before generating!');
+  document.getElementById('detectBanner').style.display='none';
 }
 function clearDocFile(){S.docFile=null;document.getElementById('docChip').style.display='none';document.getElementById('docFile').value='';}
 function onPhotoSel(e){
@@ -1687,7 +1728,19 @@ async function generateDoc(){
   if(needsAI&&CFG&&CFG.paidMode&&!token()){openAuth('Please login to generate AI documents — new accounts get 1 FREE document 🎁');return;}
   try{
     let d;
-    if((S.docFile||S.bookId)&&cfg.upload){
+    if(cfg.isPack){
+      showLoader('Building your Weekly Pack — Lesson Plan, Worksheet & Homework Sheet (this takes a bit longer)...');
+      const fd=new FormData();
+      if(S.docFile)fd.append('file',S.docFile);
+      if(S.bookId)fd.append('bookId',S.bookId);
+      fd.append('schoolName',fields.schoolName||'');
+      fd.append('teacherName',fields.teacherName||'');
+      fd.append('className',fields.className||'');
+      fd.append('subject',fields.subject||'');
+      fd.append('unitName',fields.unitName||'');
+      fd.append('language',lang());
+      d=await fetchGen('/generate-pack',{method:'POST',body:fd});
+    }else if((S.docFile||S.bookId)&&cfg.upload){
       showLoader('AI is reading your book deeply...');
       const fd=new FormData();
       if(S.docFile)fd.append('file',S.docFile);
@@ -2445,10 +2498,12 @@ function astSmallTalk(q){
 const TT_KB=[
  {id:'start',t:'Getting started',k:'start begin new first shuru welcome intro use kaise',b:'Welcome! Creating a document takes 3 easy steps:<br>1️⃣ Pick a document type from the <b>sidebar</b> (Lesson Plan, Exam Paper, Certificate...).<br>2️⃣ Fill the short form — your School Profile fills school details automatically.<br>3️⃣ Press <b>⚡ Generate</b>, then download as Word/PDF or share on WhatsApp.<br><br>💡 Documents marked <b>No AI</b> (certificates, result cards, attendance) are instant and always free.'},
  {id:'profile',t:'School Profile & logo',k:'profile school name logo semis address setup change edit head master',b:'Your School Profile is used on <b>every document</b> automatically.<br>• Open it from the <b>✏️ button</b> on the sidebar card (top-left).<br>• Enter school name, address, head master, SEMIS code and session.<br>• Upload a <b>school logo</b> — it appears at the top of certificates and documents.<br>Everything is saved on your device — set it once and forget it.'},
+ {id:'pack',t:'Weekly Pack — a whole week in one click',k:'weekly pack bundle lesson plan worksheet homework one click fast 3 credits',b:'Sidebar → <b>📦 Weekly Pack</b> generates your <b>Lesson Plan + Worksheet + Homework Sheet</b> for a unit all in one go — one form, one click, one downloadable file (each document on its own page).<br>💡 Attach the textbook (Book Bank or upload) so all three documents come from the actual book content.<br>💳 Costs <b>3 credits</b> (same as generating all three separately) but saves you three trips through the form.'},
  {id:'lesson',t:'Generate a Lesson Plan',k:'lesson plan ppp bloom generate teaching sabaq unit full book premium',b:'1️⃣ Sidebar → <b>Lesson Plan</b>.<br>2️⃣ Choose Class, Subject and Unit (or <b>Full Book</b> for a complete lesson-plan book with the premium 11-part pattern).<br>3️⃣ (Best results) Attach the textbook — pick one from the <b>Book Bank</b> dropdown or upload unit pages as PDF.<br>4️⃣ Press Generate. The plan follows the <b>PPP model</b> with Bloom\'s Taxonomy, differentiation, homework and a rubric.'},
  {id:'worksheet',t:'Generate a Worksheet',k:'worksheet activity printable practice sheet',b:'Sidebar → <b>Worksheet</b> → choose Class, Subject and Unit → Generate.<br>You get a printable sheet with varied activities (trace/write, match, fill-in-the-blank, short answers) plus a student info header.<br>💡 Attach the textbook unit (Book Bank or upload) so every activity comes from the actual book content.'},
  {id:'exam',t:'Exam Paper & CRQ Generator',k:'exam paper test crq mcq question marks paper generator answer key',b:'Two options:<br>• <b>Exam Paper</b> (sidebar) — full paper with MCQs, short & long questions and marks distribution.<br>• <b>CRQ Generator</b> — advanced: choose difficulty, Bloom\'s levels, question counts, and an optional <b>answer key + marking scheme</b>.<br>💡 Upload the unit pages of the textbook so the questions come exactly from the syllabus.'},
  {id:'bookbank',t:'Book Bank — select a book without uploading',k:'book bank select stb textbook curated dropdown kitab',b:'The Book Bank holds curated STB textbooks so you don\'t upload anything:<br>1️⃣ Open Lesson Plan / Worksheet / Exam Paper.<br>2️⃣ Choose your <b>Class and Subject</b> — the Book Bank dropdown (in the upload section) shows the matching books.<br>3️⃣ Select a book and Generate — the AI reads it directly.<br><br>⚠️ If it says "No books yet", a book for that exact class + subject hasn\'t been added to the bank — you can still upload your own PDF below it.'},
+ {id:'autodetect',t:'Auto-Detect Class/Subject/Unit from a photo',k:'auto detect scan photo automatic class subject unit ai reads book',b:'When you attach a book/page photo to any AI document, Teacher Toolkit automatically reads it and suggests the Class, Subject and Unit — a small banner appears above your file: "✨ Looks like: Class 3 · English · Unit 5". Tap <b>✓ Apply</b> to fill the form instantly, or Dismiss to fill it yourself. Always double-check before generating — it\'s a smart suggestion, not a guarantee. Free, no credits used.'},
  {id:'upload',t:'Upload a book / document (limits & tips)',k:'upload book pdf image file size limit 20mb 5mb attach photo page',b:'You can attach a book to most academic documents:<br>• <b>PDF:</b> up to 20MB (~100 pages) · <b>Image:</b> up to 5MB (auto-compressed).<br>• <b>Best practice:</b> upload only the unit/chapter pages you need — the AI reads focused content much more accurately.<br>• File too big? Use the <b>🗜️ PDF / Image Resizer</b> in the sidebar to extract pages or compress — it works offline in your browser.'},
  {id:'resizer',t:'PDF / Image Resizer',k:'resize compress extract pages big large file resizer chota tool',b:'Sidebar → <b>PDF / Image Resizer</b>. Three free offline tools:<br>1️⃣ <b>Extract Pages</b> — pull just the unit you need from a huge book (zero quality loss, best option).<br>2️⃣ <b>Compress Full PDF</b> — shrinks the whole file (pages become images).<br>3️⃣ <b>Image Resize</b> — any photo down to under 5MB.<br>Nothing is uploaded to any server — it all happens on your device.'},
  {id:'students',t:'Student Database — import & auto-fill',k:'student database import excel csv save auto fill list add export',b:'Save your students once, reuse them everywhere:<br>• Sidebar → <b>Student Database</b> → "+ Add Student" or <b>Import Excel/CSV</b> (columns like Name, Father, G.R No are detected automatically).<br>• On any student document, press <b>🗄️ Fill from Database</b> to auto-fill the form.<br>• <b>Export Excel</b> makes a backup file anytime.<br>• When you\'re logged in, your list is also backed up to your account automatically.'},
@@ -2544,11 +2599,30 @@ function astAsk(q){
     chips.push({l:'📂 All articles',fn:astBrowse});
     astChips(chips);
   }else{
-    astMsg('I\'m sorry, I couldn\'t find that in my help guide. 🙏 Please try different words (e.g. "upload book", "result card", "credits") — or browse the articles below. For anything else, our support team on WhatsApp is happy to help.');
-    const chips=[{l:'📂 Browse all articles',fn:astBrowse}];
-    if(CFG&&CFG.whatsapp)chips.push({l:'📱 Message support on WhatsApp',fn:()=>window.open('https://wa.me/'+CFG.whatsapp+'?text='+encodeURIComponent('Assalam o Alaikum! I need help with Teacher Toolkit: '),'_blank')});
-    astChips(chips);
+    astAskAI(q);
   }
+}
+async function astAskAI(q){
+  const thinking=astMsg('🤔 Let me think about that...');
+  try{
+    const r=await fetch('/assistant-chat',{method:'POST',headers:{'Content-Type':'application/json',...authHeaders()},body:JSON.stringify({question:q})});
+    const d=await r.json();
+    thinking.remove();
+    if(d.success){
+      astMsg(esc(d.answer));
+      const chips=[{l:'📂 Browse all articles',fn:astBrowse}];
+      if(CFG&&CFG.whatsapp)chips.push({l:'📱 Message support on WhatsApp',fn:()=>window.open('https://wa.me/'+CFG.whatsapp+'?text='+encodeURIComponent('Assalam o Alaikum! I need help with Teacher Toolkit: '),'_blank')});
+      astChips(chips);
+    }else{
+      astFallbackMsg();
+    }
+  }catch(e){thinking.remove();astFallbackMsg();}
+}
+function astFallbackMsg(){
+  astMsg('I\'m sorry, I couldn\'t find that in my help guide. 🙏 Please try different words (e.g. "upload book", "result card", "credits") — or browse the articles below. For anything else, our support team on WhatsApp is happy to help.');
+  const chips=[{l:'📂 Browse all articles',fn:astBrowse}];
+  if(CFG&&CFG.whatsapp)chips.push({l:'📱 Message support on WhatsApp',fn:()=>window.open('https://wa.me/'+CFG.whatsapp+'?text='+encodeURIComponent('Assalam o Alaikum! I need help with Teacher Toolkit: '),'_blank')});
+  astChips(chips);
 }
 
 /* ═══════════ FIRST-TIME GUIDED TOUR ═══════════ */
