@@ -249,7 +249,7 @@ async function statsResetAt() {
 app.get('/admin/users', async (req, res) => {
   if (!adminGate(req, res)) return;
   const resetAt = await statsResetAt();
-  const { data: users } = await sb.from('tt_users').select('id,phone,name,school,credits,created_at').order('created_at', { ascending: false }).limit(500);
+  const { data: users } = await sb.from('tt_users').select('id,phone,name,school,credits,created_at,plan,plan_quota,plan_used,plan_expires').order('created_at', { ascending: false }).limit(500);
   let txQuery = sb.from('tt_transactions').select('amount_rs,credits,created_at');
   if (resetAt) txQuery = txQuery.gte('created_at', resetAt);
   const { data: tx } = await txQuery;

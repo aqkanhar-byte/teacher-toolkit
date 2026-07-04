@@ -59,25 +59,27 @@ td{padding:8px 10px;border-bottom:1px solid var(--g100)}
     <div id="pkgGrid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-bottom:10px"></div>
     <div id="pkgSelected" style="display:none;font-size:12px;font-weight:700;color:var(--navy);background:var(--gold-bg);border:1.5px solid var(--gold);border-radius:8px;padding:8px 12px;margin-bottom:10px"></div>
     <div class="row" style="grid-template-columns:2fr 1fr">
-      <input type="tel" id="pkg_phone" placeholder="Teacher phone (03xx...)">
+      <input type="tel" id="pkg_phone" placeholder="Teacher phone (03xx...)" oninput="lookupPhone('pkg_phone','pkgLookup')">
       <button onclick="activatePkg()" id="pkgBtn" style="background:var(--green)">🎁 Activate Package</button>
     </div>
+    <div id="pkgLookup" style="font-size:11.5px;font-weight:700;margin-top:6px"></div>
     <div id="pkgMsg" style="margin-top:6px"></div>
   </div>
 
   <div class="card">
     <h3>💳 Manual Credits (custom amount / corrections)</h3>
     <div class="row" style="grid-template-columns:2fr 1fr 1fr;margin-bottom:0">
-      <input type="tel" id="c_phone" placeholder="Teacher phone (03xx...)">
+      <input type="tel" id="c_phone" placeholder="Teacher phone (03xx...)" oninput="lookupPhone('c_phone','cLookup')">
       <input type="number" id="c_credits" placeholder="Credits">
       <input type="number" id="c_amount" placeholder="Rs. received (0 for corrections)">
     </div>
+    <div id="cLookup" style="font-size:11.5px;font-weight:700;margin-top:6px"></div>
     <div class="row" style="grid-template-columns:2fr 1fr 1fr;margin-top:10px">
       <input type="text" id="c_note" placeholder="Note (optional)">
       <button onclick="addCredits()" style="background:var(--green)">➕ Add Credits</button>
       <button onclick="removeCredits()" style="background:var(--red)">➖ Remove / Undo</button>
     </div>
-    <div style="font-size:11px;color:var(--g600);margin-top:6px">💡 Made a mistake adding credits? Use <b>Remove / Undo</b> with the same phone + credit amount to reverse it — it never goes below 0.</div>
+    <div style="font-size:11px;color:var(--g600);margin-top:6px">💡 Made a mistake adding credits? Use <b>Remove / Undo</b> with the same phone + credit amount to reverse it — it never goes below 0 (check the balance shown above after clicking, to confirm it changed).</div>
     <div id="addMsg" style="margin-top:6px"></div>
   </div>
 
@@ -204,6 +206,17 @@ function key(){return localStorage.getItem('tt_admin')||'';}
 function hdr(){return{'x-admin-key':key(),'Content-Type':'application/json'};}
 let PACKAGES=[],PKG_SELECTED=null;
 function cleanPh(p){return String(p||'').replace(/[^0-9]/g,'').replace(/^0/,'92');}
+function lookupPhone(inputId,boxId){
+  const box=document.getElementById(boxId);
+  const raw=document.getElementById(inputId).value.trim();
+  if(!raw){box.innerHTML='';return;}
+  const ph=cleanPh(raw);
+  const u=USERS.find(x=>cleanPh(x.phone)===ph);
+  if(!u){box.innerHTML=ph.length>=11?'<span style="color:var(--red)">⚠️ Not registered yet</span>':'';return;}
+  const planActive=u.plan&&u.plan_expires&&new Date(u.plan_expires)>new Date()&&(u.plan_used||0)<(u.plan_quota||0);
+  const planPart=planActive?(' · ⭐ '+u.plan+' — '+(u.plan_quota-(u.plan_used||0))+' docs left until '+new Date(u.plan_expires).toLocaleDateString()):'';
+  box.innerHTML='👤 <b>'+esc(u.name)+'</b> ('+esc(u.school||'no school set')+') — 💳 <b>'+u.credits+'</b> credits'+planPart;
+}
 async function loadPackages(){
   try{
     const r=await fetch('/config');const d=await r.json();
@@ -253,9 +266,9 @@ async function activatePkg(){
         ?('🎉 Assalam o Alaikum '+d.name+'! Aap ka Teacher Toolkit '+PKG_SELECTED.name+' subscription activate ho chuka hai:\n\n⭐ '+PKG_SELECTED.credits+' AI documents / '+PKG_SELECTED.days+' din\n\nAb aap turant AI documents generate kar sakte hain. Shukriya!')
         :('🎉 Assalam o Alaikum '+d.name+'! Aap ka Teacher Toolkit package activate ho chuka hai:\n\n📦 '+PKG_SELECTED.name+' — '+PKG_SELECTED.credits+' AI documents\n💳 Naya balance: '+d.newBalance+' credits\n\nAb aap turant AI documents generate kar sakte hain. Shukriya!');
       window.open('https://wa.me/'+cleanPh(phoneRaw)+'?text='+encodeURIComponent(txt),'_blank');
-      document.getElementById('pkg_phone').value='';
       selectPkg(-1);
-      load();
+      await load();
+      lookupPhone('pkg_phone','pkgLookup');
     } else msg.innerHTML='<span class="err">❌ '+esc(d.error)+'</span>';
   }catch(e){msg.innerHTML='<span class="err">❌ '+esc(e.message)+'</span>';}
 }
@@ -335,7 +348,7 @@ async function addCredits(){
       note:document.getElementById('c_note').value
     })});
     const d=await r.json();
-    if(d.success){msg.innerHTML='<span class="ok">✅ Credits added to '+esc(d.name)+' — new balance: '+esc(d.newBalance)+'</span>';['c_phone','c_credits','c_amount','c_note'].forEach(i=>document.getElementById(i).value='');load();}
+    if(d.success){msg.innerHTML='<span class="ok">✅ Credits added to '+esc(d.name)+' — new balance: <b>'+esc(d.newBalance)+'</b></span>';['c_credits','c_amount','c_note'].forEach(i=>document.getElementById(i).value='');await load();lookupPhone('c_phone','cLookup');}
     else msg.innerHTML='<span class="err">❌ '+esc(d.error)+'</span>';
   }catch(e){msg.innerHTML='<span class="err">❌ Network error</span>';}
 }
@@ -349,7 +362,7 @@ async function removeCredits(){
       note:document.getElementById('c_note').value
     })});
     const d=await r.json();
-    if(d.success){msg.innerHTML='<span class="ok">✅ Credits removed from '+esc(d.name)+' — new balance: '+esc(d.newBalance)+'</span>';['c_phone','c_credits','c_amount','c_note'].forEach(i=>document.getElementById(i).value='');load();}
+    if(d.success){msg.innerHTML='<span class="ok">✅ Credits removed from '+esc(d.name)+' — new balance: <b>'+esc(d.newBalance)+'</b></span>';['c_credits','c_amount','c_note'].forEach(i=>document.getElementById(i).value='');await load();lookupPhone('c_phone','cLookup');}
     else msg.innerHTML='<span class="err">❌ '+esc(d.error)+'</span>';
   }catch(e){msg.innerHTML='<span class="err">❌ Network error</span>';}
 }
