@@ -2063,17 +2063,29 @@ async function updateAuthUI(){
 }
 function creditChipClick(){openBuy();}
 async function loadCfg(){if(CFG)return CFG;try{const r=await fetch('/config');CFG=await r.json();}catch(e){CFG={paidMode:false};}return CFG;}
+let BUY_PKGS=[];
+function buyPkgClick(i){
+  const p=BUY_PKGS[i];if(!p)return;
+  if(!MY_PHONE){toast('Please login first so we know which number to activate.');return;}
+  const txt=p._type==='subscription'
+    ?('Assalam o Alaikum! Main Teacher Toolkit ka *'+p.name+'* subscription (Rs. '+p.rs+'/month — '+p.docs+' AI documents, '+p.days+' din) lena chahta/chahti hun. Payment screenshot neeche attached hai. Mera registered number: '+MY_PHONE)
+    :('Assalam o Alaikum! Main Teacher Toolkit ka *'+p.name+'* package (Rs. '+p.rs+' — '+p.credits+' AI documents) lena chahta/chahti hun. Payment screenshot neeche attached hai. Mera registered number: '+MY_PHONE);
+  window.open('https://wa.me/'+cleanWaNum(CFG&&CFG.whatsapp)+'?text='+encodeURIComponent(txt),'_blank');
+}
+function cleanWaNum(n){return String(n||'').replace(/[^0-9]/g,'');}
 async function openBuy(){
   const c=await loadCfg();
   document.getElementById('buyNumber').textContent=c.easypaisa||'—';
   document.getElementById('buyName').textContent=c.easypaisaName||'';
-  document.getElementById('buyPlans').innerHTML=(c.plans||[]).map(p=>'<div style="border:2px solid var(--gold);border-radius:var(--r);padding:14px;background:linear-gradient(135deg,var(--gold-bg),var(--white))"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div><div style="font-size:15px;font-weight:800;color:var(--heading)">⭐ '+esc(p.name)+' — Rs. '+p.rs+'/month</div><div style="font-size:12px;color:var(--g600);margin-top:3px;font-weight:600">'+p.docs+' AI documents · '+p.days+' days · unlimited certificates</div></div><div style="font-size:9.5px;font-weight:800;background:var(--navy);color:#fff;padding:4px 9px;border-radius:99px;white-space:nowrap">'+esc(p.tag||'SUBSCRIPTION')+'</div></div></div>').join('');
-  document.getElementById('buyPrices').innerHTML='<div style="font-size:10px;font-weight:800;color:var(--g400);text-transform:uppercase;letter-spacing:.7px;margin:10px 0 8px">Or buy a one-time credit package</div>'+
+  BUY_PKGS=(c.plans||[]).map(p=>({...p,_type:'subscription'})).concat((c.prices||[]).map(p=>({...p,_type:'credits'})));
+  document.getElementById('buyPlans').innerHTML=(c.plans||[]).map((p,i)=>'<div onclick="buyPkgClick('+i+')" style="cursor:pointer;border:2px solid var(--gold);border-radius:var(--r);padding:14px;background:linear-gradient(135deg,var(--gold-bg),var(--white))"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div><div style="font-size:15px;font-weight:800;color:var(--heading)">⭐ '+esc(p.name)+' — Rs. '+p.rs+'/month</div><div style="font-size:12px;color:var(--g600);margin-top:3px;font-weight:600">'+p.docs+' AI documents · '+p.days+' days · unlimited certificates</div></div><div style="font-size:9.5px;font-weight:800;background:var(--navy);color:#fff;padding:4px 9px;border-radius:99px;white-space:nowrap">'+esc(p.tag||'SUBSCRIPTION')+'</div></div></div>').join('');
+  const planCount=(c.plans||[]).length;
+  document.getElementById('buyPrices').innerHTML='<div style="font-size:10px;font-weight:800;color:var(--g400);text-transform:uppercase;letter-spacing:.7px;margin:10px 0 8px">Or tap a one-time credit package to order it on WhatsApp</div>'+
     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'+
-    (c.prices||[]).map(p=>{
+    (c.prices||[]).map((p,i)=>{
       const per=Math.round(p.rs/p.credits);
       const highlight=p.tag==='Most Popular'||p.tag==='Best Value';
-      return '<div style="position:relative;border:1.5px solid '+(highlight?'var(--gold)':'var(--g200)')+';border-radius:10px;padding:11px;background:'+(highlight?'var(--gold-bg)':'var(--white)')+'">'
+      return '<div onclick="buyPkgClick('+(planCount+i)+')" style="cursor:pointer;position:relative;border:1.5px solid '+(highlight?'var(--gold)':'var(--g200)')+';border-radius:10px;padding:11px;background:'+(highlight?'var(--gold-bg)':'var(--white)')+'">'
         +(p.tag?'<div style="position:absolute;top:-9px;left:9px;font-size:8.5px;font-weight:800;background:'+(highlight?'linear-gradient(135deg,#c8960c,#f5c842)':'var(--navy)')+';color:'+(highlight?'#0f1a2e':'#fff')+';padding:2px 8px;border-radius:99px;letter-spacing:.3px">'+esc(p.tag.toUpperCase())+'</div>':'')
         +'<div style="font-size:12.5px;font-weight:800;color:var(--g800);margin-top:2px">'+esc(p.name)+'</div>'
         +'<div style="font-size:18px;font-weight:800;color:var(--heading);margin-top:2px">Rs. '+p.rs+'</div>'
@@ -2082,7 +2094,7 @@ async function openBuy(){
         +'</div>';
     }).join('')+'</div>';
   const wa=document.getElementById('buyWa');
-  const txt=encodeURIComponent('Assalam o Alaikum! I have sent payment for Teacher Toolkit. Screenshot attached. My registered number: ');
+  const txt=encodeURIComponent('Assalam o Alaikum! I have sent payment for Teacher Toolkit. Screenshot attached. My registered number: '+(MY_PHONE||''));
   wa.href=c.whatsapp?('https://wa.me/'+c.whatsapp+'?text='+txt):'#';
   document.getElementById('buyOverlay').classList.add('open');
 }
