@@ -1107,7 +1107,7 @@ function runFromText(text, opts) {
 }
 
 app.post('/download-docx', async (req, res) => {
-  const { content, fileName, photo, logo } = req.body;
+  const { content, fileName, photo, logo, documentType } = req.body;
   let photoBuf = null, photoType = 'jpg', logoBuf = null, logoType = 'png';
   if (photo && /^data:image\/(png|jpe?g);base64,/.test(photo)) {
     photoType = photo.includes('image/png') ? 'png' : 'jpg';
@@ -1220,9 +1220,18 @@ app.post('/download-docx', async (req, res) => {
       i++;
     }
 
+    const isAchievement = documentType === 'Prize Certificate';
+    const pageProps = { page: { margin: { top: 1080, right: 1080, bottom: 1080, left: 1080 } } };
+    if (isAchievement) {
+      const goldBorder = { style: BorderStyle.DOUBLE, size: 18, color: 'C8960C', space: 20 };
+      pageProps.page.borders = {
+        pageBorders: { display: 'allPages', offsetFrom: 'page', zOrder: 'front' },
+        pageBorderTop: goldBorder, pageBorderBottom: goldBorder, pageBorderLeft: goldBorder, pageBorderRight: goldBorder
+      };
+    }
     const doc = new Document({
       sections: [{
-        properties: { page: { margin: { top: 1080, right: 1080, bottom: 1080, left: 1080 } } },
+        properties: pageProps,
         children
       }]
     });

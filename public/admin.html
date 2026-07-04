@@ -63,7 +63,18 @@ td{padding:8px 10px;border-bottom:1px solid var(--g100)}
   </div>
 
   <div class="card">
-    <h3>💳 Manage Credits (pay-per-doc, on Easypaisa/JazzCash payment)</h3>
+    <h3>🎁 Activate a Package (one click — on Easypaisa/JazzCash payment received)</h3>
+    <div style="font-size:11px;color:var(--g600);margin-bottom:10px">Pick the package the teacher paid for, enter their phone, then Activate — credits are added <b>and</b> a WhatsApp confirmation opens automatically so you can notify them in one tap.</div>
+    <div id="pkgGrid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-bottom:12px"></div>
+    <div class="row" style="grid-template-columns:2fr 1fr">
+      <input type="tel" id="pkg_phone" placeholder="Teacher phone (03xx...)">
+      <button onclick="activatePkg()" id="pkgBtn" style="background:var(--green)">🎁 Activate Package</button>
+    </div>
+    <div id="pkgMsg" style="margin-top:6px"></div>
+  </div>
+
+  <div class="card">
+    <h3>💳 Manual Credits (custom amount / corrections)</h3>
     <div class="row" style="grid-template-columns:2fr 1fr 1fr;margin-bottom:0">
       <input type="tel" id="c_phone" placeholder="Teacher phone (03xx...)">
       <input type="number" id="c_credits" placeholder="Credits">
@@ -199,6 +210,52 @@ async function loadSlos(){
 }
 function key(){return localStorage.getItem('tt_admin')||'';}
 function hdr(){return{'x-admin-key':key(),'Content-Type':'application/json'};}
+let PACKAGES=[],PKG_SELECTED=null;
+function cleanPh(p){return String(p||'').replace(/[^0-9]/g,'').replace(/^0/,'92');}
+async function loadPackages(){
+  try{
+    const r=await fetch('/config');const d=await r.json();
+    PACKAGES=d.prices||[];
+    document.getElementById('pkgGrid').innerHTML=PACKAGES.map((p,i)=>{
+      const highlight=p.tag==='Most Popular'||p.tag==='Best Value';
+      return '<div id="pkgCard'+i+'" onclick="selectPkg('+i+')" style="cursor:pointer;position:relative;border:2px solid '+(highlight?'var(--gold)':'var(--g200)')+';border-radius:10px;padding:11px;background:'+(highlight?'var(--gold-bg)':'#fff')+';transition:transform .1s">'
+        +(p.tag?'<div style="position:absolute;top:-9px;left:9px;font-size:8px;font-weight:800;background:var(--navy);color:#fff;padding:2px 7px;border-radius:99px">'+esc(p.tag.toUpperCase())+'</div>':'')
+        +'<div style="font-size:12px;font-weight:800;margin-top:2px">'+esc(p.name)+'</div>'
+        +'<div style="font-size:17px;font-weight:800;color:var(--navy);margin-top:2px">Rs. '+p.rs+'</div>'
+        +'<div style="font-size:11px;color:var(--g600);font-weight:700">'+p.credits+' credits</div>'
+        +'</div>';
+    }).join('');
+  }catch(e){}
+}
+function selectPkg(i){
+  PKG_SELECTED=PACKAGES[i];
+  PACKAGES.forEach((p,j)=>{
+    const el=document.getElementById('pkgCard'+j);
+    el.style.outline=j===i?'3px solid var(--navy)':'none';
+  });
+}
+async function activatePkg(){
+  const msg=document.getElementById('pkgMsg');msg.textContent='';
+  const phoneRaw=document.getElementById('pkg_phone').value.trim();
+  if(!PKG_SELECTED){msg.innerHTML='<span class="err">Select a package above first</span>';return;}
+  if(!phoneRaw){msg.innerHTML='<span class="err">Enter the teacher\'s phone number</span>';return;}
+  msg.textContent='⏳ Activating...';
+  try{
+    const r=await fetch('/admin/add-credits',{method:'POST',headers:hdr(),body:JSON.stringify({
+      phone:phoneRaw,credits:PKG_SELECTED.credits,amount_rs:PKG_SELECTED.rs,
+      note:PKG_SELECTED.name+' package (Rs.'+PKG_SELECTED.rs+')'
+    })});
+    const d=await r.json();
+    if(d.success){
+      msg.innerHTML='<span class="ok">✅ '+esc(PKG_SELECTED.name)+' activated for '+esc(d.name)+' — new balance: '+esc(d.newBalance)+' credits</span>';
+      const txt='🎉 Assalam o Alaikum '+d.name+'! Aap ka Teacher Toolkit package activate ho chuka hai:\n\n📦 '+PKG_SELECTED.name+' — '+PKG_SELECTED.credits+' AI documents\n💳 Naya balance: '+d.newBalance+' credits\n\nAb aap turant AI documents generate kar sakte hain. Shukriya!';
+      window.open('https://wa.me/'+cleanPh(phoneRaw)+'?text='+encodeURIComponent(txt),'_blank');
+      document.getElementById('pkg_phone').value='';
+      selectPkg(-1);PKG_SELECTED=null;
+      load();
+    } else msg.innerHTML='<span class="err">❌ '+esc(d.error)+'</span>';
+  }catch(e){msg.innerHTML='<span class="err">❌ '+esc(e.message)+'</span>';}
+}
 async function login(){
   localStorage.setItem('tt_admin',document.getElementById('pw').value.trim());
   const ok=await load();
@@ -218,7 +275,7 @@ async function load(){
     document.getElementById('txCount').textContent=d.txCount;
     document.getElementById('userCount').textContent=d.users.length;
     renderUsers();
-    fillCls();loadBooks();loadSlos();
+    fillCls();loadBooks();loadSlos();loadPackages();
     return true;
   }catch(e){return false;}
 }

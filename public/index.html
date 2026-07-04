@@ -481,6 +481,7 @@ button{cursor:pointer;border:none;background:none}
     </div>
     <div id="dynForm"></div>
     <button class="btn-gen" id="genBtn" onclick="generateDoc()">⚡ Generate Document</button>
+    <div id="genRemain" style="font-size:11px;color:var(--g500,#8898b8);text-align:center;margin-top:7px;font-weight:700"></div>
   </div>
 
   <!-- ══ VIEW: STUDENT DATABASE ══ -->
@@ -1731,13 +1732,13 @@ async function verifyDoc(){
   vb.disabled=false;vb.textContent='🔍 Verify Quality';
 }
 function syncEdits(){const b=document.getElementById('resultBody');if(b)S.content=b.innerText;}
-async function dlDocx(){syncEdits();const fn=fileBase();try{const r=await fetch('/download-docx',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({content:S.content,fileName:fn,language:lang(),photo:S.photo||null,logo:(getProfile().logo||null)})});const blob=await r.blob();const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=fn+'.docx';a.click();URL.revokeObjectURL(url);}catch(e){alert('Download error!');}}
+async function dlDocx(){syncEdits();const fn=fileBase();try{const r=await fetch('/download-docx',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({content:S.content,fileName:fn,language:lang(),photo:S.photo||null,logo:(getProfile().logo||null),documentType:S.doc})});const blob=await r.blob();const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=fn+'.docx';a.click();URL.revokeObjectURL(url);}catch(e){alert('Download error!');}}
 async function dlPdf(){syncEdits();const fn=fileBase();try{const r=await fetch('/download-pdf',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({content:S.content,fileName:fn,photo:S.photo||null,logo:(getProfile().logo||null)})});const blob=await r.blob();const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=fn+'.html';a.click();URL.revokeObjectURL(url);}catch(e){alert('PDF error!');}}
 async function shareWA(){
   syncEdits();const fn=fileBase();
   const btns=document.querySelectorAll('.rh-btns .btn-dl');btns.forEach(b=>b.disabled=true);
   try{
-    const r=await fetch('/download-docx',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({content:S.content,fileName:fn,language:lang(),photo:S.photo||null,logo:(getProfile().logo||null)})});
+    const r=await fetch('/download-docx',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({content:S.content,fileName:fn,language:lang(),photo:S.photo||null,logo:(getProfile().logo||null),documentType:S.doc})});
     if(!r.ok)throw new Error('Document build failed');
     const blob=await r.blob();
     const file=new File([blob],fn+'.docx',{type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
@@ -2032,12 +2033,21 @@ async function authSubmit(){
   }catch(e){msg.textContent='Network error — please try again.';}
 }
 let MY_PHONE='',MY_NAME='',MY_SCHOOL='';
+function updateGenRemain(d){
+  const el=document.getElementById('genRemain');if(!el)return;
+  if(!d){el.innerHTML=CFG&&CFG.paidMode?'🎁 Login to generate — new accounts get 1 FREE AI document':'';return;}
+  if(d.plan&&d.planLeft>0){
+    el.innerHTML='⭐ <b>'+d.planLeft+'</b> AI document'+(d.planLeft===1?'':'s')+' left this month (Monthly Pro)';
+  }else{
+    el.innerHTML=d.credits>0?('💳 <b>'+d.credits+'</b> AI document credit'+(d.credits===1?'':'s')+' remaining'):'⚠️ <b>0 credits left</b> — tap the 💳 chip above to buy more';
+  }
+}
 async function updateAuthUI(){
   const chip=document.getElementById('credChip'),btn=document.getElementById('authBtn'),refBtn=document.getElementById('referBtn');
-  if(!token()){chip.style.display='none';refBtn.style.display='none';btn.innerHTML='👤 Login';return;}
+  if(!token()){chip.style.display='none';refBtn.style.display='none';btn.innerHTML='👤 Login';updateGenRemain(null);return;}
   try{
     const r=await fetch('/wallet',{headers:authHeaders()});const d=await r.json();
-    if(!d.success){localStorage.removeItem('tt_token');chip.style.display='none';refBtn.style.display='none';btn.innerHTML='👤 Login';return;}
+    if(!d.success){localStorage.removeItem('tt_token');chip.style.display='none';refBtn.style.display='none';btn.innerHTML='👤 Login';updateGenRemain(null);return;}
     chip.style.display='inline-block';
     refBtn.style.display='inline-block';
     MY_PHONE=d.phone||'';MY_NAME=d.name||'';MY_SCHOOL=d.school||'';
@@ -2048,6 +2058,7 @@ async function updateAuthUI(){
       chip.innerHTML='💳 <em>'+d.credits+'</em> credits';
     }
     btn.innerHTML='👤 '+esc((d.name||'').split(' ')[0]);
+    updateGenRemain(d);
   }catch(e){}
 }
 function creditChipClick(){openBuy();}
