@@ -63,7 +63,10 @@ function checkPin(pin, stored) {
 }
 async function userFromReq(req) {
   if (!sb) return null;
-  const t = (req.headers.authorization || '').replace('Bearer ', '').trim();
+  /* NOTE: custom domain's edge proxy strips the standard "Authorization" header —
+     verified via /debug/echo-auth (present on *.onrender.com, missing on the custom
+     domain). Using a custom header name avoids that entirely. */
+  const t = (req.headers['x-auth-token'] || (req.headers.authorization || '').replace('Bearer ', '')).trim();
   if (!t) return null;
   const { data } = await sb.from('tt_users').select('*').eq('token', t).maybeSingle();
   return data || null;
@@ -163,9 +166,6 @@ app.post('/auth/register', async (req, res) => {
     return res.json({ success: false, error: error.message });
   }
   res.json({ success: true, token, user: { name: data.name, phone: data.phone, credits: data.credits } });
-});
-app.get('/debug/echo-auth', (req, res) => {
-  res.json({ authHeader: req.headers.authorization || null, allHeaderKeys: Object.keys(req.headers) });
 });
 app.post('/auth/login', async (req, res) => {
   if (!sb) return res.json({ success: false, error: 'Database is not configured on the server.' });

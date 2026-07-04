@@ -1966,7 +1966,7 @@ async function resizeImage(){
 /* ═══════════ AUTH + CREDITS (Phase 1 Paid System) ═══════════ */
 let AUTH_MODE='login', CFG=null;
 function token(){return localStorage.getItem('tt_token')||'';}
-function authHeaders(){const t=token();return t?{'Authorization':'Bearer '+t}:{};}
+function authHeaders(){const t=token();return t?{'X-Auth-Token':t}:{};}
 function openAuth(msg){
   if(token()&&!msg){if(confirm('Sign out?')){localStorage.removeItem('tt_token');updateAuthUI();}return;}
   document.getElementById('authMsg').textContent=msg||'';
