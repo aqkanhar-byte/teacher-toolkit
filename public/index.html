@@ -1992,7 +1992,14 @@ async function authSubmit(){
     if(!d.success){msg.textContent=d.error;return;}
     localStorage.setItem('tt_token',d.token);
     closeAuth();updateAuthUI();syncStudentsOnLogin();
-    if(AUTH_MODE==='reg')alert('🎉 Account created! You have 1 FREE AI document. Welcome!');
+    if(AUTH_MODE==='reg'){
+      toast('🎉 Account created! You have 1 FREE AI document. Welcome!');
+      const ph=phPhone(phone);
+      if(ph){
+        const wtxt='🎉 Teacher Toolkit mein khush aamdeed, '+name+'!\n\n✅ Aapka account ban gaya hai — 1 FREE AI document mila hai.\n📋 Certificates, Result Cards aur Attendance hamesha FREE hain.\n💳 Baaki AI documents ke liye credits/plans 💳 button se dekh sakte hain.\n\nKisi bhi madad ke liye humein isi number par WhatsApp karein. Happy teaching! 🎓';
+        setTimeout(()=>window.open('https://wa.me/'+ph+'?text='+encodeURIComponent(wtxt),'_blank'),400);
+      }
+    }
   }catch(e){msg.textContent='Network error — please try again.';}
 }
 async function updateAuthUI(){
@@ -2276,9 +2283,19 @@ function phRender(){
   if(!rows.length){list.innerHTML='<div class="db-empty">No students'+(val('phClass')?' of '+esc(val('phClass')):'')+' in your Student Database — add or import students first (with Guardian Contact numbers).</div>';phPreviewOnly();return;}
   list.innerHTML=rows.map(({s,i})=>{
     const ph=phPhone(s.phone);
-    return '<div class="ph-row"><input type="checkbox" class="ph-chk" data-i="'+i+'" '+(ph?'checked':'disabled')+' onchange="phPreviewOnly()"><div class="ph-info"><div class="ph-name">'+esc(s.name)+'</div><div class="ph-sub">'+esc(s.fatherName||'—')+' · '+esc(s.className||'—')+' · '+(ph?'📱 '+esc(s.phone):'<span style="color:var(--red)">no phone number saved</span>')+'</div></div>'+(ph?'<button class="ph-send" onclick="phSendOne('+i+')">📱 Send</button>':'<button class="ph-send" disabled>No number</button>')+'</div>';
+    const noNumRow=!ph?'<input type="tel" class="ph-num-inp" id="phNum'+i+'" placeholder="03xx-xxxxxxx" style="width:120px;padding:6px 9px;border:1.5px solid var(--g200);border-radius:8px;font-size:11px;font-weight:700" onkeydown="if(event.key===\'Enter\')phSaveNumber('+i+')">':'';
+    return '<div class="ph-row"><input type="checkbox" class="ph-chk" data-i="'+i+'" '+(ph?'checked':'disabled')+' onchange="phPreviewOnly()"><div class="ph-info"><div class="ph-name">'+esc(s.name)+'</div><div class="ph-sub">'+esc(s.fatherName||'—')+' · '+esc(s.className||'—')+' · '+(ph?'📱 '+esc(s.phone):'<span style="color:var(--red)">no phone number saved</span>')+'</div></div>'
+      +(ph?'<button class="ph-send" onclick="phSendOne('+i+')">📱 Send</button>':(noNumRow+'<button class="ph-send" onclick="phSaveNumber('+i+')">💾 Save</button>'))+'</div>';
   }).join('');
   phPreviewOnly();
+}
+function phSaveNumber(i){
+  const inp=document.getElementById('phNum'+i);if(!inp)return;
+  const v=inp.value.trim();
+  if(phPhone(v).length<12){toast('Enter a valid mobile number (03xx-xxxxxxx)');return;}
+  const db=getDB();if(!db[i])return;
+  db[i].phone=v;setDBData(db);scheduleSync();
+  phRender();
 }
 function phSelected(){
   return [...document.querySelectorAll('.ph-chk:checked')].map(c=>getDB()[+c.dataset.i]).filter(Boolean);
