@@ -41,31 +41,23 @@ td{padding:8px 10px;border-bottom:1px solid var(--g100)}
 
 <div id="panel" style="display:none">
   <div class="card">
-    <h3>Revenue</h3>
+    <h3>Revenue <span style="font-size:9px;color:var(--g400);text-transform:none;font-weight:600" id="resetNote"></span></h3>
     <span class="stat">💰 Total: Rs. <span id="revenue">0</span></span>
     <span class="stat">🧾 Payments: <span id="txCount">0</span></span>
     <span class="stat">👥 Teachers: <span id="userCount">0</span></span>
-  </div>
-
-  <div class="card">
-    <h3>⭐ Activate Monthly Pro (on Easypaisa payment)</h3>
-    <div class="row">
-      <input type="tel" id="s_phone" placeholder="Teacher phone (03xx...)">
-      <input type="number" id="s_days" placeholder="Days" value="30">
-      <input type="number" id="s_quota" placeholder="AI docs quota" value="60">
+    <div style="margin-top:10px">
+      <button onclick="resetStats()" style="background:var(--red);font-size:11px;padding:8px 14px">🔄 Reset Dashboard Counters</button>
+      <button onclick="showFullReport()" style="background:var(--navy);font-size:11px;padding:8px 14px;margin-left:6px">📊 Full All-Time Report</button>
     </div>
-    <div class="row" style="grid-template-columns:1fr 1fr 1fr">
-      <input type="number" id="s_amount" placeholder="Rs. received" value="999">
-      <input type="text" id="s_note" placeholder="Note (optional)">
-      <button onclick="addSub()">⭐ Activate Pro</button>
-    </div>
-    <div id="subMsg"></div>
+    <div style="font-size:10.5px;color:var(--g400);margin-top:6px">Reset only zeroes these 3 counters for a fresh view — real payment/teacher records are <b>never deleted</b> and always available in the Full Report.</div>
+    <div id="reportBox" style="display:none;margin-top:12px;padding:12px;background:var(--g100);border-radius:10px;font-size:12.5px"></div>
   </div>
 
   <div class="card">
     <h3>🎁 Activate a Package (one click — on Easypaisa/JazzCash payment received)</h3>
-    <div style="font-size:11px;color:var(--g600);margin-bottom:10px">Pick the package the teacher paid for, enter their phone, then Activate — credits are added <b>and</b> a WhatsApp confirmation opens automatically so you can notify them in one tap.</div>
-    <div id="pkgGrid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-bottom:12px"></div>
+    <div style="font-size:11px;color:var(--g600);margin-bottom:10px">Pick the package the teacher paid for, enter their phone, then Activate — the amount and credits/docs are <b>locked to the package</b> (no manual override), added automatically, and a WhatsApp confirmation opens so you can notify them in one tap.</div>
+    <div id="pkgGrid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-bottom:10px"></div>
+    <div id="pkgSelected" style="display:none;font-size:12px;font-weight:700;color:var(--navy);background:var(--gold-bg);border:1.5px solid var(--gold);border-radius:8px;padding:8px 12px;margin-bottom:10px"></div>
     <div class="row" style="grid-template-columns:2fr 1fr">
       <input type="tel" id="pkg_phone" placeholder="Teacher phone (03xx...)">
       <button onclick="activatePkg()" id="pkgBtn" style="background:var(--green)">🎁 Activate Package</button>
@@ -215,24 +207,30 @@ function cleanPh(p){return String(p||'').replace(/[^0-9]/g,'').replace(/^0/,'92'
 async function loadPackages(){
   try{
     const r=await fetch('/config');const d=await r.json();
-    PACKAGES=d.prices||[];
+    /* Merge one-time credit packages + Monthly Pro subscription into a single locked-value grid */
+    PACKAGES=(d.prices||[]).map(p=>({...p,_type:'credits'}))
+      .concat((d.plans||[]).map(p=>({name:p.name,rs:p.rs,credits:p.docs,days:p.days,tag:p.tag||'Subscription',_type:'subscription'})));
     document.getElementById('pkgGrid').innerHTML=PACKAGES.map((p,i)=>{
       const highlight=p.tag==='Most Popular'||p.tag==='Best Value';
       return '<div id="pkgCard'+i+'" onclick="selectPkg('+i+')" style="cursor:pointer;position:relative;border:2px solid '+(highlight?'var(--gold)':'var(--g200)')+';border-radius:10px;padding:11px;background:'+(highlight?'var(--gold-bg)':'#fff')+';transition:transform .1s">'
         +(p.tag?'<div style="position:absolute;top:-9px;left:9px;font-size:8px;font-weight:800;background:var(--navy);color:#fff;padding:2px 7px;border-radius:99px">'+esc(p.tag.toUpperCase())+'</div>':'')
-        +'<div style="font-size:12px;font-weight:800;margin-top:2px">'+esc(p.name)+'</div>'
+        +'<div style="font-size:12px;font-weight:800;margin-top:2px">'+(p._type==='subscription'?'⭐ ':'')+esc(p.name)+'</div>'
         +'<div style="font-size:17px;font-weight:800;color:var(--navy);margin-top:2px">Rs. '+p.rs+'</div>'
-        +'<div style="font-size:11px;color:var(--g600);font-weight:700">'+p.credits+' credits</div>'
+        +'<div style="font-size:11px;color:var(--g600);font-weight:700">'+p.credits+(p._type==='subscription'?' docs/'+p.days+'d':' credits')+'</div>'
         +'</div>';
     }).join('');
   }catch(e){}
 }
 function selectPkg(i){
-  PKG_SELECTED=PACKAGES[i];
+  PKG_SELECTED=PACKAGES[i]||null;
   PACKAGES.forEach((p,j)=>{
     const el=document.getElementById('pkgCard'+j);
     el.style.outline=j===i?'3px solid var(--navy)':'none';
   });
+  const box=document.getElementById('pkgSelected');
+  if(!PKG_SELECTED){box.style.display='none';return;}
+  box.style.display='block';
+  box.innerHTML='🔒 Locked: <b>'+esc(PKG_SELECTED.name)+'</b> — Rs. '+PKG_SELECTED.rs+' for <b>'+PKG_SELECTED.credits+(PKG_SELECTED._type==='subscription'?' docs / '+PKG_SELECTED.days+' days':' credits')+'</b> (values come from live pricing, cannot be edited)';
 }
 async function activatePkg(){
   const msg=document.getElementById('pkgMsg');msg.textContent='';
@@ -241,20 +239,49 @@ async function activatePkg(){
   if(!phoneRaw){msg.innerHTML='<span class="err">Enter the teacher\'s phone number</span>';return;}
   msg.textContent='⏳ Activating...';
   try{
-    const r=await fetch('/admin/add-credits',{method:'POST',headers:hdr(),body:JSON.stringify({
-      phone:phoneRaw,credits:PKG_SELECTED.credits,amount_rs:PKG_SELECTED.rs,
-      note:PKG_SELECTED.name+' package (Rs.'+PKG_SELECTED.rs+')'
-    })});
+    const isSub=PKG_SELECTED._type==='subscription';
+    const url=isSub?'/admin/add-subscription':'/admin/add-credits';
+    const body=isSub
+      ?{phone:phoneRaw,days:PKG_SELECTED.days,quota:PKG_SELECTED.credits,amount_rs:PKG_SELECTED.rs,note:PKG_SELECTED.name+' (Rs.'+PKG_SELECTED.rs+')'}
+      :{phone:phoneRaw,credits:PKG_SELECTED.credits,amount_rs:PKG_SELECTED.rs,note:PKG_SELECTED.name+' package (Rs.'+PKG_SELECTED.rs+')'};
+    const r=await fetch(url,{method:'POST',headers:hdr(),body:JSON.stringify(body)});
     const d=await r.json();
     if(d.success){
-      msg.innerHTML='<span class="ok">✅ '+esc(PKG_SELECTED.name)+' activated for '+esc(d.name)+' — new balance: '+esc(d.newBalance)+' credits</span>';
-      const txt='🎉 Assalam o Alaikum '+d.name+'! Aap ka Teacher Toolkit package activate ho chuka hai:\n\n📦 '+PKG_SELECTED.name+' — '+PKG_SELECTED.credits+' AI documents\n💳 Naya balance: '+d.newBalance+' credits\n\nAb aap turant AI documents generate kar sakte hain. Shukriya!';
+      const label=isSub?(PKG_SELECTED.credits+' docs / '+PKG_SELECTED.days+' days'):('new balance: '+d.newBalance+' credits');
+      msg.innerHTML='<span class="ok">✅ '+esc(PKG_SELECTED.name)+' activated for '+esc(d.name)+' — '+esc(label)+'</span>';
+      const txt=isSub
+        ?('🎉 Assalam o Alaikum '+d.name+'! Aap ka Teacher Toolkit '+PKG_SELECTED.name+' subscription activate ho chuka hai:\n\n⭐ '+PKG_SELECTED.credits+' AI documents / '+PKG_SELECTED.days+' din\n\nAb aap turant AI documents generate kar sakte hain. Shukriya!')
+        :('🎉 Assalam o Alaikum '+d.name+'! Aap ka Teacher Toolkit package activate ho chuka hai:\n\n📦 '+PKG_SELECTED.name+' — '+PKG_SELECTED.credits+' AI documents\n💳 Naya balance: '+d.newBalance+' credits\n\nAb aap turant AI documents generate kar sakte hain. Shukriya!');
       window.open('https://wa.me/'+cleanPh(phoneRaw)+'?text='+encodeURIComponent(txt),'_blank');
       document.getElementById('pkg_phone').value='';
-      selectPkg(-1);PKG_SELECTED=null;
+      selectPkg(-1);
       load();
     } else msg.innerHTML='<span class="err">❌ '+esc(d.error)+'</span>';
   }catch(e){msg.innerHTML='<span class="err">❌ '+esc(e.message)+'</span>';}
+}
+async function resetStats(){
+  if(!confirm('Reset the Revenue/Payments/Teachers counters on this dashboard?\n\nReal payment and teacher records are NOT deleted — they stay fully available in the Full All-Time Report.'))return;
+  try{
+    const r=await fetch('/admin/reset-stats',{method:'POST',headers:hdr()});
+    const d=await r.json();
+    if(d.success)load();
+  }catch(e){}
+}
+async function showFullReport(){
+  const box=document.getElementById('reportBox');
+  box.style.display='block';box.innerHTML='⏳ Loading full report...';
+  try{
+    const r=await fetch('/admin/full-report',{headers:hdr()});const d=await r.json();
+    if(!d.success){box.innerHTML='<span class="err">Could not load report</span>';return;}
+    const rows=Object.entries(d.byPackage||{}).sort((a,b)=>b[1].revenue-a[1].revenue)
+      .map(([name,s])=>'<tr><td>'+esc(name)+'</td><td>'+s.count+'</td><td>Rs. '+s.revenue.toLocaleString()+'</td></tr>').join('');
+    box.innerHTML='<b>📊 Full All-Time Report</b> (never affected by dashboard reset)<br><br>'
+      +'<span class="stat">👥 Total Teachers Ever: '+d.totalTeachers+'</span> '
+      +'<span class="stat">🧾 Total Payments Ever: '+d.totalTransactions+'</span> '
+      +'<span class="stat">💰 Total Revenue Ever: Rs. '+d.totalRevenue.toLocaleString()+'</span>'
+      +(d.firstRegistration?'<div style="margin-top:8px;font-size:11px;color:var(--g600)">First registration: '+new Date(d.firstRegistration).toLocaleDateString()+'</div>':'')
+      +(rows?'<table style="margin-top:10px"><thead><tr><th>Package/Note</th><th>Count</th><th>Revenue</th></tr></thead><tbody>'+rows+'</tbody></table>':'');
+  }catch(e){box.innerHTML='<span class="err">'+esc(e.message)+'</span>';}
 }
 async function login(){
   localStorage.setItem('tt_admin',document.getElementById('pw').value.trim());
@@ -273,7 +300,8 @@ async function load(){
     document.getElementById('who').textContent='✅ Logged in';
     document.getElementById('revenue').textContent=d.revenue.toLocaleString();
     document.getElementById('txCount').textContent=d.txCount;
-    document.getElementById('userCount').textContent=d.users.length;
+    document.getElementById('userCount').textContent=d.teacherCount;
+    document.getElementById('resetNote').textContent=d.statsResetAt?('(since '+new Date(d.statsResetAt).toLocaleDateString()+')'):'';
     renderUsers();
     fillCls();loadBooks();loadSlos();loadPackages();
     return true;
@@ -296,21 +324,6 @@ async function resetPin(){
     if(d.success){msg.innerHTML='<span class="ok">✅ PIN reset for '+esc(d.name)+'. Tell them the new PIN directly.</span>';document.getElementById('r_phone').value='';document.getElementById('r_pin').value='';}
     else msg.innerHTML='<span class="err">❌ '+esc(d.error)+'</span>';
   }catch(e){msg.innerHTML='<span class="err">❌ '+esc(e.message)+'</span>';}
-}
-async function addSub(){
-  const msg=document.getElementById('subMsg');msg.textContent='';
-  try{
-    const r=await fetch('/admin/add-subscription',{method:'POST',headers:hdr(),body:JSON.stringify({
-      phone:document.getElementById('s_phone').value,
-      days:document.getElementById('s_days').value,
-      quota:document.getElementById('s_quota').value,
-      amount_rs:document.getElementById('s_amount').value,
-      note:document.getElementById('s_note').value
-    })});
-    const d=await r.json();
-    if(d.success){msg.innerHTML='<span class="ok">✅ '+esc(d.name)+' is now Monthly Pro until '+new Date(d.expires).toLocaleDateString()+'</span>';document.getElementById('s_phone').value='';load();}
-    else msg.innerHTML='<span class="err">❌ '+esc(d.error)+'</span>';
-  }catch(e){msg.innerHTML='<span class="err">❌ Network error</span>';}
 }
 async function addCredits(){
   const msg=document.getElementById('addMsg');msg.textContent='';

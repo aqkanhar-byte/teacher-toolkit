@@ -241,12 +241,50 @@ function adminGate(req, res) {
   if (!sb) { res.json({ success: false, error: 'Database is not configured on the server.' }); return false; }
   return true;
 }
+async function statsResetAt() {
+  if (!sb) return null;
+  const { data } = await sb.from('tt_settings').select('value').eq('key', 'stats_reset_at').maybeSingle();
+  return data ? data.value : null;
+}
 app.get('/admin/users', async (req, res) => {
   if (!adminGate(req, res)) return;
+  const resetAt = await statsResetAt();
   const { data: users } = await sb.from('tt_users').select('id,phone,name,school,credits,created_at').order('created_at', { ascending: false }).limit(500);
-  const { data: tx } = await sb.from('tt_transactions').select('amount_rs,credits,created_at');
+  let txQuery = sb.from('tt_transactions').select('amount_rs,credits,created_at');
+  if (resetAt) txQuery = txQuery.gte('created_at', resetAt);
+  const { data: tx } = await txQuery;
   const revenue = (tx || []).reduce((s, t) => s + (t.amount_rs || 0), 0);
-  res.json({ success: true, users: users || [], revenue, txCount: (tx || []).length });
+  const visibleUsers = resetAt ? (users || []).filter(u => u.created_at >= resetAt) : (users || []);
+  res.json({ success: true, users: users || [], revenue, txCount: (tx || []).length, teacherCount: visibleUsers.length, statsResetAt: resetAt });
+});
+/* Resets the dashboard's Revenue/Payments/Teachers counters to zero (a fresh "since" baseline) —
+   never deletes real data. Full history is always available via /admin/full-report. */
+app.post('/admin/reset-stats', async (req, res) => {
+  if (!adminGate(req, res)) return;
+  await sb.from('tt_settings').upsert({ key: 'stats_reset_at', value: new Date().toISOString() });
+  res.json({ success: true });
+});
+/* Permanent, unfiltered, all-time report — ignores the reset baseline entirely */
+app.get('/admin/full-report', async (req, res) => {
+  if (!adminGate(req, res)) return;
+  const { data: users } = await sb.from('tt_users').select('id,created_at');
+  const { data: tx } = await sb.from('tt_transactions').select('amount_rs,credits,note,created_at');
+  const totalRevenue = (tx || []).reduce((s, t) => s + (t.amount_rs || 0), 0);
+  const byPackage = {};
+  (tx || []).forEach(t => {
+    const key = (t.note || 'Other').split(' (Rs')[0];
+    if (!byPackage[key]) byPackage[key] = { count: 0, revenue: 0, credits: 0 };
+    byPackage[key].count++; byPackage[key].revenue += (t.amount_rs || 0); byPackage[key].credits += (t.credits || 0);
+  });
+  res.json({
+    success: true,
+    totalTeachers: (users || []).length,
+    totalRevenue,
+    totalTransactions: (tx || []).length,
+    byPackage,
+    firstRegistration: (users || []).length ? (users || []).map(u => u.created_at).sort()[0] : null,
+    resetAt: await statsResetAt()
+  });
 });
 app.post('/admin/reset-pin', async (req, res) => {
   if (!adminGate(req, res)) return;
