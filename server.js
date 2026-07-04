@@ -164,6 +164,9 @@ app.post('/auth/register', async (req, res) => {
   }
   res.json({ success: true, token, user: { name: data.name, phone: data.phone, credits: data.credits } });
 });
+app.get('/debug/echo-auth', (req, res) => {
+  res.json({ authHeader: req.headers.authorization || null, allHeaderKeys: Object.keys(req.headers) });
+});
 app.post('/auth/login', async (req, res) => {
   if (!sb) return res.json({ success: false, error: 'Database is not configured on the server.' });
   const phone = cleanPhone(req.body.phone);
