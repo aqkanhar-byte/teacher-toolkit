@@ -206,6 +206,7 @@ button{cursor:pointer;border:none;background:none}
 .mode-badge{font-size:9.5px;font-weight:800;padding:4px 12px;border-radius:99px;letter-spacing:.3px}
 .mode-badge.ai{background:var(--red-bg);color:var(--red);border:1px solid rgba(185,28,28,.3)}
 .mode-badge.off{background:var(--green-bg);color:var(--green);border:1px solid rgba(10,124,92,.3)}
+.lang-lbl{font-size:10.5px;font-weight:800;color:var(--g500,#64748b);white-space:nowrap;cursor:pointer}
 .lang-sel{padding:7px 30px 7px 12px;border:1.5px solid var(--g200);border-radius:9px;font-size:11px;font-weight:700;color:var(--g800);background:var(--white);outline:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='11' height='11' viewBox='0 0 24 24' fill='none' stroke='%238898b8' stroke-width='2.5'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center}
 
 /* ─── SECTION CARDS ─── */
@@ -464,6 +465,7 @@ button{cursor:pointer;border:none;background:none}
       </div>
       <div class="dh-right">
         <span class="mode-badge ai" id="modeBadge">AI Required</span>
+        <label for="langSel" class="lang-lbl">🌐 زبان / Language</label>
         <select class="lang-sel" id="langSel">
           <option value="english">English</option>
           <option value="urdu">اردو</option>
