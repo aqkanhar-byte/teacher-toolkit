@@ -6,7 +6,7 @@ const assert = require('node:assert/strict');
 
 const { cleanPhone } = require('../lib/phone');
 const { hashPin, checkPin } = require('../lib/pin');
-const { planActive, PLANS, PRICES } = require('../lib/pricing');
+const { planActive, PLANS, PRICES, creditsForFile, LARGE_FILE_BYTES } = require('../lib/pricing');
 const { rlBlocked, rlHit, rateLimit } = require('../lib/rateLimit');
 
 test('cleanPhone: normalizes local formats to 92xxxxxxxxxx', () => {
@@ -48,6 +48,14 @@ test('pricing: every package/plan has positive price and credit values, priced a
   for (const plan of PLANS) {
     assert.ok(plan.rs / plan.docs >= ROUGH_COST_PER_DOC, `${plan.name} per-doc price must stay above cost floor`);
   }
+});
+
+test('creditsForFile: small/typical uploads cost 1 credit, large attachments cost 2', () => {
+  assert.equal(creditsForFile(null), 1, 'no file (Book Bank/plain text generation) is the standard 1 credit');
+  assert.equal(creditsForFile({ size: 1024 }), 1);
+  assert.equal(creditsForFile({ size: LARGE_FILE_BYTES }), 1, 'exactly at the threshold is still 1 credit');
+  assert.equal(creditsForFile({ size: LARGE_FILE_BYTES + 1 }), 2, 'one byte over the threshold steps up to 2 credits');
+  assert.equal(creditsForFile({ size: 20 * 1024 * 1024 }), 2, 'a near-max-size upload costs 2 credits');
 });
 
 test('rate limiter: blocks after max hits within the window, resets after window elapses', () => {

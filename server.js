@@ -12,7 +12,7 @@ const crypto = require('crypto');
 const { rlBlocked, rlHit, rateLimit, tooMany, startCleanup } = require('./lib/rateLimit');
 const { cleanPhone } = require('./lib/phone');
 const { hashPin, checkPin } = require('./lib/pin');
-const { planActive, REFERRAL_CREDITS, PLANS, PRICES } = require('./lib/pricing');
+const { planActive, REFERRAL_CREDITS, PLANS, PRICES, creditsForFile } = require('./lib/pricing');
 const { logError } = require('./lib/logger');
 const { recordPayment, GATEWAYS } = require('./lib/payments');
 
@@ -179,6 +179,23 @@ async function refundCreditsN(gateUser, n, viaPlan) {
     }
     logError('refundCreditsN', new Error('all 3 optimistic-lock retries exhausted'), { userId: gateUser.id, n, viaPlan });
   } catch (e) { logError('refundCreditsN', e, { userId: gateUser.id, n, viaPlan }); }
+}
+/* Charges 1 or 2+ credits uniformly. For the common (1-credit) case this is byte-for-byte
+   the existing takeCredit() behavior — zero risk of regression for every route that doesn't
+   deal with large uploads. Only routes that pass n>1 take the new multi-credit path. */
+async function chargeForGeneration(req, res, n) {
+  if (n <= 1) return takeCredit(req, res);
+  if (!sb) return { user: null, free: true };
+  const user = await userFromReq(req);
+  if (!user) { res.json({ success: false, error: 'LOGIN_REQUIRED' }); return null; }
+  const gate = await takeCreditsN(user, n);
+  if (!gate) { res.json({ success: false, error: 'NO_CREDITS' }); return null; }
+  return gate;
+}
+function refundForGeneration(gate, n) {
+  if (!gate || gate.free) return;
+  if (n <= 1) return refundCredit(gate.user, gate.viaPlan);
+  return refundCreditsN(gate.user, n, gate.viaPlan);
 }
 async function saveDoc(user, docType, title, content) {
   if (!sb || !user) return;
@@ -534,7 +551,7 @@ async function fetchBookToTemp(bookId) {
   if (!fs.existsSync('uploads')) fs.mkdirSync('uploads');
   const tmp = 'uploads/bank_' + Date.now() + path.extname(book.storage_path);
   fs.writeFileSync(tmp, buf);
-  return { path: tmp, originalname: book.title + path.extname(book.storage_path), book };
+  return { path: tmp, originalname: book.title + path.extname(book.storage_path), size: buf.length, book };
 }
 
 /* ═══════════════ SLO BANK — official curriculum SLOs, prompts mein inject ═══════════════ */
@@ -953,7 +970,8 @@ RULES:
 - Generate COMPLETE content — no placeholders.`;
 
     if (!rateLimit('gen:' + req.ip, 20, 10 * 60 * 1000)) { try { fs.unlinkSync(req.file.path); } catch (e) {} return tooMany(res); }
-    const gate = await takeCredit(req, res);
+    const creditsNeeded = creditsForFile(req.file);
+    const gate = await chargeForGeneration(req, res, creditsNeeded);
     if (!gate) { try { fs.unlinkSync(req.file.path); } catch (e) {} return; }
     await streamToRes(res, {
       model: MODEL,
@@ -961,7 +979,7 @@ RULES:
       messages: [{ role: 'user', content: [block, { type: 'text', text: prompt }] }]
     },
     (text) => saveDoc(gate.user, documentType, (fields.subject || '') + ' ' + (fields.unitInfo || ''), text),
-    () => refundCredit(gate.user, gate.viaPlan), 'generate-with-file');
+    () => refundForGeneration(gate, creditsNeeded), 'generate-with-file');
     try { fs.unlinkSync(req.file.path); } catch (e) {}
   } catch (error) {
     try { fs.unlinkSync(req.file.path); } catch (e) {}
@@ -976,8 +994,9 @@ app.post('/generate-crq', upload.single('file'), async (req, res) => {
   let bl; try { bl = JSON.parse(bloomLevels || '[]'); } catch (e) { bl = []; }
   if (!Array.isArray(bl) || !bl.length) bl = ['Remember', 'Understand', 'Apply'];
 
-  let srcBlock = null;
+  let srcBlock = null, srcFileSize = 0;
   if (req.file) {
+    srcFileSize = req.file.size;
     try { srcBlock = fileToBlock(req.file.path, req.file.originalname); } catch(e) {}
     try { fs.unlinkSync(req.file.path); } catch(e) {}
   }
@@ -998,14 +1017,15 @@ Generate a complete, professional exam paper with all sections and marks distrib
   try {
     const content = srcBlock ? [srcBlock, { type: 'text', text: prompt }] : prompt;
     if (!rateLimit('gen:' + req.ip, 20, 10 * 60 * 1000)) return tooMany(res);
-    const gate = await takeCredit(req, res);
+    const creditsNeeded = creditsForFile({ size: srcFileSize });
+    const gate = await chargeForGeneration(req, res, creditsNeeded);
     if (!gate) return;
     await streamToRes(res, {
       model: MODEL, max_tokens: 8000,
       messages: [{ role: 'user', content }]
     },
     (text) => saveDoc(gate.user, 'CRQ Paper', subject + ' ' + unitName, text),
-    () => refundCredit(gate.user, gate.viaPlan), 'generate-crq');
+    () => refundForGeneration(gate, creditsNeeded), 'generate-crq');
   } catch (error) {
     logError('generate-crq', error);
     res.json({ success: false, error: friendlyError(error.message) });
@@ -1097,7 +1117,8 @@ app.post('/upload-generate', upload.single('file'), async (req, res) => {
   try {
     const block = fileToBlock(req.file.path, req.file.originalname);
     if (!rateLimit('gen:' + req.ip, 20, 10 * 60 * 1000)) { try { fs.unlinkSync(req.file.path); } catch (e) {} return tooMany(res); }
-    const gate = await takeCredit(req, res);
+    const creditsNeeded = creditsForFile(req.file);
+    const gate = await chargeForGeneration(req, res, creditsNeeded);
     if (!gate) { try { fs.unlinkSync(req.file.path); } catch (e) {} return; }
     await streamToRes(res, {
       model: MODEL, max_tokens: 8000,
@@ -1107,7 +1128,7 @@ app.post('/upload-generate', upload.single('file'), async (req, res) => {
       ]}]
     },
     (text) => saveDoc(gate.user, documentType, subject || '', text),
-    () => refundCredit(gate.user, gate.viaPlan), 'upload-generate');
+    () => refundForGeneration(gate, creditsNeeded), 'upload-generate');
     try { fs.unlinkSync(req.file.path); } catch(e) {}
   } catch (error) {
     try { fs.unlinkSync(req.file.path); } catch(e) {}
