@@ -1706,11 +1706,33 @@ async function setDocFile(f){
 }
 /* ═══════════ AUTO-DETECT — AI reads the uploaded page and suggests Class/Subject/Unit ═══════════ */
 let DETECTED=null;
+/* Detection only needs to SEE one page — sending the whole book (which can be 60-100MB+)
+   hits Claude's own per-request size limit and fails outright, regardless of our storage
+   limit. Rendering just page 1 as a small JPEG first keeps detection working no matter how
+   big the original file is. Falls back to the original file if extraction fails for any
+   reason (e.g. an already-small image, or pdf.js unavailable). */
+async function extractFirstPageForDetection(file){
+  const isPdf=file.type==='application/pdf'||/\.pdf$/i.test(file.name);
+  if(!isPdf||typeof pdfjsLib==='undefined')return file;
+  try{
+    pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    const data=new Uint8Array(await file.arrayBuffer());
+    const pdf=await pdfjsLib.getDocument({data}).promise;
+    const page=await pdf.getPage(1);
+    const vp=page.getViewport({scale:1.5});
+    const canvas=document.createElement('canvas');canvas.width=vp.width;canvas.height=vp.height;
+    const ctx=canvas.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);
+    await page.render({canvasContext:ctx,viewport:vp}).promise;
+    const blob=await new Promise(r=>canvas.toBlob(r,'image/jpeg',0.85));
+    return blob?new File([blob],'detect_page1.jpg',{type:'image/jpeg'}):file;
+  }catch(e){return file;}
+}
 async function autoDetectBook(f){
   const banner=document.getElementById('detectBanner');if(!banner)return;
   banner.style.display='block';banner.innerHTML='🔍 Detecting class, subject &amp; unit from your file...';
   try{
-    const fd=new FormData();fd.append('file',f);
+    const sample=await extractFirstPageForDetection(f);
+    const fd=new FormData();fd.append('file',sample);
     const r=await fetch('/detect-book',{method:'POST',body:fd});
     const d=await r.json();
     if(!d.success||(!d.className&&!d.subject&&!d.unitName)){banner.style.display='none';return;}
