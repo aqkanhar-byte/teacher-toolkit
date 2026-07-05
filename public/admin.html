@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Admin — Teacher Toolkit</title>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
 :root{--navy:#1a2744;--navy-dark:#0f1a2e;--gold:#c8960c;--gold-bg:#fef9e7;--g100:#f1f4f9;--g200:#e2e8f4;--g400:#8898b8;--g600:#4a5878;--g800:#1e2d4a;--green:#0a7c5c;--green-bg:#eafaf4;--red:#b91c1c;--r:10px}
 *{margin:0;padding:0;box-sizing:border-box}
@@ -188,6 +190,44 @@ function fillSloSubjects(){
 /* PUT the file directly to Supabase's signed URL via XMLHttpRequest (not fetch — fetch has no
    upload-progress event at all, so there's no way to show a real percentage/time with it).
    Wrapped in a Promise so uploadBook() can just await it like the fetch calls around it. */
+/* Auto-compresses a PDF (renders each page to a JPEG image, rebuilds a new PDF) so a book
+   over the storage plan's ~50MB per-file limit can still go in as ONE file, instead of the
+   admin having to manually split it. Same technique the teacher-facing "Compress Full PDF"
+   tool already uses — pages become images, which is exactly how the AI reads a PDF anyway
+   (it renders pages internally too), so this doesn't hurt AI readability, and steps DOWN
+   through quality tiers only as far as needed to fit under the target size. */
+const BOOK_COMPRESS_TIERS=[{scale:1.35,jpgQ:0.72},{scale:1.15,jpgQ:0.58},{scale:0.95,jpgQ:0.45},{scale:0.8,jpgQ:0.35}];
+async function compressBookForUpload(file,targetBytes,onStatus){
+  if(typeof pdfjsLib==='undefined'||typeof jspdf==='undefined')throw new Error('Compression libraries did not load — check your internet and try again.');
+  pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  const data=new Uint8Array(await file.arrayBuffer());
+  const pdf=await pdfjsLib.getDocument({data}).promise;
+  const n=pdf.numPages;
+  const canvas=document.createElement('canvas');const ctx=canvas.getContext('2d');
+  for(let t=0;t<BOOK_COMPRESS_TIERS.length;t++){
+    const {scale,jpgQ}=BOOK_COMPRESS_TIERS[t];
+    let out=null;
+    for(let i=1;i<=n;i++){
+      onStatus('Compressing page '+i+'/'+n+' (quality tier '+(t+1)+'/'+BOOK_COMPRESS_TIERS.length+')...');
+      const page=await pdf.getPage(i);
+      const vp=page.getViewport({scale});
+      canvas.width=vp.width;canvas.height=vp.height;
+      ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);
+      await page.render({canvasContext:ctx,viewport:vp}).promise;
+      const img=canvas.toDataURL('image/jpeg',jpgQ);
+      const wpt=vp.width*0.75,hpt=vp.height*0.75;
+      if(!out)out=new jspdf.jsPDF({unit:'pt',format:[wpt,hpt],orientation:wpt>hpt?'l':'p'});
+      else out.addPage([wpt,hpt],wpt>hpt?'l':'p');
+      out.addImage(img,'JPEG',0,0,wpt,hpt);
+      await new Promise(r=>setTimeout(r,0)); /* yield so the UI can repaint the status text */
+    }
+    const blob=out.output('blob');
+    if(blob.size<=targetBytes||t===BOOK_COMPRESS_TIERS.length-1){
+      return new File([blob],file.name.replace(/\.pdf$/i,'')+'_compressed.pdf',{type:'application/pdf'});
+    }
+    /* else: still too big, loop again at the next (lower) quality tier */
+  }
+}
 function xhrPutWithProgress(url,file,onProgress){
   return new Promise((resolve,reject)=>{
     const xhr=new XMLHttpRequest();
@@ -218,19 +258,30 @@ function fmtEta(sec){
 let LAST_UPLOAD_ARGS=null; /* so "Retry" can resume without re-filling the whole form */
 async function uploadBook(){
   const msg=document.getElementById('bookMsg');msg.textContent='';
-  const f=document.getElementById('b_file').files[0];
+  let f=document.getElementById('b_file').files[0];
   if(!f){msg.innerHTML='<span class="err">Select a PDF/image file</span>';return;}
-  /* Matches the Supabase Storage bucket's current file_size_limit (confirmed live — the
-     project's plan tier rejects anything larger, regardless of what our own app allows).
-     Checking here upfront avoids wasting a full upload's time/bandwidth before failing. */
-  const BOOK_SIZE_LIMIT_MB=48; /* a hair under the real 50MB ceiling, for multipart overhead */
-  if(f.size>BOOK_SIZE_LIMIT_MB*1024*1024){msg.innerHTML='<span class="err">This file is '+(f.size/1024/1024).toFixed(0)+'MB — the storage plan\'s current per-file limit is ~50MB. Split it into smaller volumes (sidebar → PDF/Image Resizer, or the page-range crop tool) and upload each part separately.</span>';return;}
   const className=document.getElementById('b_class').value;
   const subject=document.getElementById('b_subject').value;
   const title=document.getElementById('b_title').value.trim();
   const unitLabel=currentUnitLabel();
   if(!title){msg.innerHTML='<span class="err">Enter a book title</span>';return;}
   if(document.getElementById('b_unit_select').value==='__custom'&&!unitLabel){msg.innerHTML='<span class="err">Type the custom unit label, or pick a listed unit instead</span>';return;}
+  /* Matches the Supabase Storage bucket's current file_size_limit (confirmed live — the
+     project's plan tier rejects anything larger, regardless of what our own app allows). */
+  const BOOK_SIZE_LIMIT=48*1024*1024; /* a hair under the real 50MB ceiling, for multipart overhead */
+  const isPdf=f.type==='application/pdf'||/\.pdf$/i.test(f.name);
+  if(f.size>BOOK_SIZE_LIMIT){
+    if(!isPdf){msg.innerHTML='<span class="err">This image is '+(f.size/1024/1024).toFixed(0)+'MB — over the storage plan\'s ~50MB limit. Resize the image first, or use a PDF.</span>';return;}
+    try{
+      msg.innerHTML='⏳ This book ('+(f.size/1024/1024).toFixed(0)+'MB) is over the ~50MB storage limit — compressing automatically so it fits in one file...';
+      f=await compressBookForUpload(f,BOOK_SIZE_LIMIT,(status)=>{msg.textContent='⏳ '+status;});
+      if(f.size>BOOK_SIZE_LIMIT){
+        msg.innerHTML='<span class="err">Even at the lowest quality tier, this book compresses to '+(f.size/1024/1024).toFixed(0)+'MB — still over the ~50MB limit. Split it into volumes instead (sidebar → PDF/Image Resizer → Extract Pages) and upload each part as its own Book Bank entry.</span>';
+        return;
+      }
+      msg.innerHTML='<span class="ok">✅ Compressed to '+(f.size/1024/1024).toFixed(1)+'MB (pages became images, text stays sharp and AI-readable) — uploading now...</span>';
+    }catch(e){msg.innerHTML='<span class="err">❌ Compression failed: '+esc(e.message)+'</span>';return;}
+  }
   LAST_UPLOAD_ARGS={f,className,subject,title,unitLabel};
   await runBookUpload();
 }
