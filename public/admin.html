@@ -194,7 +194,13 @@ function xhrPutWithProgress(url,file,onProgress){
     xhr.open('PUT',url);
     xhr.setRequestHeader('x-upsert','false');
     xhr.upload.onprogress=(e)=>{ if(e.lengthComputable)onProgress(e.loaded,e.total); };
-    xhr.onload=()=>{ (xhr.status>=200&&xhr.status<300)?resolve():reject(new Error('Storage upload failed (HTTP '+xhr.status+' '+xhr.statusText+')')); };
+    xhr.onload=()=>{
+      if(xhr.status>=200&&xhr.status<300)return resolve();
+      const tooLarge=/payload too large|exceeded the maximum allowed size/i.test(xhr.responseText||'');
+      reject(new Error(tooLarge
+        ? 'This file is over the storage plan\'s current per-file limit (~50MB). Split it into smaller volumes (use the sidebar\'s PDF/Image Resizer or the page-range crop tool), or ask about raising the Supabase plan\'s storage limit.'
+        : 'Storage upload failed (HTTP '+xhr.status+' '+xhr.statusText+')'));
+    };
     xhr.onerror=()=>reject(new Error('Network error during upload — check your internet connection and try again.'));
     xhr.ontimeout=()=>reject(new Error('Upload timed out — try again, or on a more stable connection.'));
     xhr.timeout=30*60*1000; /* 30 min ceiling for very large books on slow connections */
@@ -214,7 +220,11 @@ async function uploadBook(){
   const msg=document.getElementById('bookMsg');msg.textContent='';
   const f=document.getElementById('b_file').files[0];
   if(!f){msg.innerHTML='<span class="err">Select a PDF/image file</span>';return;}
-  if(f.size>500*1024*1024){msg.innerHTML='<span class="err">Max 500MB per book — split into smaller volumes if larger</span>';return;}
+  /* Matches the Supabase Storage bucket's current file_size_limit (confirmed live — the
+     project's plan tier rejects anything larger, regardless of what our own app allows).
+     Checking here upfront avoids wasting a full upload's time/bandwidth before failing. */
+  const BOOK_SIZE_LIMIT_MB=48; /* a hair under the real 50MB ceiling, for multipart overhead */
+  if(f.size>BOOK_SIZE_LIMIT_MB*1024*1024){msg.innerHTML='<span class="err">This file is '+(f.size/1024/1024).toFixed(0)+'MB — the storage plan\'s current per-file limit is ~50MB. Split it into smaller volumes (sidebar → PDF/Image Resizer, or the page-range crop tool) and upload each part separately.</span>';return;}
   const className=document.getElementById('b_class').value;
   const subject=document.getElementById('b_subject').value;
   const title=document.getElementById('b_title').value.trim();
