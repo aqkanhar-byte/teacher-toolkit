@@ -64,6 +64,8 @@ td{padding:8px 10px;border-bottom:1px solid var(--g100)}
     </div>
     <input type="text" id="pkg_orderId" placeholder="Easypaisa/JazzCash transaction ID (optional — prevents processing the same screenshot twice)" style="margin-top:8px">
     <div id="pkgLookup" style="font-size:11.5px;font-weight:700;margin-top:6px"></div>
+    <button onclick="cancelSubscription()" style="background:var(--red);font-size:11px;padding:8px 14px;margin-top:8px">🚫 Cancel This Teacher's Monthly Pro Subscription</button>
+    <div style="font-size:10.5px;color:var(--g400);margin-top:4px">Separate from credits — only clears an active Monthly Pro subscription (falls back to pay-per-doc credits). Does not touch credit balance.</div>
     <div id="pkgMsg" style="margin-top:6px"></div>
   </div>
 
@@ -278,6 +280,22 @@ async function activatePkg(){
       window.open('https://wa.me/'+cleanPh(phoneRaw)+'?text='+encodeURIComponent(txt),'_blank');
       selectPkg(-1);
       document.getElementById('pkg_orderId').value='';
+      await load();
+      lookupPhone('pkg_phone','pkgLookup');
+    } else msg.innerHTML='<span class="err">❌ '+esc(d.error)+'</span>';
+  }catch(e){msg.innerHTML='<span class="err">❌ '+esc(e.message)+'</span>';}
+}
+async function cancelSubscription(){
+  const msg=document.getElementById('pkgMsg');msg.textContent='';
+  const phoneRaw=document.getElementById('pkg_phone').value.trim();
+  if(!phoneRaw){msg.innerHTML='<span class="err">Enter the teacher\'s phone number</span>';return;}
+  if(!confirm('Cancel the Monthly Pro subscription for '+phoneRaw+'?\n\nThis only clears their subscription — their credit balance is untouched. They fall back to pay-per-doc credits.'))return;
+  msg.textContent='⏳ Cancelling...';
+  try{
+    const r=await fetch('/admin/cancel-subscription',{method:'POST',headers:hdr(),body:JSON.stringify({phone:phoneRaw})});
+    const d=await r.json();
+    if(d.success){
+      msg.innerHTML='<span class="ok">✅ Subscription cancelled for '+esc(d.name)+'</span>';
       await load();
       lookupPhone('pkg_phone','pkgLookup');
     } else msg.innerHTML='<span class="err">❌ '+esc(d.error)+'</span>';

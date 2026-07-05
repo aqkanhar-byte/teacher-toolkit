@@ -403,6 +403,22 @@ app.post('/admin/add-subscription', async (req, res) => {
   await sb.from('tt_users').update({ plan: 'Monthly Pro', plan_quota: quota, plan_used: 0, plan_expires: expires, subscription_status: 'active', billing_cycle: days >= 300 ? 'yearly' : 'monthly' }).eq('id', user.id);
   res.json({ success: true, name: user.name, expires });
 });
+/* Cancels a teacher's Monthly Pro subscription — clears plan/quota/expiry so they fall back to
+   pay-per-doc credits. Separate from Remove/Undo credits on purpose: credits and subscription
+   quota are two independent systems (takeCredit uses an active plan first, credits otherwise),
+   so clearing one was never supposed to touch the other. */
+app.post('/admin/cancel-subscription', async (req, res) => {
+  if (!adminGate(req, res)) return;
+  const phone = cleanPhone(req.body.phone);
+  if (!phone) return res.json({ success: false, error: 'Enter a valid phone' });
+  const { data: user } = await sb.from('tt_users').select('*').eq('phone', phone).maybeSingle();
+  if (!user) return res.json({ success: false, error: 'This number is not registered: ' + phone });
+  if (!user.plan) return res.json({ success: false, error: user.name + ' has no active subscription to cancel.' });
+  /* plan_quota is NOT NULL in the live schema — 0 means "no quota", same effect as null would have */
+  const { error } = await sb.from('tt_users').update({ plan: null, plan_quota: 0, plan_used: 0, plan_expires: null, subscription_status: 'cancelled' }).eq('id', user.id);
+  if (error) { logError('cancel-subscription', error, { userId: user.id }); return res.json({ success: false, error: 'Could not cancel: ' + error.message }); }
+  res.json({ success: true, name: user.name });
+});
 app.post('/admin/add-credits', async (req, res) => {
   if (!adminGate(req, res)) return;
   const phone = cleanPhone(req.body.phone);

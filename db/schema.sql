@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS tt_users (
   token text,
   credits integer NOT NULL DEFAULT 1,
   plan text,
-  plan_quota integer,
+  plan_quota integer NOT NULL DEFAULT 0, -- live DB has NOT NULL here; use 0 (not null) to mean "no quota"
   plan_used integer DEFAULT 0,
   plan_expires timestamptz,
   referred_by text,
