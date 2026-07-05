@@ -1254,7 +1254,23 @@ function renderForm(){
     html+=secCard(title,g.keys.map(fieldHTML).join(''),head);
   });
   if(cfg.upload)html+='<div class="sec-card"><div class="sec-head"><div class="sec-bar"></div><div class="sec-title">Book / Syllabus Upload <span style="text-transform:none;font-weight:600;color:var(--g400)">(Optional — AI will read it deeply and build from it)</span></div></div><div class="sec-body">'
-    +'<div class="fg" style="margin-bottom:12px"><label>📚 Book Bank — curated STB books (no upload needed)</label><select id="bankSel" onchange="onBankSel()"><option value="">— Select a book from the Book Bank —</option></select></div><div class="upload-zone" id="docDrop" ondrop="docDropFn(event)" ondragover="docOver(event)" ondragleave="docLeave(event)" onclick="document.getElementById(\'docFile\').click()"><div class="uz-ico">📖</div><div class="uz-title">Drop book, syllabus or any document here</div><div class="uz-sub">PDF: max 20MB (~100 pages) · Image: max 5MB</div></div><div style="margin-top:8px;font-size:10.5px;font-weight:600;color:var(--gold);background:var(--gold-bg);border:1px solid rgba(200,150,12,.25);border-radius:8px;padding:7px 11px;line-height:1.5">💡 <b>For best results:</b> upload <b>a few pages at a time</b> (one unit/chapter), not the whole book — AI reads focused content more accurately, and files over 8MB use 2 credits instead of 1. Large file? <button onclick="openResizer()" style="margin-left:6px;background:var(--navy);color:#fff;font-size:10px;font-weight:800;padding:4px 11px;border-radius:99px;vertical-align:middle">🗜️ Open Resizer</button></div><input type="file" id="docFile" accept=".pdf,image/*" style="display:none" onchange="docFileSel(event)"><div class="f-chip" id="docChip">✅ &nbsp;<span id="docFName">-</span> <button onclick="clearDocFile()" style="margin-left:8px;color:var(--red);font-weight:800">✕ Remove</button></div><div id="detectBanner" style="display:none;margin-top:8px;font-size:11.5px;font-weight:700;color:var(--navy);background:var(--gold-bg);border:1.5px solid var(--gold);border-radius:8px;padding:9px 12px"></div><div id="pageRangeRow" style="display:none;margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap"><label style="font-size:11px;font-weight:700;color:var(--g600)">📄 Uploaded a full/large book? Tell the AI which pages to use:</label><input type="number" min="1" id="docPageFrom" placeholder="From page" style="width:90px;padding:6px 9px;border:1.5px solid var(--g200);border-radius:8px;font-size:12px"><span style="font-size:11px;color:var(--g400)">to</span><input type="number" min="1" id="docPageTo" placeholder="To page" style="width:90px;padding:6px 9px;border:1.5px solid var(--g200);border-radius:8px;font-size:12px"></div></div></div>';
+    +'<div class="fg" style="margin-bottom:12px"><label>📚 Book Bank — curated STB books (no upload needed)</label><select id="bankSel" onchange="onBankSel()"><option value="">— Select a book from the Book Bank —</option></select></div><div class="upload-zone" id="docDrop" ondrop="docDropFn(event)" ondragover="docOver(event)" ondragleave="docLeave(event)" onclick="document.getElementById(\'docFile\').click()"><div class="uz-ico">📖</div><div class="uz-title">Drop a book, syllabus or any document here</div><div class="uz-sub">Any size book is fine — pick a page range next if it\'s large</div></div><div style="margin-top:8px;font-size:10.5px;font-weight:600;color:var(--gold);background:var(--gold-bg);border:1px solid rgba(200,150,12,.25);border-radius:8px;padding:7px 11px;line-height:1.5">💡 <b>For best results:</b> a few focused pages read more accurately than a whole book — and files over 8MB use 2 credits instead of 1.</div><input type="file" id="docFile" accept=".pdf,image/*" style="display:none" onchange="docFileSel(event)"><div class="f-chip" id="docChip">✅ &nbsp;<span id="docFName">-</span> <button onclick="clearDocFile()" style="margin-left:8px;color:var(--red);font-weight:800">✕ Remove</button></div><div id="detectBanner" style="display:none;margin-top:8px;font-size:11.5px;font-weight:700;color:var(--navy);background:var(--gold-bg);border:1.5px solid var(--gold);border-radius:8px;padding:9px 12px"></div>'
+    +'<div id="pageRangeRow" style="display:none;margin-top:10px;padding:12px;background:var(--white);border:1.5px solid var(--g200);border-radius:10px">'
+      +'<div style="font-size:11.5px;font-weight:800;color:var(--g800);margin-bottom:8px" id="pageRangeInfo">📄 Loading page count...</div>'
+      +'<div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-start">'
+        +'<canvas id="pagePreviewCanvas" style="max-width:130px;border:1px solid var(--g200);border-radius:6px;box-shadow:var(--sh-sm)"></canvas>'
+        +'<div style="flex:1;min-width:180px">'
+          +'<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">'
+            +'<input type="number" min="1" id="docPageFrom" placeholder="From" oninput="onPageRangeChange()" style="width:70px;padding:6px 9px;border:1.5px solid var(--g200);border-radius:8px;font-size:12px">'
+            +'<span style="font-size:11px;color:var(--g400)">to</span>'
+            +'<input type="number" min="1" id="docPageTo" placeholder="To" oninput="onPageRangeChange()" style="width:70px;padding:6px 9px;border:1.5px solid var(--g200);border-radius:8px;font-size:12px">'
+            +'<span style="font-size:10.5px;color:var(--g400)" id="pageRangeSize"></span>'
+          +'</div>'
+          +'<button class="mini-btn primary" onclick="extractRangeAndAttach()" style="font-size:11px">✂️ Use Only This Page Range</button>'
+        +'</div>'
+      +'</div>'
+    +'</div>'
+    +'</div>';
   if(cfg.marks){
     html+='<div class="sec-card"><div class="sec-head"><div class="sec-bar"></div><div class="sec-title">Subject-wise Marks <span style="text-transform:none;font-weight:600;color:var(--g400)">(auto — by class)</span></div><div class="ch-right" style="margin-left:auto"><label style="display:flex;align-items:center;gap:6px;font-size:11px;font-weight:800;color:var(--heading);cursor:pointer"><input type="checkbox" id="fcMode" onchange="toggleFC()"> 👥 Full Class Mode</label></div></div><div class="sec-body" style="padding:0">';
     html+='<div id="singleMarks"><div class="marks-head"><span>Subject</span><span>Total</span><span>Obtained</span></div><div id="marksRows"></div></div>';
@@ -1574,15 +1590,34 @@ async function doLoadBank(){
       ?'— Select a book · '+books.length+' available for '+(cls||'all classes')+(sub?' · '+sub:'')+' —'
       :'— No books in the Book Bank yet for '+(cls||'this class')+(sub?' · '+sub:'')+' —';
     sel.innerHTML='<option value="">'+esc(label)+'</option>'+
-      books.map(b=>'<option value="'+esc(b.id)+'"'+(String(b.id)===cur?' selected':'')+'>'+esc(b.title)+(b.unit_label?' — '+esc(b.unit_label):'')+' ('+esc(b.size_mb)+'MB)</option>').join('');
+      books.map(b=>'<option value="'+esc(b.id)+'" data-size="'+esc(b.size_mb)+'" data-title="'+esc(b.title)+'"'+(String(b.id)===cur?' selected':'')+'>'+esc(b.title)+(b.unit_label?' — '+esc(b.unit_label):'')+' ('+esc(b.size_mb)+'MB)</option>').join('');
     if(!books.some(b=>String(b.id)===cur))S.bookId='';
   }catch(e){
     sel.innerHTML='<option value="">— Book Bank could not load (check internet, then change class to retry) —</option>';
   }
 }
-function onBankSel(){
+async function onBankSel(){
   S.bookId=val('bankSel');
-  if(S.bookId)clearDocFile();
+  if(!S.bookId){const pr=document.getElementById('pageRangeRow');if(pr)pr.style.display='none';return;}
+  clearDocFile();
+  const opt=document.querySelector('#bankSel option[value="'+CSS.escape(S.bookId)+'"]');
+  const sizeMb=opt?parseFloat(opt.dataset.size)||0:0;
+  const title=opt?opt.dataset.title||'book':'book';
+  if(sizeMb<=20)return; /* small book — server attaches it directly as before, no range-picking needed */
+  const row=document.getElementById('pageRangeRow');
+  row.style.display='block';
+  document.getElementById('pageRangeInfo').textContent='📥 Downloading book to read page count ('+sizeMb.toFixed(0)+'MB)...';
+  try{
+    const r=await fetch('/books/'+encodeURIComponent(S.bookId)+'/download-url');
+    const d=await r.json();
+    if(!d.success)throw new Error(d.error||'Could not get book');
+    const fr=await fetch(d.url);
+    const bytes=new Uint8Array(await fr.arrayBuffer());
+    await loadPdfForRange(bytes,title+'.pdf');
+  }catch(e){
+    row.style.display='none';
+    toast('❌ Could not load this book for page selection: '+e.message);
+  }
 }
 
 /* ═══════════ USAGE IMPACT — how much this teacher has actually used the app ═══════════ */
@@ -1649,17 +1684,25 @@ async function prepareUpload(f){
       return out;
     }catch(e){alert('❌ Image is '+mb.toFixed(1)+'MB and auto-resize failed — use the "PDF / Image Resizer" tool in the sidebar.');return null;}
   }
-  if(isPdf&&mb>20){alert('❌ PDF is '+mb.toFixed(0)+'MB — AI can read up to 20MB (~100 pages).\n\n🗜️ Open the "PDF / Image Resizer" tool in the sidebar:\n• Extract Pages — only the needed unit (best)\n• Or Compress the full PDF');return null;}
-  if(isPdf&&mb>10)alert('⚠️ File is '+mb.toFixed(0)+'MB — it will work, but for best results upload fewer pages (one unit/chapter). You can extract pages with the Resizer tool.');
+  /* No more hard size block on PDFs — any size book is accepted. Large ones just need a page
+     range picked below (shown automatically) before generating, since the AI itself still only
+     reads ~20MB at a time. */
+  if(isPdf&&mb>20)toast('📚 Big file ('+mb.toFixed(0)+'MB) — pick a page range below to focus the AI on just what you need.');
   return f;
 }
 async function setDocFile(f){
   f=await prepareUpload(f);if(!f)return;
   S.bookId='';const bs=document.getElementById('bankSel');if(bs)bs.value='';
   S.docFile=f;document.getElementById('docFName').textContent=f.name+' ('+(f.size/1024/1024).toFixed(1)+' MB)';document.getElementById('docChip').style.display='block';
-  const prRow=document.getElementById('pageRangeRow');
-  if(prRow)prRow.style.display=(f.type==='application/pdf'||/\.pdf$/i.test(f.name))?'flex':'none';
-  autoDetectBook(f);
+  const isPdf=f.type==='application/pdf'||/\.pdf$/i.test(f.name);
+  if(isPdf){
+    document.getElementById('pageRangeInfo').textContent='📄 Reading page count...';
+    document.getElementById('pageRangeRow').style.display='block';
+    try{loadPdfForRange(new Uint8Array(await f.arrayBuffer()),f.name);}catch(e){document.getElementById('pageRangeRow').style.display='none';}
+  }else{
+    document.getElementById('pageRangeRow').style.display='none';
+  }
+  if(f.size<=20*1024*1024)autoDetectBook(f); /* skip auto-detect on files too big for the AI to read directly — pick a range first */
 }
 /* ═══════════ AUTO-DETECT — AI reads the uploaded page and suggests Class/Subject/Unit ═══════════ */
 let DETECTED=null;
@@ -1703,6 +1746,68 @@ function appendPageRange(fd){
   const from=(document.getElementById('docPageFrom')||{}).value,to=(document.getElementById('docPageTo')||{}).value;
   if(from)fd.append('pageFrom',from);
   if(to)fd.append('pageTo',to);
+}
+/* ═══════════ BOOK PREVIEW + PAGE-RANGE CROP (pdf-lib + pdf.js, both already loaded) ═══════════
+   Books can now be any size (Book Bank uploads up to 200MB) — but the AI can only read ~20MB
+   at a time. Instead of forcing a separate Resizer round-trip, the teacher sees the page count
+   and a preview right where they attach the book, picks a range, and the browser crops it down
+   to just those pages before it ever reaches the server or the AI. */
+let BOOK_PDF_BYTES=null,BOOK_PDF_PAGES=0,BOOK_PDF_NAME='';
+async function loadPdfForRange(bytes,name){
+  const row=document.getElementById('pageRangeRow');if(!row)return;
+  try{
+    const doc=await PDFLib.PDFDocument.load(bytes,{ignoreEncryption:true});
+    BOOK_PDF_BYTES=bytes;BOOK_PDF_PAGES=doc.getPageCount();BOOK_PDF_NAME=name;
+    document.getElementById('docPageFrom').max=BOOK_PDF_PAGES;
+    document.getElementById('docPageTo').max=BOOK_PDF_PAGES;
+    document.getElementById('docPageFrom').value=1;
+    document.getElementById('docPageTo').value=Math.min(BOOK_PDF_PAGES,10);
+    document.getElementById('pageRangeInfo').textContent='📄 '+BOOK_PDF_PAGES+' pages total — pick a range below (preview shows the first page of your selection)';
+    row.style.display='block';
+    onPageRangeChange();
+    renderPagePreview(1);
+  }catch(e){row.style.display='none';} // not a real PDF (e.g. an image) — nothing to range-pick
+}
+async function renderPagePreview(pageNum){
+  const canvas=document.getElementById('pagePreviewCanvas');if(!canvas||!BOOK_PDF_BYTES||typeof pdfjsLib==='undefined')return;
+  try{
+    pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    const pdf=await pdfjsLib.getDocument({data:BOOK_PDF_BYTES.slice()}).promise;
+    const page=await pdf.getPage(Math.max(1,Math.min(pageNum,pdf.numPages)));
+    const viewport=page.getViewport({scale:0.45});
+    canvas.width=viewport.width;canvas.height=viewport.height;
+    await page.render({canvasContext:canvas.getContext('2d'),viewport}).promise;
+  }catch(e){}
+}
+let pageRangeDebounce=null;
+function onPageRangeChange(){
+  clearTimeout(pageRangeDebounce);
+  const from=+val('docPageFrom')||1,to=+val('docPageTo')||from;
+  const pages=Math.max(0,to-from+1);
+  const estMb=BOOK_PDF_PAGES?((BOOK_PDF_BYTES.length/BOOK_PDF_PAGES)*pages/1024/1024):0;
+  document.getElementById('pageRangeSize').textContent=pages+' page'+(pages===1?'':'s')+' ≈ '+estMb.toFixed(1)+'MB';
+  pageRangeDebounce=setTimeout(()=>renderPagePreview(from),300);
+}
+async function extractRangeAndAttach(){
+  const from=+val('docPageFrom'),to=+val('docPageTo');
+  if(!from||!to||from<1||to>BOOK_PDF_PAGES||from>to){toast('Enter a valid page range: 1 to '+BOOK_PDF_PAGES);return;}
+  toast('⏳ Extracting pages '+from+'-'+to+'...');
+  try{
+    const srcDoc=await PDFLib.PDFDocument.load(BOOK_PDF_BYTES,{ignoreEncryption:true});
+    const out=await PDFLib.PDFDocument.create();
+    const idx=[];for(let i=from-1;i<to;i++)idx.push(i);
+    const pages=await out.copyPages(srcDoc,idx);
+    pages.forEach(p=>out.addPage(p));
+    const bytes=await out.save();
+    if(bytes.length>20*1024*1024){toast('⚠️ That range is still over 20MB — pick fewer pages');return;}
+    const file=new File([bytes],(BOOK_PDF_NAME||'book').replace(/\.pdf$/i,'')+'_p'+from+'-'+to+'.pdf',{type:'application/pdf'});
+    S.docFile=file;S.bookId='';
+    const bs=document.getElementById('bankSel');if(bs)bs.value='';
+    document.getElementById('docFName').textContent=file.name+' ('+(file.size/1024/1024).toFixed(1)+' MB)';
+    document.getElementById('docChip').style.display='block';
+    document.getElementById('docPageFrom').value='';document.getElementById('docPageTo').value=''; /* clear so the (now redundant) prompt-based range hint doesn't also fire on the already-cropped file */
+    toast('✅ Using pages '+from+'-'+to+' ('+(bytes.length/1024/1024).toFixed(1)+'MB) — ready to generate!');
+  }catch(e){toast('❌ Could not extract: '+e.message);}
 }
 function clearDocFile(){S.docFile=null;document.getElementById('docChip').style.display='none';document.getElementById('docFile').value='';const pr=document.getElementById('pageRangeRow');if(pr){pr.style.display='none';document.getElementById('docPageFrom').value='';document.getElementById('docPageTo').value='';}}
 function onPhotoSel(e){

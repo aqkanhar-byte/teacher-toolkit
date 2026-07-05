@@ -166,7 +166,8 @@ async function uploadBook(){
   const msg=document.getElementById('bookMsg');msg.textContent='';
   const f=document.getElementById('b_file').files[0];
   if(!f){msg.innerHTML='<span class="err">Select a PDF/image file</span>';return;}
-  if(f.size>20*1024*1024){msg.innerHTML='<span class="err">Max 20MB (AI reading limit) — split the book into unit-wise PDFs</span>';return;}
+  if(f.size>200*1024*1024){msg.innerHTML='<span class="err">Max 200MB per book — split into smaller volumes if larger</span>';return;}
+  if(f.size>20*1024*1024)msg.innerHTML='<span style="color:var(--gold)">ℹ️ This book is over 20MB — that\'s fine for Book Bank storage. Teachers generating from it will need to select a page range (AI can only read ~20MB at a time).</span>';
   const fd=new FormData();
   fd.append('file',f);
   fd.append('className',document.getElementById('b_class').value);

@@ -509,6 +509,19 @@ const upload = multer({
     cb(ok ? null : new Error('Only PDF or image files (JPG, PNG, WEBP, GIF) are allowed.'), ok);
   }
 });
+/* Book Bank uploads are complete official textbooks (ECCE–Class 12), not the "few pages at a
+   time" the AI-facing routes expect — a much higher ceiling, separate from the limit above.
+   NOTE: Supabase Storage's own per-file limit (plan-dependent, commonly 50MB on the free tier)
+   can still reject a file even under this 200MB cap — that's a Supabase project setting, not
+   something this server controls. */
+const uploadBook = multer({
+  storage,
+  limits: { fileSize: 200 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const ok = /\.(pdf|png|jpe?g|webp|gif)$/i.test(file.originalname || '');
+    cb(ok ? null : new Error('Only PDF or image files (JPG, PNG, WEBP, GIF) are allowed.'), ok);
+  }
+});
 
 /* ═══════════════ BOOK BANK (Supabase Storage — curated STB books) ═══════════════ */
 app.get('/books', async (req, res) => {
@@ -521,7 +534,19 @@ app.get('/books', async (req, res) => {
   if (error) return res.json({ success: false, error: error.message, books: [] });
   res.json({ success: true, books: data || [] });
 });
-app.post('/admin/upload-book', upload.single('file'), async (req, res) => {
+/* A short-lived signed URL so the browser can download a (possibly 200MB) Book Bank file
+   DIRECTLY from Supabase Storage — the server never buffers the whole thing in memory just to
+   relay it. The client then extracts a small page range with pdf-lib before ever touching the AI. */
+app.get('/books/:id/download-url', async (req, res) => {
+  if (!sb) return res.json({ success: false, error: 'Not configured' });
+  if (!rateLimit('bookurl:' + req.ip, 30, 10 * 60 * 1000)) return tooMany(res);
+  const { data: book } = await sb.from('tt_books').select('*').eq('id', req.params.id).maybeSingle();
+  if (!book) return res.json({ success: false, error: 'Book not found' });
+  const { data, error } = await sb.storage.from('books').createSignedUrl(book.storage_path, 300);
+  if (error) return res.json({ success: false, error: error.message });
+  res.json({ success: true, url: data.signedUrl, title: book.title });
+});
+app.post('/admin/upload-book', uploadBook.single('file'), async (req, res) => {
   if (!adminGate(req, res)) { if (req.file) { try { fs.unlinkSync(req.file.path); } catch(e) {} } return; }
   if (!req.file) return res.json({ success: false, error: 'No file' });
   /* Trim + normalize — teacher UI dropdown se exact match zaroori hai */
