@@ -123,12 +123,13 @@ td{padding:8px 10px;border-bottom:1px solid var(--g100)}
   </div>
 
   <div class="card">
-    <h3>📁 Bulk Upload — whole folder at once (AI detects Class/Subject for each book)</h3>
-    <div style="font-size:11px;color:var(--g600);margin-bottom:10px">Pick an entire folder of books. For each one, the AI reads the first page to detect Class + Subject, and the title comes from the filename — then it's compressed/split/uploaded automatically, one after another, no clicking per book. Anything the AI can't confidently match to your Class/Subject lists is skipped and listed at the end for manual upload.</div>
+    <h3>📁 Bulk Upload — many books at once (AI detects Class/Subject for each)</h3>
+    <div style="font-size:11px;color:var(--g600);margin-bottom:10px">Click the box below, navigate into your books folder, then press <b>Ctrl+A</b> (Windows) or <b>Cmd+A</b> (Mac) to select every file in it, then Open. For each one, the AI reads the first page to detect Class + Subject, and the title comes from the filename — then it's compressed/split/uploaded automatically, one after another, no clicking per book. Anything the AI can't confidently match to your Class/Subject lists is skipped and listed at the end for manual upload.</div>
     <div class="row" style="grid-template-columns:2fr 1fr">
-      <input type="file" id="b_bulk_files" multiple accept=".pdf,image/*" webkitdirectory style="padding:8px">
+      <input type="file" id="b_bulk_files" multiple accept=".pdf,image/*" style="padding:8px" onchange="showBulkFileCount()">
       <button onclick="bulkUploadBooks()" id="bulkBtn">📦 Start Bulk Upload</button>
     </div>
+    <div id="bulkFileCount" style="font-size:11px;color:var(--g600);margin-top:4px"></div>
     <div id="bulkProgressWrap" style="display:none;margin-top:10px">
       <div style="background:var(--g100);border-radius:8px;height:12px;overflow:hidden">
         <div id="bulkProgressBar" style="background:var(--green);height:100%;width:0%;transition:width .15s;border-radius:8px"></div>
@@ -411,6 +412,10 @@ function matchSubjectName(cls,detected){
   const d=String(detected||'').toLowerCase().trim();
   const subs=allSubjectsFor(cls)||[];
   return subs.find(s=>s.toLowerCase()===d)||null;
+}
+function showBulkFileCount(){
+  const files=[...document.getElementById('b_bulk_files').files].filter(f=>f.type==='application/pdf'||/\.(pdf|png|jpe?g|webp)$/i.test(f.name));
+  document.getElementById('bulkFileCount').textContent=files.length?('✅ '+files.length+' book file(s) selected'):'';
 }
 async function bulkUploadBooks(){
   const input=document.getElementById('b_bulk_files');
