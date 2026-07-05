@@ -575,6 +575,43 @@ app.post('/admin/upload-book', uploadBook.single('file'), async (req, res) => {
     res.json({ success: false, error: e.message });
   }
 });
+/* ─── DIRECT-TO-STORAGE BOOK UPLOAD (bypasses this server + any Cloudflare/Render body-size
+   or proxy-timeout limit entirely) ───────────────────────────────────────────────────────
+   Large books (confirmed failing as "Failed to fetch" at ~61MB through the old proxied route)
+   need the big transfer to go straight from the admin's browser to Supabase Storage. Flow:
+   1) /admin/book-upload-url — server creates a signed upload URL (needs the service key,
+      so must happen server-side) and hands back just the URL + token.
+   2) Browser PUTs the file bytes DIRECTLY to that URL — never touches this server/Render/
+      Cloudflare for the actual transfer.
+   3) /admin/book-confirm — a tiny JSON call (no file bytes) that inserts the tt_books row
+      once the direct upload has succeeded. */
+app.post('/admin/book-upload-url', async (req, res) => {
+  if (!adminGate(req, res)) return;
+  const className = String(req.body.className || '').trim();
+  const subject = String(req.body.subject || '').trim();
+  const ext = String(req.body.ext || '.pdf').toLowerCase();
+  if (!className || !subject) return res.json({ success: false, error: 'Class and subject are required' });
+  const storagePath = (className + '/' + subject + '/' + Date.now() + ext).replace(/[^A-Za-z0-9/._-]+/g, '_');
+  const { data, error } = await sb.storage.from('books').createSignedUploadUrl(storagePath);
+  if (error) return res.json({ success: false, error: error.message });
+  res.json({ success: true, signedUrl: data.signedUrl, storagePath });
+});
+app.post('/admin/book-confirm', async (req, res) => {
+  if (!adminGate(req, res)) return;
+  const className = String(req.body.className || '').trim();
+  const subject = String(req.body.subject || '').trim();
+  const title = String(req.body.title || '').trim();
+  const unitLabel = String(req.body.unitLabel || '').trim();
+  const storagePath = String(req.body.storagePath || '').trim();
+  const sizeMb = +req.body.sizeMb || 0;
+  if (!className || !subject || !title || !storagePath) return res.json({ success: false, error: 'Missing required fields' });
+  const { data, error } = await sb.from('tt_books').insert({ class_name: className, subject, title, unit_label: unitLabel, storage_path: storagePath, size_mb: sizeMb }).select().maybeSingle();
+  if (error) {
+    try { await sb.storage.from('books').remove([storagePath]); } catch (e) {}
+    return res.json({ success: false, error: error.message });
+  }
+  res.json({ success: true, book: data });
+});
 app.post('/admin/delete-book', async (req, res) => {
   if (!adminGate(req, res)) return;
   const { data: book } = await sb.from('tt_books').select('*').eq('id', req.body.id).maybeSingle();

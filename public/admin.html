@@ -168,18 +168,34 @@ async function uploadBook(){
   if(!f){msg.innerHTML='<span class="err">Select a PDF/image file</span>';return;}
   if(f.size>500*1024*1024){msg.innerHTML='<span class="err">Max 500MB per book — split into smaller volumes if larger</span>';return;}
   if(f.size>20*1024*1024)msg.innerHTML='<span style="color:var(--gold)">ℹ️ This book is over 20MB — that\'s fine for Book Bank storage. Teachers generating from it will select a page range when they use it (AI can only read/crop ~20MB at a time).</span>';
-  const fd=new FormData();
-  fd.append('file',f);
-  fd.append('className',document.getElementById('b_class').value);
-  fd.append('subject',document.getElementById('b_subject').value);
-  fd.append('title',document.getElementById('b_title').value.trim());
-  fd.append('unitLabel',document.getElementById('b_unit').value.trim());
-  msg.innerHTML='⏳ Uploading...';
+  const className=document.getElementById('b_class').value;
+  const subject=document.getElementById('b_subject').value;
+  const title=document.getElementById('b_title').value.trim();
+  const unitLabel=document.getElementById('b_unit').value.trim();
+  if(!title){msg.innerHTML='<span class="err">Enter a book title</span>';return;}
+  const ext='.'+(f.name.split('.').pop()||'pdf').toLowerCase();
   try{
-    const r=await fetch('/admin/upload-book',{method:'POST',headers:{'x-admin-key':key()},body:fd});
-    const d=await r.json();
-    if(d.success){msg.innerHTML='<span class="ok">✅ Uploaded! Book is now live for teachers ('+esc(d.book&&d.book.class_name)+' · '+esc(d.book&&d.book.subject)+').</span>';document.getElementById('b_file').value='';document.getElementById('b_title').value='';document.getElementById('b_unit').value='';loadBooks();}
-    else msg.innerHTML='<span class="err">❌ '+esc(d.error)+'</span>';
+    /* 1) Ask the server for a signed upload URL (needs the service key, so this one small
+       call goes through our server as normal) */
+    msg.innerHTML='⏳ Preparing upload...';
+    const ur=await fetch('/admin/book-upload-url',{method:'POST',headers:hdr(),body:JSON.stringify({className,subject,ext})});
+    const ud=await ur.json();
+    if(!ud.success){msg.innerHTML='<span class="err">❌ '+esc(ud.error)+'</span>';return;}
+    /* 2) Upload the actual file bytes DIRECTLY to Supabase — never touches our server/
+       Render/Cloudflare, so no proxy body-size or timeout limit applies here regardless
+       of how large the book is */
+    msg.innerHTML='⏳ Uploading '+(f.size/1024/1024).toFixed(1)+'MB directly to storage... this may take a while for large books, please don\'t close this tab.';
+    const upFd=new FormData();
+    upFd.append('cacheControl','3600');
+    upFd.append('',f);
+    const pr=await fetch(ud.signedUrl,{method:'PUT',headers:{'x-upsert':'false'},body:upFd});
+    if(!pr.ok)throw new Error('Direct storage upload failed (HTTP '+pr.status+')');
+    /* 3) Confirm — a tiny JSON call that just inserts the Book Bank database row */
+    msg.innerHTML='⏳ Finishing up...';
+    const cr=await fetch('/admin/book-confirm',{method:'POST',headers:hdr(),body:JSON.stringify({className,subject,title,unitLabel,storagePath:ud.storagePath,sizeMb:+(f.size/1048576).toFixed(2)})});
+    const cd=await cr.json();
+    if(cd.success){msg.innerHTML='<span class="ok">✅ Uploaded! Book is now live for teachers ('+esc(cd.book&&cd.book.class_name)+' · '+esc(cd.book&&cd.book.subject)+').</span>';document.getElementById('b_file').value='';document.getElementById('b_title').value='';document.getElementById('b_unit').value='';loadBooks();}
+    else msg.innerHTML='<span class="err">❌ '+esc(cd.error)+'</span>';
   }catch(e){msg.innerHTML='<span class="err">❌ '+esc(e.message)+'</span>';}
 }
 async function loadBooks(){
