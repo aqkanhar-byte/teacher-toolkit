@@ -197,18 +197,14 @@ function fillSloSubjects(){
    (it renders pages internally too), so this doesn't hurt AI readability, and steps DOWN
    through quality tiers only as far as needed to fit under the target size. */
 const BOOK_COMPRESS_TIERS=[{scale:1.35,jpgQ:0.72},{scale:1.15,jpgQ:0.58},{scale:0.95,jpgQ:0.45},{scale:0.8,jpgQ:0.35}];
-async function compressBookForUpload(file,targetBytes,onStatus){
-  if(typeof pdfjsLib==='undefined'||typeof jspdf==='undefined')throw new Error('Compression libraries did not load — check your internet and try again.');
-  pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-  const data=new Uint8Array(await file.arrayBuffer());
-  const pdf=await pdfjsLib.getDocument({data}).promise;
-  const n=pdf.numPages;
+async function renderPageRangeAtBestTier(pdf,fromPage,toPage,targetBytes,onStatus){
   const canvas=document.createElement('canvas');const ctx=canvas.getContext('2d');
+  const total=toPage-fromPage+1;
   for(let t=0;t<BOOK_COMPRESS_TIERS.length;t++){
     const {scale,jpgQ}=BOOK_COMPRESS_TIERS[t];
     let out=null;
-    for(let i=1;i<=n;i++){
-      onStatus('Compressing page '+i+'/'+n+' (quality tier '+(t+1)+'/'+BOOK_COMPRESS_TIERS.length+')...');
+    for(let i=fromPage;i<=toPage;i++){
+      onStatus('page '+(i-fromPage+1)+'/'+total+' (quality '+(t+1)+'/'+BOOK_COMPRESS_TIERS.length+')');
       const page=await pdf.getPage(i);
       const vp=page.getViewport({scale});
       canvas.width=vp.width;canvas.height=vp.height;
@@ -222,11 +218,30 @@ async function compressBookForUpload(file,targetBytes,onStatus){
       await new Promise(r=>setTimeout(r,0)); /* yield so the UI can repaint the status text */
     }
     const blob=out.output('blob');
-    if(blob.size<=targetBytes||t===BOOK_COMPRESS_TIERS.length-1){
-      return new File([blob],file.name.replace(/\.pdf$/i,'')+'_compressed.pdf',{type:'application/pdf'});
-    }
+    if(blob.size<=targetBytes||t===BOOK_COMPRESS_TIERS.length-1)return blob;
     /* else: still too big, loop again at the next (lower) quality tier */
   }
+}
+async function compressBookForUpload(file,targetBytes,onStatus){
+  if(typeof pdfjsLib==='undefined'||typeof jspdf==='undefined')throw new Error('Compression libraries did not load — check your internet and try again.');
+  pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  const data=new Uint8Array(await file.arrayBuffer());
+  const pdf=await pdfjsLib.getDocument({data}).promise;
+  const n=pdf.numPages;
+  const blob=await renderPageRangeAtBestTier(pdf,1,n,targetBytes,(s)=>onStatus('Compressing '+s+'...'));
+  return {pdf,totalPages:n,blob,fits:blob.size<=targetBytes,
+    file:new File([blob],file.name.replace(/\.pdf$/i,'')+'_compressed.pdf',{type:'application/pdf'})};
+}
+/* When even best-effort whole-book compression doesn't fit, this calculates how many roughly-
+   equal page-range parts are needed — using the JUST-MEASURED compressed-whole-book size as the
+   basis (real data, not a guess from the original file size), matching the requested pattern of
+   ~1 part per ~50MB: e.g. a 73MB compressed result over a 48MB target needs ceil(73/48)=2 parts. */
+function calcSplitParts(totalPages,wholeBookCompressedSize,targetBytes){
+  const numParts=Math.max(2,Math.ceil(wholeBookCompressedSize/targetBytes));
+  const pagesPerPart=Math.ceil(totalPages/numParts);
+  const parts=[];
+  for(let start=1;start<=totalPages;start+=pagesPerPart)parts.push({from:start,to:Math.min(start+pagesPerPart-1,totalPages)});
+  return parts;
 }
 function xhrPutWithProgress(url,file,onProgress){
   return new Promise((resolve,reject)=>{
@@ -274,59 +289,97 @@ async function uploadBook(){
     if(!isPdf){msg.innerHTML='<span class="err">This image is '+(f.size/1024/1024).toFixed(0)+'MB — over the storage plan\'s ~50MB limit. Resize the image first, or use a PDF.</span>';return;}
     try{
       msg.innerHTML='⏳ This book ('+(f.size/1024/1024).toFixed(0)+'MB) is over the ~50MB storage limit — compressing automatically so it fits in one file...';
-      f=await compressBookForUpload(f,BOOK_SIZE_LIMIT,(status)=>{msg.textContent='⏳ '+status;});
-      if(f.size>BOOK_SIZE_LIMIT){
-        msg.innerHTML='<span class="err">Even at the lowest quality tier, this book compresses to '+(f.size/1024/1024).toFixed(0)+'MB — still over the ~50MB limit. Split it into volumes instead (sidebar → PDF/Image Resizer → Extract Pages) and upload each part as its own Book Bank entry.</span>';
+      const result=await compressBookForUpload(f,BOOK_SIZE_LIMIT,(status)=>{msg.textContent='⏳ '+status;});
+      if(!result.fits){
+        /* Compression alone isn't enough — automatically split into N parts (calculated from
+           the real compressed size, not guessed) and upload each one in sequence. No extra
+           click needed; this is the "genius calculation, then upload" mechanism. */
+        await splitAndUploadBook(result.pdf,result.totalPages,result.blob.size,className,subject,title,unitLabel,BOOK_SIZE_LIMIT);
         return;
       }
+      f=result.file;
       msg.innerHTML='<span class="ok">✅ Compressed to '+(f.size/1024/1024).toFixed(1)+'MB (pages became images, text stays sharp and AI-readable) — uploading now...</span>';
     }catch(e){msg.innerHTML='<span class="err">❌ Compression failed: '+esc(e.message)+'</span>';return;}
   }
   LAST_UPLOAD_ARGS={f,className,subject,title,unitLabel};
   await runBookUpload();
 }
+/* Uploads ONE file to the Book Bank (signed URL → direct PUT to Supabase → confirm DB row).
+   Shared by the single-file path and each part of a split-book sequence — labelPrefix lets the
+   shared progress bar show "Part 2/4 — 63%..." during a multi-part run. */
+async function uploadOnePart(f,className,subject,title,unitLabel,labelPrefix){
+  const bar=document.getElementById('uploadProgressBar'),ptext=document.getElementById('uploadProgressText');
+  const ext='.'+(f.name.split('.').pop()||'pdf').toLowerCase();
+  const ur=await fetch('/admin/book-upload-url',{method:'POST',headers:hdr(),body:JSON.stringify({className,subject,ext})});
+  const ud=await ur.json();
+  if(!ud.success)return{success:false,error:ud.error};
+  const startTime=Date.now();
+  await xhrPutWithProgress(ud.signedUrl,f,(loaded,total)=>{
+    const pct=Math.round((loaded/total)*100);
+    bar.style.width=pct+'%';
+    const elapsed=(Date.now()-startTime)/1000;
+    const rate=loaded/Math.max(elapsed,0.1);
+    const remaining=(total-loaded)/Math.max(rate,1);
+    ptext.textContent=(labelPrefix||'')+pct+'% — '+(loaded/1048576).toFixed(1)+'MB / '+(total/1048576).toFixed(1)+'MB'
+      +' · elapsed '+fmtEta(elapsed)+' · about '+fmtEta(remaining)+' left';
+  });
+  bar.style.width='100%';ptext.textContent=(labelPrefix||'')+'Upload complete — saving to Book Bank...';
+  const cr=await fetch('/admin/book-confirm',{method:'POST',headers:hdr(),body:JSON.stringify({className,subject,title,unitLabel,storagePath:ud.storagePath,sizeMb:+(f.size/1048576).toFixed(2)})});
+  const cd=await cr.json();
+  return cd.success?{success:true,book:cd.book}:{success:false,error:cd.error};
+}
 async function runBookUpload(){
   if(!LAST_UPLOAD_ARGS)return;
   const {f,className,subject,title,unitLabel}=LAST_UPLOAD_ARGS;
   const msg=document.getElementById('bookMsg');
   const progWrap=document.getElementById('uploadProgressWrap'),bar=document.getElementById('uploadProgressBar'),ptext=document.getElementById('uploadProgressText');
-  const ext='.'+(f.name.split('.').pop()||'pdf').toLowerCase();
   progWrap.style.display='block';bar.style.width='0%';ptext.textContent='Preparing upload...';
   msg.textContent='';
   try{
-    /* 1) Ask the server for a signed upload URL (needs the service key, so this one small
-       call goes through our server as normal) */
-    const ur=await fetch('/admin/book-upload-url',{method:'POST',headers:hdr(),body:JSON.stringify({className,subject,ext})});
-    const ud=await ur.json();
-    if(!ud.success){progWrap.style.display='none';msg.innerHTML='<span class="err">❌ '+esc(ud.error)+'</span>';return;}
-    /* 2) Upload the actual file bytes DIRECTLY to Supabase — never touches our server/
-       Render/Cloudflare, so no proxy body-size or timeout limit applies here regardless
-       of how large the book is. Real progress + ETA via XHR upload events. */
-    const startTime=Date.now();
-    await xhrPutWithProgress(ud.signedUrl,f,(loaded,total)=>{
-      const pct=Math.round((loaded/total)*100);
-      bar.style.width=pct+'%';
-      const elapsed=(Date.now()-startTime)/1000;
-      const rate=loaded/Math.max(elapsed,0.1); /* bytes/sec */
-      const remaining=(total-loaded)/Math.max(rate,1);
-      ptext.textContent=pct+'% — '+(loaded/1048576).toFixed(1)+'MB / '+(total/1048576).toFixed(1)+'MB'
-        +' · elapsed '+fmtEta(elapsed)+' · about '+fmtEta(remaining)+' left';
-    });
-    bar.style.width='100%';ptext.textContent='Upload complete — saving to Book Bank...';
-    /* 3) Confirm — a tiny JSON call that just inserts the Book Bank database row */
-    const cr=await fetch('/admin/book-confirm',{method:'POST',headers:hdr(),body:JSON.stringify({className,subject,title,unitLabel,storagePath:ud.storagePath,sizeMb:+(f.size/1048576).toFixed(2)})});
-    const cd=await cr.json();
+    const res=await uploadOnePart(f,className,subject,title,unitLabel);
     progWrap.style.display='none';
-    if(cd.success){
-      msg.innerHTML='<span class="ok">✅ Uploaded! Book is now live for teachers ('+esc(cd.book&&cd.book.class_name)+' · '+esc(cd.book&&cd.book.subject)+').</span>';
+    if(res.success){
+      msg.innerHTML='<span class="ok">✅ Uploaded! Book is now live for teachers ('+esc(res.book&&res.book.class_name)+' · '+esc(res.book&&res.book.subject)+').</span>';
       document.getElementById('b_file').value='';document.getElementById('b_title').value='';
       document.getElementById('b_unit_select').value='';document.getElementById('b_unit_custom').value='';onUnitSelectChange();
       LAST_UPLOAD_ARGS=null;loadBooks();
-    }else msg.innerHTML='<span class="err">❌ '+esc(cd.error)+'</span>';
+    }else msg.innerHTML='<span class="err">❌ '+esc(res.error)+'</span>';
   }catch(e){
     progWrap.style.display='none';
     msg.innerHTML='<span class="err">❌ '+esc(e.message)+'</span> <button onclick="runBookUpload()" style="margin-left:8px;background:var(--navy);padding:6px 14px;font-size:11px">🔄 Retry Upload</button>';
   }
+}
+/* When compression alone still can't fit under the storage limit, splits the book into N
+   roughly-equal page-range parts (see calcSplitParts) and uploads each as its own Book Bank
+   entry titled "<title> — Part i of N", in sequence, so teachers can select them one after
+   another (Part 1, Part 2, ...) exactly like a multi-volume set. */
+async function splitAndUploadBook(pdf,totalPages,wholeCompressedSize,className,subject,title,unitLabel,targetBytes){
+  const msg=document.getElementById('bookMsg');
+  const progWrap=document.getElementById('uploadProgressWrap'),bar=document.getElementById('uploadProgressBar'),ptext=document.getElementById('uploadProgressText');
+  const parts=calcSplitParts(totalPages,wholeCompressedSize,targetBytes);
+  msg.innerHTML='<span style="color:var(--gold)">📦 Even at best compression this book needs splitting — '+parts.length+' parts (~'+Math.ceil(totalPages/parts.length)+' pages each). Uploading them one by one, please keep this tab open...</span>';
+  const uploaded=[];
+  for(let pi=0;pi<parts.length;pi++){
+    const {from,to}=parts[pi];
+    const prefix='Part '+(pi+1)+'/'+parts.length+' (pages '+from+'-'+to+') — ';
+    progWrap.style.display='block';bar.style.width='0%';ptext.textContent=prefix+'compressing...';
+    const partBlob=await renderPageRangeAtBestTier(pdf,from,to,targetBytes,(s)=>{ptext.textContent=prefix+'compressing '+s+'...';});
+    const partFile=new File([partBlob],title.replace(/[^A-Za-z0-9]+/g,'_')+'_part'+(pi+1)+'.pdf',{type:'application/pdf'});
+    const partTitle=title+' — Part '+(pi+1)+' of '+parts.length;
+    const partUnit=(unitLabel?unitLabel+' · ':'')+'Part '+(pi+1)+'/'+parts.length+' (pages '+from+'-'+to+')';
+    const res=await uploadOnePart(partFile,className,subject,partTitle,partUnit,prefix);
+    if(!res.success){
+      progWrap.style.display='none';
+      msg.innerHTML='<span class="err">❌ Part '+(pi+1)+' failed: '+esc(res.error)+'</span> — '+uploaded.length+'/'+parts.length+' parts uploaded so far. <button onclick="loadBooks()" style="margin-left:8px;background:var(--navy);padding:6px 14px;font-size:11px">↻ Refresh list</button>';
+      return;
+    }
+    uploaded.push(res.book);
+  }
+  progWrap.style.display='none';
+  msg.innerHTML='<span class="ok">✅ All '+parts.length+' parts uploaded! Teachers will see "'+esc(title)+' — Part 1 of '+parts.length+'" through "Part '+parts.length+' of '+parts.length+'" in the Book Bank.</span>';
+  document.getElementById('b_file').value='';document.getElementById('b_title').value='';
+  document.getElementById('b_unit_select').value='';document.getElementById('b_unit_custom').value='';onUnitSelectChange();
+  loadBooks();
 }
 async function loadBooks(){
   try{
