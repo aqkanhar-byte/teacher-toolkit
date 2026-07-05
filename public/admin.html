@@ -103,9 +103,18 @@ td{padding:8px 10px;border-bottom:1px solid var(--g100)}
       <input type="text" id="b_title" placeholder="Book title (e.g. My English Book 1 — STBB 2023)">
     </div>
     <div class="row" style="grid-template-columns:1fr 1fr 1fr">
-      <input type="text" id="b_unit" placeholder="Unit label (optional, e.g. Unit 3)">
+      <select id="b_unit_select" onchange="onUnitSelectChange()"></select>
       <input type="file" id="b_file" accept=".pdf,image/*" style="padding:8px">
       <button onclick="uploadBook()">📤 Upload to Book Bank</button>
+    </div>
+    <div class="row" id="b_unit_custom_row" style="display:none;margin-top:8px">
+      <input type="text" id="b_unit_custom" placeholder="Type custom unit label (e.g. Chapter 5 — Poetry)">
+    </div>
+    <div id="uploadProgressWrap" style="display:none;margin-top:10px">
+      <div style="background:var(--g100);border-radius:8px;height:12px;overflow:hidden">
+        <div id="uploadProgressBar" style="background:var(--green);height:100%;width:0%;transition:width .15s;border-radius:8px"></div>
+      </div>
+      <div id="uploadProgressText" style="font-size:11.5px;color:var(--g600);margin-top:5px;font-weight:700"></div>
     </div>
     <div id="bookMsg"></div>
     <div style="overflow-x:auto;margin-top:10px"><table><thead><tr><th>Class</th><th>Subject</th><th>Title</th><th>Unit</th><th>Size</th><th></th></tr></thead><tbody id="bookRows"></tbody></table></div>
@@ -153,6 +162,20 @@ function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'
 function fillCls(){
   ['b_class','sl_class'].forEach(id=>{const e=document.getElementById(id);if(e&&!e.options.length)e.innerHTML=CLASS_LIST.map(c=>'<option>'+esc(c)+'</option>').join('');});
   fillBookSubjects();fillSloSubjects();
+  const us=document.getElementById('b_unit_select');
+  if(us&&!us.options.length){
+    us.innerHTML='<option value="">— No unit (optional) —</option>'
+      +Array.from({length:12},(_,i)=>'<option>Unit '+(i+1)+'</option>').join('')
+      +'<option>Full Book</option><option value="__custom">✏️ Custom...</option>';
+  }
+}
+function onUnitSelectChange(){
+  const row=document.getElementById('b_unit_custom_row');
+  row.style.display=document.getElementById('b_unit_select').value==='__custom'?'grid':'none';
+}
+function currentUnitLabel(){
+  const sel=document.getElementById('b_unit_select').value;
+  return sel==='__custom'?document.getElementById('b_unit_custom').value.trim():sel;
 }
 function fillBookSubjects(){
   const cls=document.getElementById('b_class').value;
@@ -162,41 +185,87 @@ function fillSloSubjects(){
   const cls=document.getElementById('sl_class').value;
   document.getElementById('sl_subject').innerHTML=allSubjectsFor(cls).map(s=>'<option>'+esc(s)+'</option>').join('');
 }
+/* PUT the file directly to Supabase's signed URL via XMLHttpRequest (not fetch — fetch has no
+   upload-progress event at all, so there's no way to show a real percentage/time with it).
+   Wrapped in a Promise so uploadBook() can just await it like the fetch calls around it. */
+function xhrPutWithProgress(url,file,onProgress){
+  return new Promise((resolve,reject)=>{
+    const xhr=new XMLHttpRequest();
+    xhr.open('PUT',url);
+    xhr.setRequestHeader('x-upsert','false');
+    xhr.upload.onprogress=(e)=>{ if(e.lengthComputable)onProgress(e.loaded,e.total); };
+    xhr.onload=()=>{ (xhr.status>=200&&xhr.status<300)?resolve():reject(new Error('Storage upload failed (HTTP '+xhr.status+' '+xhr.statusText+')')); };
+    xhr.onerror=()=>reject(new Error('Network error during upload — check your internet connection and try again.'));
+    xhr.ontimeout=()=>reject(new Error('Upload timed out — try again, or on a more stable connection.'));
+    xhr.timeout=30*60*1000; /* 30 min ceiling for very large books on slow connections */
+    const fd=new FormData();
+    fd.append('cacheControl','3600');
+    fd.append('',file);
+    xhr.send(fd);
+  });
+}
+function fmtEta(sec){
+  if(!isFinite(sec)||sec<0)return '';
+  if(sec<60)return Math.ceil(sec)+'s';
+  return Math.floor(sec/60)+'m '+Math.round(sec%60)+'s';
+}
+let LAST_UPLOAD_ARGS=null; /* so "Retry" can resume without re-filling the whole form */
 async function uploadBook(){
   const msg=document.getElementById('bookMsg');msg.textContent='';
   const f=document.getElementById('b_file').files[0];
   if(!f){msg.innerHTML='<span class="err">Select a PDF/image file</span>';return;}
   if(f.size>500*1024*1024){msg.innerHTML='<span class="err">Max 500MB per book — split into smaller volumes if larger</span>';return;}
-  if(f.size>20*1024*1024)msg.innerHTML='<span style="color:var(--gold)">ℹ️ This book is over 20MB — that\'s fine for Book Bank storage. Teachers generating from it will select a page range when they use it (AI can only read/crop ~20MB at a time).</span>';
   const className=document.getElementById('b_class').value;
   const subject=document.getElementById('b_subject').value;
   const title=document.getElementById('b_title').value.trim();
-  const unitLabel=document.getElementById('b_unit').value.trim();
+  const unitLabel=currentUnitLabel();
   if(!title){msg.innerHTML='<span class="err">Enter a book title</span>';return;}
+  if(document.getElementById('b_unit_select').value==='__custom'&&!unitLabel){msg.innerHTML='<span class="err">Type the custom unit label, or pick a listed unit instead</span>';return;}
+  LAST_UPLOAD_ARGS={f,className,subject,title,unitLabel};
+  await runBookUpload();
+}
+async function runBookUpload(){
+  if(!LAST_UPLOAD_ARGS)return;
+  const {f,className,subject,title,unitLabel}=LAST_UPLOAD_ARGS;
+  const msg=document.getElementById('bookMsg');
+  const progWrap=document.getElementById('uploadProgressWrap'),bar=document.getElementById('uploadProgressBar'),ptext=document.getElementById('uploadProgressText');
   const ext='.'+(f.name.split('.').pop()||'pdf').toLowerCase();
+  progWrap.style.display='block';bar.style.width='0%';ptext.textContent='Preparing upload...';
+  msg.textContent='';
   try{
     /* 1) Ask the server for a signed upload URL (needs the service key, so this one small
        call goes through our server as normal) */
-    msg.innerHTML='⏳ Preparing upload...';
     const ur=await fetch('/admin/book-upload-url',{method:'POST',headers:hdr(),body:JSON.stringify({className,subject,ext})});
     const ud=await ur.json();
-    if(!ud.success){msg.innerHTML='<span class="err">❌ '+esc(ud.error)+'</span>';return;}
+    if(!ud.success){progWrap.style.display='none';msg.innerHTML='<span class="err">❌ '+esc(ud.error)+'</span>';return;}
     /* 2) Upload the actual file bytes DIRECTLY to Supabase — never touches our server/
        Render/Cloudflare, so no proxy body-size or timeout limit applies here regardless
-       of how large the book is */
-    msg.innerHTML='⏳ Uploading '+(f.size/1024/1024).toFixed(1)+'MB directly to storage... this may take a while for large books, please don\'t close this tab.';
-    const upFd=new FormData();
-    upFd.append('cacheControl','3600');
-    upFd.append('',f);
-    const pr=await fetch(ud.signedUrl,{method:'PUT',headers:{'x-upsert':'false'},body:upFd});
-    if(!pr.ok)throw new Error('Direct storage upload failed (HTTP '+pr.status+')');
+       of how large the book is. Real progress + ETA via XHR upload events. */
+    const startTime=Date.now();
+    await xhrPutWithProgress(ud.signedUrl,f,(loaded,total)=>{
+      const pct=Math.round((loaded/total)*100);
+      bar.style.width=pct+'%';
+      const elapsed=(Date.now()-startTime)/1000;
+      const rate=loaded/Math.max(elapsed,0.1); /* bytes/sec */
+      const remaining=(total-loaded)/Math.max(rate,1);
+      ptext.textContent=pct+'% — '+(loaded/1048576).toFixed(1)+'MB / '+(total/1048576).toFixed(1)+'MB'
+        +' · elapsed '+fmtEta(elapsed)+' · about '+fmtEta(remaining)+' left';
+    });
+    bar.style.width='100%';ptext.textContent='Upload complete — saving to Book Bank...';
     /* 3) Confirm — a tiny JSON call that just inserts the Book Bank database row */
-    msg.innerHTML='⏳ Finishing up...';
     const cr=await fetch('/admin/book-confirm',{method:'POST',headers:hdr(),body:JSON.stringify({className,subject,title,unitLabel,storagePath:ud.storagePath,sizeMb:+(f.size/1048576).toFixed(2)})});
     const cd=await cr.json();
-    if(cd.success){msg.innerHTML='<span class="ok">✅ Uploaded! Book is now live for teachers ('+esc(cd.book&&cd.book.class_name)+' · '+esc(cd.book&&cd.book.subject)+').</span>';document.getElementById('b_file').value='';document.getElementById('b_title').value='';document.getElementById('b_unit').value='';loadBooks();}
-    else msg.innerHTML='<span class="err">❌ '+esc(cd.error)+'</span>';
-  }catch(e){msg.innerHTML='<span class="err">❌ '+esc(e.message)+'</span>';}
+    progWrap.style.display='none';
+    if(cd.success){
+      msg.innerHTML='<span class="ok">✅ Uploaded! Book is now live for teachers ('+esc(cd.book&&cd.book.class_name)+' · '+esc(cd.book&&cd.book.subject)+').</span>';
+      document.getElementById('b_file').value='';document.getElementById('b_title').value='';
+      document.getElementById('b_unit_select').value='';document.getElementById('b_unit_custom').value='';onUnitSelectChange();
+      LAST_UPLOAD_ARGS=null;loadBooks();
+    }else msg.innerHTML='<span class="err">❌ '+esc(cd.error)+'</span>';
+  }catch(e){
+    progWrap.style.display='none';
+    msg.innerHTML='<span class="err">❌ '+esc(e.message)+'</span> <button onclick="runBookUpload()" style="margin-left:8px;background:var(--navy);padding:6px 14px;font-size:11px">🔄 Retry Upload</button>';
+  }
 }
 async function loadBooks(){
   try{
