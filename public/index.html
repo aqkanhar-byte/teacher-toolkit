@@ -1258,7 +1258,7 @@ function renderForm(){
     +'<div id="pageRangeRow" style="display:none;margin-top:10px;padding:12px;background:var(--white);border:1.5px solid var(--g200);border-radius:10px">'
       +'<div style="font-size:11.5px;font-weight:800;color:var(--g800);margin-bottom:8px" id="pageRangeInfo">📄 Loading page count...</div>'
       +'<div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-start">'
-        +'<canvas id="pagePreviewCanvas" style="max-width:130px;border:1px solid var(--g200);border-radius:6px;box-shadow:var(--sh-sm)"></canvas>'
+        +'<canvas id="pagePreviewCanvas" style="max-width:260px;border:1px solid var(--g200);border-radius:6px;box-shadow:var(--sh-sm)"></canvas>'
         +'<div style="flex:1;min-width:180px">'
           +'<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">'
             +'<input type="number" min="1" id="docPageFrom" placeholder="From" oninput="onPageRangeChange()" style="width:70px;padding:6px 9px;border:1.5px solid var(--g200);border-radius:8px;font-size:12px">'
@@ -1774,7 +1774,7 @@ async function renderPagePreview(pageNum){
     pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
     const pdf=await pdfjsLib.getDocument({data:BOOK_PDF_BYTES.slice()}).promise;
     const page=await pdf.getPage(Math.max(1,Math.min(pageNum,pdf.numPages)));
-    const viewport=page.getViewport({scale:0.45});
+    const viewport=page.getViewport({scale:0.9});
     canvas.width=viewport.width;canvas.height=viewport.height;
     await page.render({canvasContext:canvas.getContext('2d'),viewport}).promise;
   }catch(e){}
