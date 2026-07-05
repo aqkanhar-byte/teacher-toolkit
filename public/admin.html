@@ -275,8 +275,8 @@ async function activatePkg(){
       const label=isSub?(PKG_SELECTED.credits+' docs / '+PKG_SELECTED.days+' days'):('new balance: '+d.newBalance+' credits');
       msg.innerHTML='<span class="ok">✅ '+esc(PKG_SELECTED.name)+' activated for '+esc(d.name)+' — '+esc(label)+'</span>';
       const txt=isSub
-        ?('🎉 Assalam o Alaikum '+d.name+'! Aap ka Teacher Toolkit '+PKG_SELECTED.name+' subscription activate ho chuka hai:\n\n⭐ '+PKG_SELECTED.credits+' AI documents / '+PKG_SELECTED.days+' din\n\nAb aap turant AI documents generate kar sakte hain. Shukriya!')
-        :('🎉 Assalam o Alaikum '+d.name+'! Aap ka Teacher Toolkit package activate ho chuka hai:\n\n📦 '+PKG_SELECTED.name+' — '+PKG_SELECTED.credits+' AI documents\n💳 Naya balance: '+d.newBalance+' credits\n\nAb aap turant AI documents generate kar sakte hain. Shukriya!');
+        ?('🎉 Hello '+d.name+'! Your Teacher Toolkit '+PKG_SELECTED.name+' subscription is now active:\n\n⭐ '+PKG_SELECTED.credits+' AI documents / '+PKG_SELECTED.days+' days\n\nYou can generate AI documents right away. Thank you!')
+        :('🎉 Hello '+d.name+'! Your Teacher Toolkit package is now active:\n\n📦 '+PKG_SELECTED.name+' — '+PKG_SELECTED.credits+' AI documents\n💳 New balance: '+d.newBalance+' credits\n\nYou can generate AI documents right away. Thank you!');
       window.open('https://wa.me/'+cleanPh(phoneRaw)+'?text='+encodeURIComponent(txt),'_blank');
       selectPkg(-1);
       document.getElementById('pkg_orderId').value='';

@@ -8,6 +8,7 @@ const { cleanPhone } = require('../lib/phone');
 const { hashPin, checkPin } = require('../lib/pin');
 const { planActive, PLANS, PRICES, creditsForFile, LARGE_FILE_BYTES } = require('../lib/pricing');
 const { rlBlocked, rlHit, rateLimit } = require('../lib/rateLimit');
+const { pageRangeInstruction } = require('../lib/pageRange');
 
 test('cleanPhone: normalizes local formats to 92xxxxxxxxxx', () => {
   assert.equal(cleanPhone('0300-1234567'), '923001234567');
@@ -56,6 +57,14 @@ test('creditsForFile: small/typical uploads cost 1 credit, large attachments cos
   assert.equal(creditsForFile({ size: LARGE_FILE_BYTES }), 1, 'exactly at the threshold is still 1 credit');
   assert.equal(creditsForFile({ size: LARGE_FILE_BYTES + 1 }), 2, 'one byte over the threshold steps up to 2 credits');
   assert.equal(creditsForFile({ size: 20 * 1024 * 1024 }), 2, 'a near-max-size upload costs 2 credits');
+});
+
+test('pageRangeInstruction: empty when no range given, correct wording for from/to/both', () => {
+  assert.equal(pageRangeInstruction(undefined, undefined), '');
+  assert.equal(pageRangeInstruction('', ''), '');
+  assert.match(pageRangeInstruction(5, 12), /pages 5 to 12/);
+  assert.match(pageRangeInstruction(5, ''), /from 5 onward/);
+  assert.match(pageRangeInstruction('', 12), /up to 12/);
 });
 
 test('rate limiter: blocks after max hits within the window, resets after window elapses', () => {

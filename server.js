@@ -15,6 +15,7 @@ const { hashPin, checkPin } = require('./lib/pin');
 const { planActive, REFERRAL_CREDITS, PLANS, PRICES, creditsForFile } = require('./lib/pricing');
 const { logError } = require('./lib/logger');
 const { recordPayment, GATEWAYS } = require('./lib/payments');
+const { pageRangeInstruction } = require('./lib/pageRange');
 
 const app = express();
 app.disable('x-powered-by');
@@ -973,7 +974,7 @@ app.post('/generate-with-file', upload.single('file'), async (req, res) => {
 DETAILS:
 ${detailLines || '(none provided)'}
 
-SOURCE MATERIAL: A book/syllabus/document is attached. READ IT DEEPLY, word by word, page by page. The ${documentType} must be based EXACTLY and COMPLETELY on this attached content — its actual topics, vocabulary, exercises, and sequence. Do NOT invent content that is not in the source. If a unit/lesson range is specified in DETAILS, cover that range from the source; if "Full Book" is specified, cover the entire attached content.
+SOURCE MATERIAL: A book/syllabus/document is attached. READ IT DEEPLY, word by word, page by page. The ${documentType} must be based EXACTLY and COMPLETELY on this attached content — its actual topics, vocabulary, exercises, and sequence. Do NOT invent content that is not in the source. If a unit/lesson range is specified in DETAILS, cover that range from the source; if "Full Book" is specified, cover the entire attached content.${pageRangeInstruction(req.body.pageFrom, req.body.pageTo)}
 
 DOCUMENT INSTRUCTIONS: ${DOC_GUIDE[documentType] || 'Create a complete, professional, classroom-ready document.'}
 ${documentType === 'Lesson Plan' && /Full Book/i.test(fields.unitInfo || '') ? LP_BOOK_PATTERN : ''}${sloBlock}
@@ -1093,7 +1094,7 @@ ${detailLines || '(none provided)'}
 DOCUMENT INSTRUCTIONS: ${DOC_GUIDE[docType] || 'Create a complete, professional, classroom-ready document.'}
 ${sloBlock}
 LANGUAGE INSTRUCTION: ${resolveLangInstruction(language, fields)}
-${fileBlock ? 'SOURCE MATERIAL: A book/document is attached. READ IT DEEPLY, word by word. Base this document EXACTLY on its content — do NOT invent content not present in the source.' : ''}
+${fileBlock ? ('SOURCE MATERIAL: A book/document is attached. READ IT DEEPLY, word by word. Base this document EXACTLY on its content — do NOT invent content not present in the source.' + pageRangeInstruction(req.body.pageFrom, req.body.pageTo)) : ''}
 
 RULES:
 - Follow Sindh Textbook Board (STB) curriculum standards.
