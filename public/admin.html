@@ -62,6 +62,7 @@ td{padding:8px 10px;border-bottom:1px solid var(--g100)}
       <input type="tel" id="pkg_phone" placeholder="Teacher phone (03xx...)" oninput="lookupPhone('pkg_phone','pkgLookup')">
       <button onclick="activatePkg()" id="pkgBtn" style="background:var(--green)">🎁 Activate Package</button>
     </div>
+    <input type="text" id="pkg_orderId" placeholder="Easypaisa/JazzCash transaction ID (optional — prevents processing the same screenshot twice)" style="margin-top:8px">
     <div id="pkgLookup" style="font-size:11.5px;font-weight:700;margin-top:6px"></div>
     <div id="pkgMsg" style="margin-top:6px"></div>
   </div>
@@ -79,8 +80,16 @@ td{padding:8px 10px;border-bottom:1px solid var(--g100)}
       <button onclick="addCredits()" style="background:var(--green)">➕ Add Credits</button>
       <button onclick="removeCredits()" style="background:var(--red)">➖ Remove / Undo</button>
     </div>
+    <input type="text" id="c_orderId" placeholder="Easypaisa/JazzCash transaction ID (optional — prevents double-processing)" style="margin-top:8px">
     <div style="font-size:11px;color:var(--g600);margin-top:6px">💡 Made a mistake adding credits? Use <b>Remove / Undo</b> with the same phone + credit amount to reverse it — it never goes below 0 (check the balance shown above after clicking, to confirm it changed).</div>
     <div id="addMsg" style="margin-top:6px"></div>
+  </div>
+
+  <div class="card">
+    <h3>🛡️ Payment Audit Log (every gateway webhook this app has ever received)</h3>
+    <div style="font-size:11px;color:var(--g600);margin-bottom:8px">Currently empty by design — no payment gateway is wired in yet. Once one is, every webhook (accepted, rejected, or forged) will be logged here first, before any processing.</div>
+    <button onclick="loadWebhookLog()" style="background:var(--navy);font-size:11px;padding:8px 14px">↻ Refresh</button>
+    <div style="overflow-x:auto;margin-top:10px"><table><thead><tr><th>Gateway</th><th>Event</th><th>Signature</th><th>Processed</th><th>When</th></tr></thead><tbody id="webhookRows"><tr><td colspan="5" style="color:var(--g400)">Not loaded yet</td></tr></tbody></table></div>
   </div>
 
   <div class="card">
@@ -253,10 +262,11 @@ async function activatePkg(){
   msg.textContent='⏳ Activating...';
   try{
     const isSub=PKG_SELECTED._type==='subscription';
+    const orderId=(document.getElementById('pkg_orderId').value||'').trim()||undefined;
     const url=isSub?'/admin/add-subscription':'/admin/add-credits';
     const body=isSub
-      ?{phone:phoneRaw,days:PKG_SELECTED.days,quota:PKG_SELECTED.credits,amount_rs:PKG_SELECTED.rs,note:PKG_SELECTED.name+' (Rs.'+PKG_SELECTED.rs+')'}
-      :{phone:phoneRaw,credits:PKG_SELECTED.credits,amount_rs:PKG_SELECTED.rs,note:PKG_SELECTED.name+' package (Rs.'+PKG_SELECTED.rs+')'};
+      ?{phone:phoneRaw,days:PKG_SELECTED.days,quota:PKG_SELECTED.credits,amount_rs:PKG_SELECTED.rs,note:PKG_SELECTED.name+' (Rs.'+PKG_SELECTED.rs+')',orderId}
+      :{phone:phoneRaw,credits:PKG_SELECTED.credits,amount_rs:PKG_SELECTED.rs,note:PKG_SELECTED.name+' package (Rs.'+PKG_SELECTED.rs+')',orderId};
     const r=await fetch(url,{method:'POST',headers:hdr(),body:JSON.stringify(body)});
     const d=await r.json();
     if(d.success){
@@ -267,6 +277,7 @@ async function activatePkg(){
         :('🎉 Assalam o Alaikum '+d.name+'! Aap ka Teacher Toolkit package activate ho chuka hai:\n\n📦 '+PKG_SELECTED.name+' — '+PKG_SELECTED.credits+' AI documents\n💳 Naya balance: '+d.newBalance+' credits\n\nAb aap turant AI documents generate kar sakte hain. Shukriya!');
       window.open('https://wa.me/'+cleanPh(phoneRaw)+'?text='+encodeURIComponent(txt),'_blank');
       selectPkg(-1);
+      document.getElementById('pkg_orderId').value='';
       await load();
       lookupPhone('pkg_phone','pkgLookup');
     } else msg.innerHTML='<span class="err">❌ '+esc(d.error)+'</span>';
@@ -295,6 +306,16 @@ async function showFullReport(){
       +(d.firstRegistration?'<div style="margin-top:8px;font-size:11px;color:var(--g600)">First registration: '+new Date(d.firstRegistration).toLocaleDateString()+'</div>':'')
       +(rows?'<table style="margin-top:10px"><thead><tr><th>Package/Note</th><th>Count</th><th>Revenue</th></tr></thead><tbody>'+rows+'</tbody></table>':'');
   }catch(e){box.innerHTML='<span class="err">'+esc(e.message)+'</span>';}
+}
+async function loadWebhookLog(){
+  const tbody=document.getElementById('webhookRows');
+  tbody.innerHTML='<tr><td colspan="5" style="color:var(--g400)">⏳ Loading...</td></tr>';
+  try{
+    const r=await fetch('/admin/webhook-log',{headers:hdr()});const d=await r.json();
+    if(!d.success){tbody.innerHTML='<tr><td colspan="5" class="err">Could not load</td></tr>';return;}
+    if(!d.events.length){tbody.innerHTML='<tr><td colspan="5" style="color:var(--g400)">No webhook events yet — expected until a payment gateway is connected.</td></tr>';return;}
+    tbody.innerHTML=d.events.map(e=>'<tr><td><b>'+esc(e.gateway)+'</b></td><td>'+esc(e.event_type||'—')+'</td><td>'+(e.signature_valid?'<span class="ok">✓ valid</span>':'<span class="err">✗ invalid</span>')+'</td><td>'+(e.processed?'✅':(e.error?'❌ '+esc(e.error):'⏳'))+'</td><td>'+new Date(e.created_at).toLocaleString()+'</td></tr>').join('');
+  }catch(e){tbody.innerHTML='<tr><td colspan="5" class="err">'+esc(e.message)+'</td></tr>';}
 }
 async function login(){
   localStorage.setItem('tt_admin',document.getElementById('pw').value.trim());
@@ -345,10 +366,11 @@ async function addCredits(){
       phone:document.getElementById('c_phone').value,
       credits:document.getElementById('c_credits').value,
       amount_rs:document.getElementById('c_amount').value,
-      note:document.getElementById('c_note').value
+      note:document.getElementById('c_note').value,
+      orderId:(document.getElementById('c_orderId').value||'').trim()||undefined
     })});
     const d=await r.json();
-    if(d.success){msg.innerHTML='<span class="ok">✅ Credits added to '+esc(d.name)+' — new balance: <b>'+esc(d.newBalance)+'</b></span>';['c_credits','c_amount','c_note'].forEach(i=>document.getElementById(i).value='');await load();lookupPhone('c_phone','cLookup');}
+    if(d.success){msg.innerHTML='<span class="ok">✅ Credits added to '+esc(d.name)+' — new balance: <b>'+esc(d.newBalance)+'</b></span>';['c_credits','c_amount','c_note','c_orderId'].forEach(i=>document.getElementById(i).value='');await load();lookupPhone('c_phone','cLookup');}
     else msg.innerHTML='<span class="err">❌ '+esc(d.error)+'</span>';
   }catch(e){msg.innerHTML='<span class="err">❌ Network error</span>';}
 }

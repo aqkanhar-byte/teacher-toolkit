@@ -14,6 +14,7 @@ const { cleanPhone } = require('./lib/phone');
 const { hashPin, checkPin } = require('./lib/pin');
 const { planActive, REFERRAL_CREDITS, PLANS, PRICES } = require('./lib/pricing');
 const { logError } = require('./lib/logger');
+const { recordPayment, GATEWAYS } = require('./lib/payments');
 
 const app = express();
 app.disable('x-powered-by');
@@ -33,7 +34,10 @@ app.use(require('cors')({
     cb(null, ok);
   }
 }));
-app.use(express.json({ limit: '25mb' }));
+/* verify callback keeps the raw request bytes on req.rawBody — needed for webhook signature
+   checks, since re-serializing a parsed JSON body isn't guaranteed to match what was signed.
+   No effect on any existing route; everything else still just uses req.body as before. */
+app.use(express.json({ limit: '25mb', verify: (req, res, buf) => { req.rawBody = buf; } }));
 app.use(express.urlencoded({ limit: '25mb', extended: true }));
 /* ── HTTPS enforcement (Render handles www↔apex redirect at infra level) ── */
 app.use((req, res, next) => {
@@ -347,6 +351,11 @@ app.get('/admin/full-report', async (req, res) => {
     resetAt: await statsResetAt()
   });
 });
+app.get('/admin/webhook-log', async (req, res) => {
+  if (!adminGate(req, res)) return;
+  const { data } = await sb.from('tt_webhook_events').select('*').order('created_at', { ascending: false }).limit(200);
+  res.json({ success: true, events: data || [] });
+});
 app.post('/admin/reset-pin', async (req, res) => {
   if (!adminGate(req, res)) return;
   const phone = cleanPhone(req.body.phone);
@@ -364,12 +373,17 @@ app.post('/admin/add-subscription', async (req, res) => {
   const days = parseInt(req.body.days) || 30;
   const quota = parseInt(req.body.quota) || 60;
   const amount = parseInt(req.body.amount_rs) || 0;
+  const orderId = req.body.orderId ? String(req.body.orderId).trim() : null; /* optional — e.g. the Easypaisa transaction ID, prevents double-processing the same screenshot */
   if (!phone) return res.json({ success: false, error: 'Enter a valid phone' });
   const { data: user } = await sb.from('tt_users').select('*').eq('phone', phone).maybeSingle();
   if (!user) return res.json({ success: false, error: 'This number is not registered: ' + phone });
+  const { duplicate } = await recordPayment(sb, {
+    userId: user.id, gateway: 'manual', gatewayTransactionId: orderId, orderId,
+    amountRs: amount, credits: quota, note: 'Monthly Pro ' + days + 'd (' + (req.body.note || 'Easypaisa') + ')'
+  });
+  if (duplicate) return res.json({ success: false, error: 'This order/reference was already processed — no changes made (idempotency protection).' });
   const expires = new Date(Date.now() + days * 86400000).toISOString();
-  await sb.from('tt_users').update({ plan: 'Monthly Pro', plan_quota: quota, plan_used: 0, plan_expires: expires }).eq('id', user.id);
-  await sb.from('tt_transactions').insert({ user_id: user.id, credits: quota, amount_rs: amount, note: 'Monthly Pro ' + days + 'd (' + (req.body.note || 'Easypaisa') + ')' });
+  await sb.from('tt_users').update({ plan: 'Monthly Pro', plan_quota: quota, plan_used: 0, plan_expires: expires, subscription_status: 'active', billing_cycle: days >= 300 ? 'yearly' : 'monthly' }).eq('id', user.id);
   res.json({ success: true, name: user.name, expires });
 });
 app.post('/admin/add-credits', async (req, res) => {
@@ -377,11 +391,16 @@ app.post('/admin/add-credits', async (req, res) => {
   const phone = cleanPhone(req.body.phone);
   const credits = parseInt(req.body.credits) || 0;
   const amount = parseInt(req.body.amount_rs) || 0;
+  const orderId = req.body.orderId ? String(req.body.orderId).trim() : null;
   if (!phone || credits <= 0) return res.json({ success: false, error: 'Enter a valid phone and credits' });
   const { data: user } = await sb.from('tt_users').select('*').eq('phone', phone).maybeSingle();
   if (!user) return res.json({ success: false, error: 'This number is not registered: ' + phone });
+  const { duplicate } = await recordPayment(sb, {
+    userId: user.id, gateway: 'manual', gatewayTransactionId: orderId, orderId,
+    amountRs: amount, credits, note: req.body.note || 'Easypaisa manual'
+  });
+  if (duplicate) return res.json({ success: false, error: 'This order/reference was already processed — no changes made (idempotency protection).' });
   await sb.from('tt_users').update({ credits: user.credits + credits }).eq('id', user.id);
-  await sb.from('tt_transactions').insert({ user_id: user.id, credits, amount_rs: amount, note: req.body.note || 'Easypaisa manual' });
   res.json({ success: true, name: user.name, newBalance: user.credits + credits });
 });
 /* Undo/correct an accidental Add Credits — subtracts, clamped at 0, logged as a negative transaction */
@@ -396,6 +415,49 @@ app.post('/admin/remove-credits', async (req, res) => {
   await sb.from('tt_users').update({ credits: newBalance }).eq('id', user.id);
   await sb.from('tt_transactions').insert({ user_id: user.id, credits: -(user.credits - newBalance), amount_rs: 0, note: req.body.note || 'Manual correction' });
   res.json({ success: true, name: user.name, newBalance });
+});
+
+/* ─── PAYMENT GATEWAY WEBHOOKS (generic receiver — no real gateway wired in yet) ───────────
+   Every webhook, from any gateway, lands here first. Rate-limited generously (gateways retry
+   on non-2xx), logged to tt_webhook_events BEFORE anything else — so even forged/rejected
+   attempts are visible in an audit trail — then handed to that gateway's adapter (lib/payments.js
+   GATEWAYS registry) for signature verification and processing. Until a real gateway is
+   registered there, every call safely 501s: this never pretends to accept a payment it can't
+   actually verify. */
+app.post('/webhooks/payment/:gateway', async (req, res) => {
+  if (!rateLimit('webhook:' + req.ip, 60, 10 * 60 * 1000)) return tooMany(res);
+  const gateway = req.params.gateway;
+  let logId = null;
+  if (sb) {
+    const { data } = await sb.from('tt_webhook_events').insert({ gateway, payload: req.body || {}, signature_valid: false, processed: false }).select('id').maybeSingle();
+    logId = data ? data.id : null;
+  }
+  const adapter = GATEWAYS[gateway];
+  if (!adapter) {
+    logError('webhook-unregistered-gateway', new Error('No adapter configured for gateway: ' + gateway));
+    if (sb && logId) await sb.from('tt_webhook_events').update({ error: 'No adapter configured' }).eq('id', logId);
+    return res.status(501).json({ success: false, error: 'This payment gateway is not yet configured on the server.' });
+  }
+  try {
+    const result = await adapter.verifyWebhook(req);
+    if (sb && logId) await sb.from('tt_webhook_events').update({ signature_valid: !!result.valid, event_type: result.eventType || null }).eq('id', logId);
+    if (!result.valid) return res.status(401).json({ success: false, error: 'Invalid webhook signature' });
+    const { data: user } = result.userId ? await sb.from('tt_users').select('*').eq('id', result.userId).maybeSingle() : { data: null };
+    if (user) {
+      const { duplicate } = await recordPayment(sb, {
+        userId: user.id, gateway, gatewayTransactionId: result.gatewayTransactionId, orderId: result.orderId,
+        amountRs: result.amountRs, credits: result.credits, status: 'completed', metadata: result.raw,
+        note: gateway + ' payment'
+      });
+      if (!duplicate && result.credits) await sb.from('tt_users').update({ credits: user.credits + result.credits }).eq('id', user.id);
+    }
+    if (sb && logId) await sb.from('tt_webhook_events').update({ processed: true }).eq('id', logId);
+    res.json({ success: true });
+  } catch (e) {
+    logError('webhook-processing', e, { gateway });
+    if (sb && logId) await sb.from('tt_webhook_events').update({ error: e.message }).eq('id', logId);
+    res.status(500).json({ success: false });
+  }
 });
 
 const storage = multer.diskStorage({
