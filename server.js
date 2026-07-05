@@ -512,18 +512,19 @@ const upload = multer({
 /* Book Bank uploads are complete official textbooks (ECCE–Class 12), not the "few pages at a
    time" the AI-facing routes expect — a much higher ceiling, separate from the limit above.
    NOTE: Supabase Storage's own per-file limit (plan-dependent, commonly 50MB on the free tier)
-   can still reject a file even under this 200MB cap — that's a Supabase project setting, not
-   something this server controls. */
+   can still reject a file even under this 500MB cap — that's a Supabase project setting, not
+   something this server controls. Cropping/AI reading stays capped at ~20MB regardless — see
+   the page-range picker in the teacher-facing upload flow. */
 const uploadBook = multer({
   storage,
-  limits: { fileSize: 200 * 1024 * 1024 },
+  limits: { fileSize: 500 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     const ok = /\.(pdf|png|jpe?g|webp|gif)$/i.test(file.originalname || '');
     cb(ok ? null : new Error('Only PDF or image files (JPG, PNG, WEBP, GIF) are allowed.'), ok);
   }
 });
 
-/* ═══════════════ BOOK BANK (Supabase Storage — curated STB books) ═══════════════ */
+/* ═══════════════ BOOK BANK (Supabase Storage — curated STBB books) ═══════════════ */
 app.get('/books', async (req, res) => {
   if (!sb) return res.json({ success: true, books: [] });
   let q = sb.from('tt_books').select('id,class_name,subject,title,unit_label,size_mb').order('created_at', { ascending: false });
@@ -682,7 +683,7 @@ ACTUAL FEATURES (do not invent or guess beyond this — if unsure, say so and su
 - Sidebar → pick a document type (Lesson Plan, Worksheet, Exam Paper, Certificates, Result Card, etc.) → fill a short form → Generate → download Word/PDF or share on WhatsApp.
 - Certificates, Result Cards, Attendance Sheets are instant and always free (no AI, no login).
 - Other documents use AI and cost 1 credit each (new accounts get 1 free credit).
-- Book Bank: a library of curated official Sindh Textbook Board (STB) PDFs the teacher can select from a dropdown (by Class + Subject) instead of uploading their own file — it is NOT a student book-lending/inventory tracker.
+- Book Bank: a library of curated official Sindh Textbook Board (STBB) PDFs the teacher can select from a dropdown (by Class + Subject) instead of uploading their own file — it is NOT a student book-lending/inventory tracker.
 - Auto-Detect: when a teacher uploads a book photo/page, the AI reads it and suggests the Class/Subject/Unit automatically (a small banner appears with an Apply button).
 - Weekly Pack: one click generates a Lesson Plan + Worksheet + Homework Sheet together for one unit (costs 3 credits).
 - Student Database: save students once (or import Excel/CSV), then auto-fill any student document from it.
@@ -936,7 +937,7 @@ ${documentType === 'Lesson Plan' && /Full Book/i.test(fields.unitInfo || '') ? L
 LANGUAGE INSTRUCTION: ${resolveLangInstruction(language, fields)}
 
 RULES:
-- Follow Sindh Textbook Board (STB) curriculum standards and Sindh Education & Literacy Department conventions.
+- Follow Sindh Textbook Board (STBB) curriculum standards and Sindh Education & Literacy Department conventions.
 - Use ONLY the details provided above. Do NOT invent or include any student names, school names, or personal details that were not provided.
 - Use markdown headings (#, ##, ###) and pipe tables (| col | col |) where a table improves clarity.
 - Generate COMPLETE content — no placeholders like [insert here].`;
@@ -1006,7 +1007,7 @@ ${documentType === 'Lesson Plan' && /Full Book/i.test(fields.unitInfo || '') ? L
 LANGUAGE INSTRUCTION: ${resolveLangInstruction(language, fields)}
 
 RULES:
-- Follow Sindh Textbook Board (STB) curriculum standards.
+- Follow Sindh Textbook Board (STBB) curriculum standards.
 - Use ONLY the details provided. Do NOT include any student personal details unless provided.
 - Use markdown headings (#, ##, ###) and pipe tables (| col | col |) where a table improves clarity.
 - Generate COMPLETE content — no placeholders.`;
@@ -1122,7 +1123,7 @@ LANGUAGE INSTRUCTION: ${resolveLangInstruction(language, fields)}
 ${fileBlock ? ('SOURCE MATERIAL: A book/document is attached. READ IT DEEPLY, word by word. Base this document EXACTLY on its content — do NOT invent content not present in the source.' + pageRangeInstruction(req.body.pageFrom, req.body.pageTo)) : ''}
 
 RULES:
-- Follow Sindh Textbook Board (STB) curriculum standards.
+- Follow Sindh Textbook Board (STBB) curriculum standards.
 - Use ONLY the details provided above. Do NOT invent student/school personal details not provided.
 - Use markdown headings (#, ##, ###) and pipe tables where a table improves clarity.
 - Generate COMPLETE content — no placeholders.`;

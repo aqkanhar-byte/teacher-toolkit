@@ -95,12 +95,12 @@ td{padding:8px 10px;border-bottom:1px solid var(--g100)}
   </div>
 
   <div class="card">
-    <h3>📚 Book Bank — Upload curated STB books (teachers select these, no upload needed)</h3>
+    <h3>📚 Book Bank — Upload curated STBB books (teachers select these, no upload needed)</h3>
     <div style="font-size:11px;color:var(--g600);margin-bottom:8px">Class aur Subject <b>dropdown se hi</b> chunein — teacher app mein book tabhi dikhegi jab class + subject bilkul match karein.</div>
     <div class="row">
       <select id="b_class" onchange="fillBookSubjects()"></select>
       <select id="b_subject"></select>
-      <input type="text" id="b_title" placeholder="Book title (e.g. My English Book 1 — STB 2023)">
+      <input type="text" id="b_title" placeholder="Book title (e.g. My English Book 1 — STBB 2023)">
     </div>
     <div class="row" style="grid-template-columns:1fr 1fr 1fr">
       <input type="text" id="b_unit" placeholder="Unit label (optional, e.g. Unit 3)">
@@ -166,8 +166,8 @@ async function uploadBook(){
   const msg=document.getElementById('bookMsg');msg.textContent='';
   const f=document.getElementById('b_file').files[0];
   if(!f){msg.innerHTML='<span class="err">Select a PDF/image file</span>';return;}
-  if(f.size>200*1024*1024){msg.innerHTML='<span class="err">Max 200MB per book — split into smaller volumes if larger</span>';return;}
-  if(f.size>20*1024*1024)msg.innerHTML='<span style="color:var(--gold)">ℹ️ This book is over 20MB — that\'s fine for Book Bank storage. Teachers generating from it will need to select a page range (AI can only read ~20MB at a time).</span>';
+  if(f.size>500*1024*1024){msg.innerHTML='<span class="err">Max 500MB per book — split into smaller volumes if larger</span>';return;}
+  if(f.size>20*1024*1024)msg.innerHTML='<span style="color:var(--gold)">ℹ️ This book is over 20MB — that\'s fine for Book Bank storage. Teachers generating from it will select a page range when they use it (AI can only read/crop ~20MB at a time).</span>';
   const fd=new FormData();
   fd.append('file',f);
   fd.append('className',document.getElementById('b_class').value);
@@ -185,7 +185,7 @@ async function uploadBook(){
 async function loadBooks(){
   try{
     const r=await fetch('/books');const d=await r.json();
-    document.getElementById('bookRows').innerHTML=(d.books||[]).map(b=>'<tr><td>'+esc(b.class_name)+'</td><td>'+esc(b.subject)+'</td><td><b>'+esc(b.title)+'</b></td><td>'+esc(b.unit_label||'—')+'</td><td>'+esc(b.size_mb)+'MB</td><td><button style="background:var(--red);padding:5px 12px;font-size:11px" onclick="delBook(\''+esc(b.id)+'\')">Del</button></td></tr>').join('')||'<tr><td colspan="6" style="color:var(--g400)">No books yet — upload unit-wise STB PDFs above.</td></tr>';
+    document.getElementById('bookRows').innerHTML=(d.books||[]).map(b=>'<tr><td>'+esc(b.class_name)+'</td><td>'+esc(b.subject)+'</td><td><b>'+esc(b.title)+'</b></td><td>'+esc(b.unit_label||'—')+'</td><td>'+esc(b.size_mb)+'MB</td><td><button style="background:var(--red);padding:5px 12px;font-size:11px" onclick="delBook(\''+esc(b.id)+'\')">Del</button></td></tr>').join('')||'<tr><td colspan="6" style="color:var(--g400)">No books yet — upload unit-wise STBB PDFs above.</td></tr>';
   }catch(e){}
 }
 async function delBook(id){
