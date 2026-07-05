@@ -123,6 +123,23 @@ td{padding:8px 10px;border-bottom:1px solid var(--g100)}
   </div>
 
   <div class="card">
+    <h3>📁 Bulk Upload — whole folder at once (AI detects Class/Subject for each book)</h3>
+    <div style="font-size:11px;color:var(--g600);margin-bottom:10px">Pick an entire folder of books. For each one, the AI reads the first page to detect Class + Subject, and the title comes from the filename — then it's compressed/split/uploaded automatically, one after another, no clicking per book. Anything the AI can't confidently match to your Class/Subject lists is skipped and listed at the end for manual upload.</div>
+    <div class="row" style="grid-template-columns:2fr 1fr">
+      <input type="file" id="b_bulk_files" multiple accept=".pdf,image/*" webkitdirectory style="padding:8px">
+      <button onclick="bulkUploadBooks()" id="bulkBtn">📦 Start Bulk Upload</button>
+    </div>
+    <div id="bulkProgressWrap" style="display:none;margin-top:10px">
+      <div style="background:var(--g100);border-radius:8px;height:12px;overflow:hidden">
+        <div id="bulkProgressBar" style="background:var(--green);height:100%;width:0%;transition:width .15s;border-radius:8px"></div>
+      </div>
+      <div id="bulkProgressText" style="font-size:11.5px;color:var(--g600);margin-top:5px;font-weight:700"></div>
+    </div>
+    <div id="bulkMsg" style="margin-top:8px"></div>
+    <div id="bulkResults" style="margin-top:10px"></div>
+  </div>
+
+  <div class="card">
     <h3>🎯 SLO Bank — official curriculum SLOs (AI in par lock hota hai)</h3>
     <div class="row" style="grid-template-columns:1fr 1fr">
       <select id="sl_class" onchange="fillSloSubjects()"></select>
@@ -379,6 +396,75 @@ async function splitAndUploadBook(pdf,totalPages,wholeCompressedSize,className,s
   msg.innerHTML='<span class="ok">✅ All '+parts.length+' parts uploaded! Teachers will see "'+esc(title)+' — Part 1 of '+parts.length+'" through "Part '+parts.length+' of '+parts.length+'" in the Book Bank.</span>';
   document.getElementById('b_file').value='';document.getElementById('b_title').value='';
   document.getElementById('b_unit_select').value='';document.getElementById('b_unit_custom').value='';onUnitSelectChange();
+  loadBooks();
+}
+/* ═══════════ BULK UPLOAD — whole folder, AI detects Class/Subject per book ═══════════ */
+function deriveTitleFromFilename(name){
+  return name.replace(/\.[^.]+$/,'').replace(/[_\-]+/g,' ').replace(/\s+/g,' ').trim()
+    .replace(/\b\w/g,c=>c.toUpperCase());
+}
+function matchClassName(detected){
+  const d=String(detected||'').toLowerCase().trim();
+  return CLASS_LIST.find(c=>c.toLowerCase()===d)||null;
+}
+function matchSubjectName(cls,detected){
+  const d=String(detected||'').toLowerCase().trim();
+  const subs=allSubjectsFor(cls)||[];
+  return subs.find(s=>s.toLowerCase()===d)||null;
+}
+async function bulkUploadBooks(){
+  const input=document.getElementById('b_bulk_files');
+  const files=[...input.files].filter(f=>f.type==='application/pdf'||/\.(pdf|png|jpe?g|webp)$/i.test(f.name));
+  const bulkMsg=document.getElementById('bulkMsg'),results=document.getElementById('bulkResults');
+  const progWrap=document.getElementById('bulkProgressWrap'),bar=document.getElementById('bulkProgressBar'),ptext=document.getElementById('bulkProgressText');
+  if(!files.length){bulkMsg.innerHTML='<span class="err">Select a folder with at least one PDF/image book</span>';return;}
+  document.getElementById('bulkBtn').disabled=true;
+  bulkMsg.innerHTML='📁 Found <b>'+files.length+'</b> books — starting bulk upload...';
+  results.innerHTML='';
+  const done=[],skipped=[];
+  const BOOK_SIZE_LIMIT=48*1024*1024;
+  for(let i=0;i<files.length;i++){
+    const f=files[i];
+    progWrap.style.display='block';
+    bar.style.width=Math.round((i/files.length)*100)+'%';
+    ptext.textContent='Book '+(i+1)+'/'+files.length+': '+f.name+' — detecting Class/Subject...';
+    try{
+      const fd=new FormData();fd.append('file',f);
+      const dr=await fetch('/detect-book',{method:'POST',body:fd});
+      const dd=await dr.json();
+      const cls=dd.success?matchClassName(dd.className):null;
+      const subj=cls?matchSubjectName(cls,dd.subject):null;
+      if(!cls||!subj){
+        skipped.push({name:f.name,reason:!dd.success?(dd.error||'AI could not read this file'):('Detected "'+esc(dd.className||'?')+' / '+esc(dd.subject||'?')+'" — doesn\'t match a known Class/Subject exactly')});
+        continue;
+      }
+      const title=deriveTitleFromFilename(f.name);
+      ptext.textContent='Book '+(i+1)+'/'+files.length+': '+f.name+' — '+cls+' / '+subj+' — preparing...';
+      let uploadFile=f;
+      if(f.size>BOOK_SIZE_LIMIT&&(f.type==='application/pdf'||/\.pdf$/i.test(f.name))){
+        const result=await compressBookForUpload(f,BOOK_SIZE_LIMIT,(s)=>{ptext.textContent='Book '+(i+1)+'/'+files.length+': '+f.name+' — compressing '+s+'...';});
+        if(!result.fits){
+          await splitAndUploadBook(result.pdf,result.totalPages,result.blob.size,cls,subj,title,'',BOOK_SIZE_LIMIT);
+          done.push({name:f.name,cls,subj,title,note:'split into parts'});
+          continue;
+        }
+        uploadFile=result.file;
+      }
+      const res=await uploadOnePart(uploadFile,cls,subj,title,'','Book '+(i+1)+'/'+files.length+' — ');
+      if(res.success)done.push({name:f.name,cls,subj,title,note:''});
+      else skipped.push({name:f.name,reason:res.error});
+    }catch(e){skipped.push({name:f.name,reason:e.message});}
+  }
+  progWrap.style.display='none';
+  bulkMsg.innerHTML='<span class="ok">✅ Bulk upload finished — '+done.length+'/'+files.length+' books uploaded'+(skipped.length?(', '+skipped.length+' need manual review below'):'')+'.</span>';
+  let html='';
+  if(done.length)html+='<div style="font-size:11px;font-weight:800;color:var(--green);margin-bottom:4px">✅ Uploaded ('+done.length+')</div><table><thead><tr><th>File</th><th>Class</th><th>Subject</th><th>Title</th></tr></thead><tbody>'
+    +done.map(d=>'<tr><td>'+esc(d.name)+'</td><td>'+esc(d.cls)+'</td><td>'+esc(d.subj)+'</td><td>'+esc(d.title)+(d.note?' <i>('+esc(d.note)+')</i>':'')+'</td></tr>').join('')+'</tbody></table>';
+  if(skipped.length)html+='<div style="font-size:11px;font-weight:800;color:var(--red);margin:10px 0 4px">⚠️ Needs manual upload ('+skipped.length+')</div><table><thead><tr><th>File</th><th>Reason</th></tr></thead><tbody>'
+    +skipped.map(s=>'<tr><td>'+esc(s.name)+'</td><td>'+esc(s.reason)+'</td></tr>').join('')+'</tbody></table>';
+  results.innerHTML=html;
+  document.getElementById('bulkBtn').disabled=false;
+  input.value='';
   loadBooks();
 }
 async function loadBooks(){
