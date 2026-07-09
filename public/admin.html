@@ -424,12 +424,16 @@ function deriveTitleFromFilename(name){
   return name.replace(/\.[^.]+$/,'').replace(/[_\-]+/g,' ').replace(/\s+/g,' ').trim()
     .replace(/\b\w/g,c=>c.toUpperCase());
 }
+function stripParenthetical(s){
+  // Claude sometimes appends a translation in parens, e.g. "Mathematics (Riyazi)" — strip it before matching
+  return String(s||'').replace(/\s*[\(（][^)）]*[\)）]\s*/g,' ').trim();
+}
 function matchClassName(detected){
-  const d=String(detected||'').toLowerCase().trim();
+  const d=stripParenthetical(detected).toLowerCase();
   return CLASS_LIST.find(c=>c.toLowerCase()===d)||null;
 }
 function matchSubjectName(cls,detected){
-  const d=String(detected||'').toLowerCase().trim();
+  const d=stripParenthetical(detected).toLowerCase();
   const subs=allSubjectsFor(cls)||[];
   return subs.find(s=>s.toLowerCase()===d)||null;
 }
@@ -461,7 +465,7 @@ async function bulkUploadBooks(){
       const cls=dd.success?matchClassName(dd.className):null;
       const subj=cls?matchSubjectName(cls,dd.subject):null;
       if(!cls||!subj){
-        skipped.push({name:f.name,reason:!dd.success?(dd.error||'AI could not read this file'):('Detected "'+esc(dd.className||'?')+' / '+esc(dd.subject||'?')+'" — doesn\'t match a known Class/Subject exactly')});
+        skipped.push({file:f,name:f.name,detClass:dd.className||'',detSubject:dd.subject||'',reason:!dd.success?(dd.error||'AI could not read this file'):('Detected "'+esc(dd.className||'?')+' / '+esc(dd.subject||'?')+'" — doesn\'t match a known Class/Subject exactly')});
         continue;
       }
       const title=deriveTitleFromFilename(f.name);
@@ -478,20 +482,75 @@ async function bulkUploadBooks(){
       }
       const res=await uploadOnePart(uploadFile,cls,subj,title,'','Book '+(i+1)+'/'+files.length+' — ');
       if(res.success)done.push({name:f.name,cls,subj,title,note:''});
-      else skipped.push({name:f.name,reason:res.error});
-    }catch(e){skipped.push({name:f.name,reason:e.message});}
+      else skipped.push({file:f,name:f.name,detClass:cls,detSubject:subj,reason:res.error});
+    }catch(e){skipped.push({file:f,name:f.name,detClass:'',detSubject:'',reason:e.message});}
   }
   progWrap.style.display='none';
   bulkMsg.innerHTML='<span class="ok">✅ Bulk upload finished — '+done.length+'/'+files.length+' books uploaded'+(skipped.length?(', '+skipped.length+' need manual review below'):'')+'.</span>';
+  BULK_SKIPPED=skipped;
   let html='';
   if(done.length)html+='<div style="font-size:11px;font-weight:800;color:var(--green);margin-bottom:4px">✅ Uploaded ('+done.length+')</div><table><thead><tr><th>File</th><th>Class</th><th>Subject</th><th>Title</th></tr></thead><tbody>'
     +done.map(d=>'<tr><td>'+esc(d.name)+'</td><td>'+esc(d.cls)+'</td><td>'+esc(d.subj)+'</td><td>'+esc(d.title)+(d.note?' <i>('+esc(d.note)+')</i>':'')+'</td></tr>').join('')+'</tbody></table>';
-  if(skipped.length)html+='<div style="font-size:11px;font-weight:800;color:var(--red);margin:10px 0 4px">⚠️ Needs manual upload ('+skipped.length+')</div><table><thead><tr><th>File</th><th>Reason</th></tr></thead><tbody>'
-    +skipped.map(s=>'<tr><td>'+esc(s.name)+'</td><td>'+esc(s.reason)+'</td></tr>').join('')+'</tbody></table>';
+  if(skipped.length)html+='<div style="font-size:11px;font-weight:800;color:var(--red);margin:10px 0 4px">⚠️ Needs manual review ('+skipped.length+') — fix Class/Subject below and upload individually</div><table><thead><tr><th>File</th><th>Reason</th><th>Class</th><th>Subject</th><th></th></tr></thead><tbody>'
+    +skipped.map((s,si)=>{
+      const guessCls=matchClassName(s.detClass)||CLASS_LIST[0];
+      const guessSubj=matchSubjectName(guessCls,s.detSubject)||(allSubjectsFor(guessCls)||[])[0]||'';
+      return '<tr id="bxRow_'+si+'"><td>'+esc(s.name)+'</td><td>'+esc(s.reason)+'</td>'
+        +'<td><select id="bxCls_'+si+'" onchange="onBulkFixClassChange('+si+')">'+bulkFixClassOptions(guessCls)+'</select></td>'
+        +'<td><select id="bxSubj_'+si+'">'+bulkFixSubjectOptions(guessCls,guessSubj)+'</select></td>'
+        +'<td><button id="bxBtn_'+si+'" style="padding:5px 12px;font-size:11px" onclick="retryBulkFix('+si+')">Upload</button></td></tr>';
+    }).join('')+'</tbody></table>';
   results.innerHTML=html;
   document.getElementById('bulkBtn').disabled=false;
   input.value='';
   loadBooks();
+}
+let BULK_SKIPPED=[];
+function bulkFixClassOptions(sel){
+  return CLASS_LIST.map(c=>'<option value="'+esc(c)+'"'+(c===sel?' selected':'')+'>'+esc(c)+'</option>').join('');
+}
+function bulkFixSubjectOptions(cls,sel){
+  return (allSubjectsFor(cls)||[]).map(s=>'<option value="'+esc(s)+'"'+(s===sel?' selected':'')+'>'+esc(s)+'</option>').join('');
+}
+function onBulkFixClassChange(i){
+  const cls=document.getElementById('bxCls_'+i).value;
+  document.getElementById('bxSubj_'+i).innerHTML=bulkFixSubjectOptions(cls,'');
+}
+async function retryBulkFix(i){
+  const item=BULK_SKIPPED[i];
+  if(!item||!item.file)return;
+  const cls=document.getElementById('bxCls_'+i).value;
+  const subj=document.getElementById('bxSubj_'+i).value;
+  const row=document.getElementById('bxRow_'+i);
+  const btn=document.getElementById('bxBtn_'+i);
+  btn.disabled=true;btn.textContent='Uploading...';
+  const BOOK_SIZE_LIMIT=48*1024*1024;
+  try{
+    const f=item.file;
+    const title=deriveTitleFromFilename(f.name);
+    let uploadFile=f;
+    if(f.size>BOOK_SIZE_LIMIT&&(f.type==='application/pdf'||/\.pdf$/i.test(f.name))){
+      const result=await compressBookForUpload(f,BOOK_SIZE_LIMIT,(s)=>{btn.textContent='Compressing '+s+'...';});
+      if(!result.fits){
+        await splitAndUploadBook(result.pdf,result.totalPages,result.blob.size,cls,subj,title,'',BOOK_SIZE_LIMIT);
+        row.innerHTML='<td colspan="5"><span class="ok">✅ '+esc(f.name)+' — uploaded as '+esc(cls)+' / '+esc(subj)+' (split into parts)</span></td>';
+        loadBooks();
+        return;
+      }
+      uploadFile=result.file;
+    }
+    const res=await uploadOnePart(uploadFile,cls,subj,title,'','');
+    if(res.success){
+      row.innerHTML='<td colspan="5"><span class="ok">✅ '+esc(f.name)+' — uploaded as '+esc(cls)+' / '+esc(subj)+'</span></td>';
+      loadBooks();
+    }else{
+      btn.disabled=false;btn.textContent='Upload';
+      alert('Upload failed: '+(res.error||'unknown error'));
+    }
+  }catch(e){
+    btn.disabled=false;btn.textContent='Upload';
+    alert('Upload failed: '+e.message);
+  }
 }
 async function loadBooks(){
   try{
