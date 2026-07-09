@@ -554,7 +554,7 @@ async function retryBulkFix(i){
 }
 async function loadBooks(){
   try{
-    const r=await fetch('/books');const d=await r.json();
+    const r=await fetch('/books',{headers:hdr()});const d=await r.json();
     document.getElementById('bookRows').innerHTML=(d.books||[]).map(b=>'<tr><td>'+esc(b.class_name)+'</td><td>'+esc(b.subject)+'</td><td><b>'+esc(b.title)+'</b></td><td>'+esc(b.unit_label||'—')+'</td><td>'+esc(b.size_mb)+'MB</td><td><button style="background:var(--red);padding:5px 12px;font-size:11px" onclick="delBook(\''+esc(b.id)+'\')">Del</button></td></tr>').join('')||'<tr><td colspan="6" style="color:var(--g400)">No books yet — upload unit-wise STBB PDFs above.</td></tr>';
   }catch(e){}
 }

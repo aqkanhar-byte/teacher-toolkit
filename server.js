@@ -527,6 +527,12 @@ const uploadBook = multer({
 /* ═══════════════ BOOK BANK (Supabase Storage — curated STBB books) ═══════════════ */
 app.get('/books', async (req, res) => {
   if (!sb) return res.json({ success: true, books: [] });
+  /* Curated STBB library is a login-gated benefit, not public content — without this check
+     anyone could scrape the entire catalog + download every book via the URL route below
+     without ever creating an account. Admin panel also lists all books for management, so
+     accept either a logged-in teacher session or the admin key. */
+  const user = await userFromReq(req);
+  if (!user && !isAdmin(req)) return res.status(401).json({ success: false, error: 'Login required', books: [] });
   let q = sb.from('tt_books').select('id,class_name,subject,title,unit_label,size_mb').order('created_at', { ascending: false });
   /* ilike (bina wildcard) = case-insensitive exact match — "ENGLISH" bhi "English" se mil jayega */
   if (req.query.className) q = q.ilike('class_name', String(req.query.className).trim());
@@ -540,6 +546,8 @@ app.get('/books', async (req, res) => {
    relay it. The client then extracts a small page range with pdf-lib before ever touching the AI. */
 app.get('/books/:id/download-url', async (req, res) => {
   if (!sb) return res.json({ success: false, error: 'Not configured' });
+  const user = await userFromReq(req);
+  if (!user) return res.status(401).json({ success: false, error: 'Login required' });
   if (!rateLimit('bookurl:' + req.ip, 30, 10 * 60 * 1000)) return tooMany(res);
   const { data: book } = await sb.from('tt_books').select('*').eq('id', req.params.id).maybeSingle();
   if (!book) return res.json({ success: false, error: 'Book not found' });
@@ -1528,6 +1536,11 @@ function runFromText(text, opts) {
   if (!parts.length) parts.push(new TextRun({ text: '', ...opts }));
   return parts;
 }
+/* User-supplied download filenames go straight into a Content-Disposition header — strip quotes/
+   control chars so a value can't break out of the quoted attribute or inject header fields. */
+function safeFileName(name, fallback) {
+  return String(name || fallback).replace(/["\r\n]/g, '').trim() || fallback;
+}
 
 app.post('/download-docx', async (req, res) => {
   const { content, fileName, photo, logo, documentType } = req.body;
@@ -1660,10 +1673,11 @@ app.post('/download-docx', async (req, res) => {
     });
     const buffer = await Packer.toBuffer(doc);
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
-    res.setHeader('Content-Disposition', `attachment; filename="${fileName || 'document'}.docx"`);
+    res.setHeader('Content-Disposition', `attachment; filename="${safeFileName(fileName, 'document')}.docx"`);
     res.send(buffer);
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    logError('download-docx', error);
+    res.status(500).json({ success: false, error: 'Could not generate the .docx file — please try again.' });
   }
 });
 
@@ -1743,10 +1757,11 @@ ${html}
 </html>`;
 
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    res.setHeader('Content-Disposition', `attachment; filename="${fileName || 'document'}.html"`);
+    res.setHeader('Content-Disposition', `attachment; filename="${safeFileName(fileName, 'document')}.html"`);
     res.send(page);
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    logError('download-pdf', error);
+    res.status(500).json({ success: false, error: 'Could not generate the PDF — please try again.' });
   }
 });
 
@@ -1764,13 +1779,17 @@ app.post('/download-excel', async (req, res) => {
         ]);
       }
     }
-    const csv = rows.map(r => r.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\r\n');
+    /* CSV formula injection guard — a student/father name starting with =, +, -, or @ would
+       otherwise be executed as a formula when the exported file is opened in Excel/Sheets. */
+    const csvSafe = (v) => { const s = String(v); return /^[=+\-@\t\r]/.test(s) ? "'" + s : s; };
+    const csv = rows.map(r => r.map(cell => `"${csvSafe(cell).replace(/"/g, '""')}"`).join(',')).join('\r\n');
     const BOM = '\uFEFF';
     res.setHeader('Content-Type', 'application/vnd.ms-excel; charset=utf-8');
-    res.setHeader('Content-Disposition', `attachment; filename="${fileName || 'students'}.csv"`);
+    res.setHeader('Content-Disposition', `attachment; filename="${safeFileName(fileName, 'students')}.csv"`);
     res.send(BOM + csv);
   } catch (error) {
-    res.status(500).json({ success: false, error: error.message });
+    logError('download-excel', error);
+    res.status(500).json({ success: false, error: 'Could not generate the export \u2014 please try again.' });
   }
 });
 
