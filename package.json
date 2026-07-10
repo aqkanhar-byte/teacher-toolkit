@@ -6,6 +6,8 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
+    "build": "node -c server.js",
+    "lint": "eslint .",
     "test": "node --test"
   },
   "keywords": [],
@@ -29,5 +31,8 @@
   "bugs": {
     "url": "https://github.com/aqkanhar-byte/teacher-toolkit/issues"
   },
-  "homepage": "https://github.com/aqkanhar-byte/teacher-toolkit#readme"
+  "homepage": "https://github.com/aqkanhar-byte/teacher-toolkit#readme",
+  "devDependencies": {
+    "eslint": "^9.39.4"
+  }
 }

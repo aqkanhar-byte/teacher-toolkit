@@ -7,7 +7,7 @@ const assert = require('node:assert/strict');
 const { cleanPhone } = require('../lib/phone');
 const { hashPin, checkPin } = require('../lib/pin');
 const { planActive, PLANS, PRICES, creditsForFile, LARGE_FILE_BYTES } = require('../lib/pricing');
-const { rlBlocked, rlHit, rateLimit } = require('../lib/rateLimit');
+const { rlBlocked, rateLimit } = require('../lib/rateLimit');
 const { pageRangeInstruction } = require('../lib/pageRange');
 
 test('cleanPhone: normalizes local formats to 92xxxxxxxxxx', () => {

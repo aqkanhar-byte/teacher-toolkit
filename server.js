@@ -1529,7 +1529,6 @@ function isSeparatorLine(l) { return /^\s*\|[\s\-:|]+\|\s*$/.test(l); }
 function splitCells(l) {
   return l.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map(c => c.trim());
 }
-const AR_RE = /[\u0600-\u06FF]/;
 function isArabicLine(t) {
   const ar = (t.match(/[\u0600-\u06FF]/g) || []).length;
   const lat = (t.match(/[A-Za-z]/g) || []).length;
@@ -1824,5 +1823,10 @@ app.use((err, req, res, next) => {
 });
 
 /* ─── START SERVER ───────────────────────────────────────────────────────── */
+/* Only auto-listen when run directly (`node server.js` / npm start) — when required as a
+   module (route tests import this file), the caller controls listen() on its own port instead. */
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`✅ Teacher Toolkit running on port ${PORT} — Sindh Education Edition`));
+if (require.main === module) {
+  app.listen(PORT, () => console.log(`✅ Teacher Toolkit running on port ${PORT} — Sindh Education Edition`));
+}
+module.exports = app;
