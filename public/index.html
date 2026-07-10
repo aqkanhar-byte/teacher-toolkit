@@ -87,10 +87,13 @@
   }
 })();
 </script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<!-- defer: none of these are needed until a user action (export/upload/compress) fires, so they
+     must not block the initial render — ~2MB combined, and this app's real users are often on
+     slow mobile connections. -->
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
 :root{
   --navy:#1a2744;--navy-dark:#0f1a2e;--navy-mid:#243257;
@@ -220,7 +223,7 @@ button{cursor:pointer;border:none;background:none}
 .form-row:first-child{margin-top:0}
 .fg{display:flex;flex-direction:column;gap:5px}
 .fg.full{grid-column:1/-1}
-.fg label{font-size:10px;font-weight:700;color:var(--g400);text-transform:uppercase;letter-spacing:.6px}
+.fg label{font-size:10px;font-weight:700;color:var(--g600);text-transform:uppercase;letter-spacing:.6px}
 .fg label b{color:var(--red)}
 .fg input,.fg select,.fg textarea{padding:10px 12px;border:1.5px solid var(--g200);border-radius:var(--r);font-size:13px;font-weight:500;color:var(--g800);background:var(--g100);outline:none;transition:all .18s}
 .fg input:focus,.fg select:focus,.fg textarea:focus{border-color:var(--navy);background:var(--white);box-shadow:0 0 0 3px rgba(26,39,68,.08)}
@@ -495,7 +498,7 @@ button{cursor:pointer;border:none;background:none}
     <div class="sec-card">
       <div class="sec-body">
         <div class="db-toolbar">
-          <input type="text" class="db-search" id="dbSearch" placeholder="Search name, father, G.R number..." oninput="renderDB()">
+          <input type="text" class="db-search" id="dbSearch" aria-label="Search students" placeholder="Search name, father, G.R number..." oninput="renderDB()">
           <button class="mini-btn primary" onclick="dbNew()">+ Add Student</button>
           <button class="mini-btn" onclick="document.getElementById('dbImport').click()">Import Excel / CSV</button>
           <button class="mini-btn gold" onclick="dbExport()">Export Excel</button>
@@ -504,20 +507,20 @@ button{cursor:pointer;border:none;background:none}
         </div>
         <div class="db-form" id="dbForm">
           <div class="form-row">
-            <div class="fg"><label>Student Name <b>*</b></label><input type="text" id="s_name"></div>
-            <div class="fg"><label>Father's Name</label><input type="text" id="s_father"></div>
+            <div class="fg"><label for="s_name">Student Name <b>*</b></label><input type="text" id="s_name"></div>
+            <div class="fg"><label for="s_father">Father's Name</label><input type="text" id="s_father"></div>
           </div>
           <div class="form-row">
-            <div class="fg"><label>G.R Number</label><input type="text" id="s_gr"></div>
-            <div class="fg"><label>Roll / Seat No</label><input type="text" id="s_roll"></div>
+            <div class="fg"><label for="s_gr">G.R Number</label><input type="text" id="s_gr"></div>
+            <div class="fg"><label for="s_roll">Roll / Seat No</label><input type="text" id="s_roll"></div>
           </div>
           <div class="form-row">
-            <div class="fg"><label>Class</label><select id="s_class"></select></div>
-            <div class="fg"><label>Date of Birth</label><input type="date" id="s_dob"></div>
+            <div class="fg"><label for="s_class">Class</label><select id="s_class"></select></div>
+            <div class="fg"><label for="s_dob">Date of Birth</label><input type="date" id="s_dob"></div>
           </div>
           <div class="form-row">
-            <div class="fg"><label>Address</label><input type="text" id="s_addr"></div>
-            <div class="fg"><label>Guardian Contact</label><input type="text" id="s_phone"></div>
+            <div class="fg"><label for="s_addr">Address</label><input type="text" id="s_addr"></div>
+            <div class="fg"><label for="s_phone">Guardian Contact</label><input type="text" id="s_phone"></div>
           </div>
           <div style="display:flex;gap:8px;margin-top:12px">
             <button class="mini-btn primary" onclick="dbSave()">Save Student</button>
@@ -539,16 +542,16 @@ button{cursor:pointer;border:none;background:none}
     <div class="crq-card">
       <div class="crq-lbl">Class &amp; Subject</div>
       <div class="crq-grid2">
-        <select class="crq-sel" id="crqClass" onchange="crqClassChange()"></select>
-        <select class="crq-sel" id="crqSubject"></select>
+        <select class="crq-sel" id="crqClass" aria-label="Class" onchange="crqClassChange()"></select>
+        <select class="crq-sel" id="crqSubject" aria-label="Subject"></select>
       </div>
       <div id="crqGroupRow" style="display:none;margin-top:10px">
-        <select class="crq-sel" id="crqGroup" onchange="crqClassChange(true)"></select>
+        <select class="crq-sel" id="crqGroup" aria-label="Group" onchange="crqClassChange(true)"></select>
       </div>
       <div class="crq-lbl">Unit / Lessons</div>
-      <input type="text" class="crq-inp" id="crqTopic" placeholder="e.g. Unit 3, Lessons 3-7, Lessons 2,4,9 or Full Book">
+      <input type="text" class="crq-inp" id="crqTopic" aria-label="Unit or lessons" placeholder="e.g. Unit 3, Lessons 3-7, Lessons 2,4,9 or Full Book">
       <div class="crq-lbl">Book / Document Upload (Optional — AI will build the CRQ from it)</div>
-      <div class="upload-zone" style="background:rgba(255,255,255,.04);border-color:rgba(255,255,255,.2)" id="crqDrop" ondrop="crqDropFn(event)" ondragover="crqOver(event)" ondragleave="crqLeave(event)" onclick="document.getElementById('crqFile').click()">
+      <div class="upload-zone" style="background:rgba(255,255,255,.04);border-color:rgba(255,255,255,.2)" id="crqDrop" role="button" tabindex="0" aria-label="Upload book or document for CRQ" ondrop="crqDropFn(event)" ondragover="crqOver(event)" ondragleave="crqLeave(event)" onclick="document.getElementById('crqFile').click()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}">
         <div class="uz-ico">📄</div>
         <div class="uz-title" style="color:rgba(255,255,255,.6)">Book (PDF), B.Ed/M.Ed material, page or image — anything</div>
         <div class="uz-sub" style="color:rgba(255,255,255,.3)">PDF: max 20MB (~100 pages) · Image: max 5MB</div>
@@ -573,12 +576,12 @@ button{cursor:pointer;border:none;background:none}
       </div>
       <div class="crq-lbl">Number of Questions</div>
       <div class="crq-grid3">
-        <div><div style="font-size:9px;font-weight:800;color:rgba(255,255,255,.35);margin-bottom:5px">MCQs</div><input type="number" class="crq-inp" id="mcqCount" value="10" min="5" max="30" style="text-align:center"></div>
-        <div><div style="font-size:9px;font-weight:800;color:rgba(255,255,255,.35);margin-bottom:5px">SHORT Qs</div><input type="number" class="crq-inp" id="shortCount" value="5" min="2" max="15" style="text-align:center"></div>
-        <div><div style="font-size:9px;font-weight:800;color:rgba(255,255,255,.35);margin-bottom:5px">LONG Qs</div><input type="number" class="crq-inp" id="longCount" value="2" min="1" max="8" style="text-align:center"></div>
+        <div><label for="mcqCount" style="display:block;font-size:9px;font-weight:800;color:rgba(255,255,255,.35);margin-bottom:5px">MCQs</label><input type="number" class="crq-inp" id="mcqCount" value="10" min="5" max="30" style="text-align:center"></div>
+        <div><label for="shortCount" style="display:block;font-size:9px;font-weight:800;color:rgba(255,255,255,.35);margin-bottom:5px">SHORT Qs</label><input type="number" class="crq-inp" id="shortCount" value="5" min="2" max="15" style="text-align:center"></div>
+        <div><label for="longCount" style="display:block;font-size:9px;font-weight:800;color:rgba(255,255,255,.35);margin-bottom:5px">LONG Qs</label><input type="number" class="crq-inp" id="longCount" value="2" min="1" max="8" style="text-align:center"></div>
       </div>
       <div class="crq-lbl">Answer Key</div>
-      <div class="ak-row" onclick="toggleAK()">
+      <div class="ak-row" role="switch" aria-checked="false" tabindex="0" aria-label="Include answer key" onclick="toggleAK()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}">
         <span class="ak-t">Include complete answer key + marking scheme</span>
         <div class="toggle" id="akToggle"></div>
       </div>
@@ -597,8 +600,8 @@ button{cursor:pointer;border:none;background:none}
       <div class="sec-head"><div class="sec-bar"></div><div class="sec-title">Calculate Age on Cutoff Date</div></div>
       <div class="sec-body">
         <div class="form-row">
-          <div class="fg"><label>Date of Birth</label><input type="date" id="toolDob"></div>
-          <div class="fg"><label>Cutoff Date</label><input type="date" id="toolCutoff" value="2026-04-01"></div>
+          <div class="fg"><label for="toolDob">Date of Birth</label><input type="date" id="toolDob"></div>
+          <div class="fg"><label for="toolCutoff">Cutoff Date</label><input type="date" id="toolCutoff" value="2026-04-01"></div>
         </div>
         <button class="btn-gen" style="margin-top:14px;font-size:12.5px;padding:12px" onclick="calcAge()">Calculate Age</button>
         <div class="age-result-box" id="age-result"></div>
@@ -618,12 +621,12 @@ button{cursor:pointer;border:none;background:none}
       <div class="sec-head"><div class="sec-bar"></div><div class="sec-title">1 · Extract PDF Pages <span style="text-transform:none;font-weight:600;color:var(--green)">(Best — zero quality loss)</span></div></div>
       <div class="sec-body">
         <div style="font-size:12px;color:var(--g600);margin-bottom:12px;line-height:1.6">No need for the whole 200MB book — extract only the pages of the <b>unit/chapter</b> you need and get a small crisp PDF in seconds.</div>
-        <div class="upload-zone" onclick="document.getElementById('exFile').click()"><div class="uz-ico">📖</div><div class="uz-title">Select PDF book</div><div class="uz-sub">Any size — even 200MB+</div></div>
+        <div class="upload-zone" role="button" tabindex="0" aria-label="Select PDF book" onclick="document.getElementById('exFile').click()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}"><div class="uz-ico">📖</div><div class="uz-title">Select PDF book</div><div class="uz-sub">Any size — even 200MB+</div></div>
         <input type="file" id="exFile" accept=".pdf" style="display:none" onchange="exFileSel(event)">
         <div class="f-chip" id="exChip">✅ &nbsp;<span id="exInfo">-</span></div>
         <div class="form-row" style="margin-top:12px">
-          <div class="fg"><label>Page From</label><input type="number" id="exFrom" min="1" value="1"></div>
-          <div class="fg"><label>Page To</label><input type="number" id="exTo" min="1" value="15"></div>
+          <div class="fg"><label for="exFrom">Page From</label><input type="number" id="exFrom" min="1" value="1"></div>
+          <div class="fg"><label for="exTo">Page To</label><input type="number" id="exTo" min="1" value="15"></div>
         </div>
         <button class="btn-gen" style="margin-top:12px;font-size:12.5px;padding:12px" onclick="extractPages()">✂️ Extract Pages &amp; Download</button>
         <div id="exStatus" style="margin-top:10px;font-size:12px;font-weight:700"></div>
@@ -634,11 +637,11 @@ button{cursor:pointer;border:none;background:none}
       <div class="sec-head"><div class="sec-bar"></div><div class="sec-title">2 · Compress Full PDF</div></div>
       <div class="sec-body">
         <div style="font-size:12px;color:var(--g600);margin-bottom:12px;line-height:1.6">Reduce the whole PDF's size — pages are re-rendered as compressed images. <b>⚠️ 80MB+ files can be slow or crash on phones — use a laptop, or the Pages tool above.</b></div>
-        <div class="upload-zone" onclick="document.getElementById('cpFile').click()"><div class="uz-ico">🗜️</div><div class="uz-title">Select PDF</div><div class="uz-sub">It will try to bring the file under 20MB</div></div>
+        <div class="upload-zone" role="button" tabindex="0" aria-label="Select PDF to compress" onclick="document.getElementById('cpFile').click()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}"><div class="uz-ico">🗜️</div><div class="uz-title">Select PDF</div><div class="uz-sub">It will try to bring the file under 20MB</div></div>
         <input type="file" id="cpFile" accept=".pdf" style="display:none" onchange="cpFileSel(event)">
         <div class="f-chip" id="cpChip">✅ &nbsp;<span id="cpInfo">-</span></div>
         <div class="form-row" style="margin-top:12px">
-          <div class="fg"><label>Quality</label><select id="cpQuality"><option value="high">High — better text, larger size</option><option value="medium" selected>Medium — balanced (recommended)</option><option value="low">Low — smallest size</option></select></div>
+          <div class="fg"><label for="cpQuality">Quality</label><select id="cpQuality"><option value="high">High — better text, larger size</option><option value="medium" selected>Medium — balanced (recommended)</option><option value="low">Low — smallest size</option></select></div>
         </div>
         <button class="btn-gen" style="margin-top:12px;font-size:12.5px;padding:12px" onclick="compressPdf()">🗜️ Compress &amp; Download</button>
         <div id="cpStatus" style="margin-top:10px;font-size:12px;font-weight:700"></div>
@@ -649,7 +652,7 @@ button{cursor:pointer;border:none;background:none}
       <div class="sec-head"><div class="sec-bar"></div><div class="sec-title">3 · Image Resize / Compress</div></div>
       <div class="sec-body">
         <div style="font-size:12px;color:var(--g600);margin-bottom:12px;line-height:1.6">Any image (even 20MB+) → under 5MB. <b>Note:</b> this also happens <b>automatically</b> when you upload an image anywhere in the toolkit — this tool is for saving a resized copy separately.</div>
-        <div class="upload-zone" onclick="document.getElementById('imFile').click()"><div class="uz-ico">🖼️</div><div class="uz-title">Select image</div><div class="uz-sub">JPG · PNG · any size</div></div>
+        <div class="upload-zone" role="button" tabindex="0" aria-label="Select image to compress" onclick="document.getElementById('imFile').click()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}"><div class="uz-ico">🖼️</div><div class="uz-title">Select image</div><div class="uz-sub">JPG · PNG · any size</div></div>
         <input type="file" id="imFile" accept="image/*" style="display:none" onchange="imFileSel(event)">
         <div class="f-chip" id="imChip">✅ &nbsp;<span id="imInfo">-</span></div>
         <button class="btn-gen" style="margin-top:12px;font-size:12.5px;padding:12px" onclick="resizeImage()">🖼️ Resize &amp; Download</button>
@@ -668,7 +671,7 @@ button{cursor:pointer;border:none;background:none}
     <div class="sec-card">
       <div class="sec-head"><div class="sec-bar"></div><div class="sec-title">Book Page / Image</div></div>
       <div class="sec-body">
-        <div class="upload-zone" id="dropZone" ondrop="handleDrop(event)" ondragover="handleOver(event)" ondragleave="handleLeave(event)" onclick="document.getElementById('fileIn').click()">
+        <div class="upload-zone" id="dropZone" role="button" tabindex="0" aria-label="Upload book, syllabus, notes or any document" ondrop="handleDrop(event)" ondragover="handleOver(event)" ondragleave="handleLeave(event)" onclick="document.getElementById('fileIn').click()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}">
           <div class="uz-ico">📸</div>
           <div class="uz-title">Drop book, syllabus, notes or any document here</div>
           <div class="uz-sub">PDF: max 20MB (~100 pages) · Image: max 5MB</div>
@@ -677,12 +680,12 @@ button{cursor:pointer;border:none;background:none}
         <input type="file" id="fileIn" accept=".pdf,image/*" style="display:none" onchange="onFileSel(event)">
         <div class="f-chip" id="fChip">✅ &nbsp;<span id="fName">-</span></div>
         <div class="form-row" style="margin-top:14px">
-          <div class="fg"><label>Document Type</label><select id="upDocType"></select></div>
-          <div class="fg"><label>Class</label><select id="upClass" onchange="upClassChange()"></select></div>
+          <div class="fg"><label for="upDocType">Document Type</label><select id="upDocType"></select></div>
+          <div class="fg"><label for="upClass">Class</label><select id="upClass" onchange="upClassChange()"></select></div>
         </div>
         <div class="form-row">
-          <div class="fg"><label>Subject</label><select id="upSubject"></select></div>
-          <div class="fg" id="upGroupWrap" style="display:none"><label>Group</label><select id="upGroup" onchange="upClassChange(true)"></select></div>
+          <div class="fg"><label for="upSubject">Subject</label><select id="upSubject"></select></div>
+          <div class="fg" id="upGroupWrap" style="display:none"><label for="upGroup">Group</label><select id="upGroup" onchange="upClassChange(true)"></select></div>
         </div>
         <button class="btn-gen" style="margin-top:14px" onclick="uploadGen()">⚡ Upload &amp; Generate</button>
       </div>
@@ -700,11 +703,11 @@ button{cursor:pointer;border:none;background:none}
       <div class="sec-head"><div class="sec-bar"></div><div class="sec-title">1 · Class &amp; Assessment</div></div>
       <div class="sec-body">
         <div class="form-row">
-          <div class="fg"><label>Class</label><select id="paClass" onchange="paBuildTable()"></select></div>
-          <div class="fg"><label>Assessment / Term</label><select id="paTerm" onchange="paBuildTable()"><option>Monthly Test</option><option>Mid Term</option><option>Annual / Final</option><option>Class Test</option></select></div>
+          <div class="fg"><label for="paClass">Class</label><select id="paClass" onchange="paBuildTable()"></select></div>
+          <div class="fg"><label for="paTerm">Assessment / Term</label><select id="paTerm" onchange="paBuildTable()"><option>Monthly Test</option><option>Mid Term</option><option>Annual / Final</option><option>Class Test</option></select></div>
         </div>
         <div id="paGroupRow" class="form-row" style="display:none">
-          <div class="fg"><label>Group</label><select id="paGroup" onchange="paBuildTable()"></select></div>
+          <div class="fg"><label for="paGroup">Group</label><select id="paGroup" onchange="paBuildTable()"></select></div>
         </div>
       </div>
     </div>
@@ -727,8 +730,8 @@ button{cursor:pointer;border:none;background:none}
       <div class="sec-head"><div class="sec-bar"></div><div class="sec-title">1 · Message</div></div>
       <div class="sec-body">
         <div class="form-row">
-          <div class="fg"><label>Message Type</label><select id="phTpl" onchange="phTplChange()"></select></div>
-          <div class="fg"><label>Language</label><select id="phLang" onchange="phRender()"><option value="english">English</option><option value="urdu">اردو (Urdu)</option><option value="roman">Roman Urdu</option></select></div>
+          <div class="fg"><label for="phTpl">Message Type</label><select id="phTpl" onchange="phTplChange()"></select></div>
+          <div class="fg"><label for="phLang">Language</label><select id="phLang" onchange="phRender()"><option value="english">English</option><option value="urdu">اردو (Urdu)</option><option value="roman">Roman Urdu</option></select></div>
         </div>
         <div id="phFields"></div>
         <div style="margin-top:12px">
@@ -740,7 +743,7 @@ button{cursor:pointer;border:none;background:none}
     <div class="sec-card">
       <div class="sec-head"><div class="sec-bar"></div><div class="sec-title">2 · Choose Parents</div>
         <div style="margin-left:auto;display:flex;gap:6px">
-          <select id="phClass" onchange="phRender()" style="padding:5px 26px 5px 10px;border:1.5px solid var(--g200);border-radius:8px;font-size:11px;font-weight:700"></select>
+          <select id="phClass" aria-label="Filter by class" onchange="phRender()" style="padding:5px 26px 5px 10px;border:1.5px solid var(--g200);border-radius:8px;font-size:11px;font-weight:700"></select>
           <button class="mini-btn" style="padding:5px 12px;font-size:10px" onclick="phToggleAll()">Select All / None</button>
         </div>
       </div>
@@ -800,7 +803,7 @@ button{cursor:pointer;border:none;background:none}
   </div>
   <div class="ast-body" id="astBody"></div>
   <div class="ast-foot">
-    <input class="ast-inp" id="astInp" placeholder="Ask anything — e.g. how to upload a book" onkeydown="if(event.key==='Enter')astSend()">
+    <input class="ast-inp" id="astInp" aria-label="Ask the assistant" placeholder="Ask anything — e.g. how to upload a book" onkeydown="if(event.key==='Enter')astSend()">
     <button class="ast-send" onclick="astSend()" aria-label="Send">➤</button>
   </div>
 </div>
@@ -827,16 +830,16 @@ button{cursor:pointer;border:none;background:none}
         <button class="mini-btn" id="tabReg" onclick="authTab('reg')">Sign Up</button>
       </div>
       <div class="form-row one" style="grid-template-columns:1fr">
-        <div class="fg"><label>Mobile Number <b>*</b></label><input type="tel" id="a_phone" placeholder="03xx-xxxxxxx"></div>
+        <div class="fg"><label for="a_phone">Mobile Number <b>*</b></label><input type="tel" id="a_phone" placeholder="03xx-xxxxxxx"></div>
       </div>
       <div class="form-row one" id="regNameRow" style="grid-template-columns:1fr;display:none">
-        <div class="fg"><label>Your Name <b>*</b></label><input type="text" id="a_name" placeholder="Full name"></div>
+        <div class="fg"><label for="a_name">Your Name <b>*</b></label><input type="text" id="a_name" placeholder="Full name"></div>
       </div>
       <div class="form-row one" id="refRow" style="grid-template-columns:1fr;display:none">
         <div style="font-size:11.5px;font-weight:700;color:var(--green,#0a7c5c);background:var(--green-bg,#eafaf4);padding:8px 12px;border-radius:8px">🎁 Referred by: <span id="refPhoneShow"></span> — you'll both get bonus credits!</div>
       </div>
       <div class="form-row one" style="grid-template-columns:1fr">
-        <div class="fg"><label>PIN (4+ digits) <b>*</b></label>
+        <div class="fg"><label for="a_pin">PIN (4+ digits) <b>*</b></label>
           <div style="position:relative">
             <input type="password" id="a_pin" inputmode="numeric" placeholder="••••" style="width:100%;padding-right:38px">
             <button type="button" onclick="togglePinView()" aria-label="Show/hide PIN" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:none;padding:6px;cursor:pointer;font-size:15px;line-height:1" id="pinEyeBtn">👁️</button>
@@ -878,21 +881,21 @@ button{cursor:pointer;border:none;background:none}
     <div class="modal-head">School Profile <button class="modal-close" onclick="closeProfile()" aria-label="Close">✕</button></div>
     <div class="modal-body">
       <div class="form-row">
-        <div class="fg full"><label>School Name <b>*</b></label><input type="text" id="p_school" placeholder="e.g. Government Boys Primary School ____"></div>
+        <div class="fg full"><label for="p_school">School Name <b>*</b></label><input type="text" id="p_school" placeholder="e.g. Government Boys Primary School ____"></div>
       </div>
       <div class="form-row">
-        <div class="fg full"><label>Address (UC · Taluka · District)</label><input type="text" id="p_addr" placeholder="e.g. UC ____ · Taluka ____ · District ____ · Sindh"></div>
+        <div class="fg full"><label for="p_addr">Address (UC · Taluka · District)</label><input type="text" id="p_addr" placeholder="e.g. UC ____ · Taluka ____ · District ____ · Sindh"></div>
       </div>
       <div class="form-row">
-        <div class="fg"><label>Head Master / Teacher Name</label><input type="text" id="p_hm" placeholder="Full name"></div>
-        <div class="fg"><label>Designation</label><input type="text" id="p_desig" placeholder="e.g. PST (BPS-14)"></div>
+        <div class="fg"><label for="p_hm">Head Master / Teacher Name</label><input type="text" id="p_hm" placeholder="Full name"></div>
+        <div class="fg"><label for="p_desig">Designation</label><input type="text" id="p_desig" placeholder="e.g. PST (BPS-14)"></div>
       </div>
       <div class="form-row">
-        <div class="fg"><label>SEMIS Code (optional)</label><input type="text" id="p_semis" placeholder="e.g. 4150____"></div>
-        <div class="fg"><label>Session</label><input type="text" id="p_session" placeholder="2025-26"></div>
+        <div class="fg"><label for="p_semis">SEMIS Code (optional)</label><input type="text" id="p_semis" placeholder="e.g. 4150____"></div>
+        <div class="fg"><label for="p_session">Session</label><input type="text" id="p_session" placeholder="2025-26"></div>
       </div>
       <div class="form-row">
-        <div class="fg"><label>School Logo (optional — appears on every document)</label><input type="file" id="p_logo" accept="image/*" onchange="onLogoSel(event)" style="padding:8px"></div>
+        <div class="fg"><label for="p_logo">School Logo (optional — appears on every document)</label><input type="file" id="p_logo" accept="image/*" onchange="onLogoSel(event)" style="padding:8px"></div>
         <div class="fg" style="justify-content:flex-end"><img id="logoPreview" style="display:none;width:56px;height:56px;object-fit:contain;border:1.5px solid var(--g200);border-radius:10px;background:#fff;padding:4px"> <button class="mini-btn" id="logoRemove" style="display:none;width:fit-content" onclick="removeLogo()">Remove logo</button></div>
       </div>
       <button class="btn-gen" style="margin-top:14px;font-size:13px" onclick="saveProfile()">Save Profile</button>
@@ -1116,7 +1119,7 @@ function renderSidebar(){
     g.items.forEach(it=>{
       const key=it.d?('doc:'+it.d):('view:'+it.v);
       const noai=it.d&&NO_AI.includes(it.d)?'<span class="noai">No AI</span>':'';
-      html+='<div class="sb-item" data-key="'+key+'" onclick="sbClick(this)"><div class="sb-ico">'+it.i+'</div><div class="sb-txt"><div class="sb-name">'+(it.d||it.n)+'</div><div class="sb-sub">'+it.s+'</div></div>'+noai+'</div>';
+      html+='<div class="sb-item" data-key="'+key+'" role="button" tabindex="0" onclick="sbClick(this)" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();sbClick(this)}"><div class="sb-ico">'+it.i+'</div><div class="sb-txt"><div class="sb-name">'+(it.d||it.n)+'</div><div class="sb-sub">'+it.s+'</div></div>'+noai+'</div>';
     });
   });
   document.getElementById('sbNav').innerHTML=html;
@@ -1211,31 +1214,31 @@ function val(id){const e=document.getElementById(id);return e?e.value.trim():'';
 function fieldHTML(k){
   const f=F[k];const req=f.req?' <b>*</b>':'';
   if(f.t==='class'){
-    return '<div class="fg"><label>Class'+req+'</label><select id="f_className" onchange="onClassChange()">'+CLASS_LIST.map(c=>'<option'+(c==='Class 1'?' selected':'')+'>'+c+'</option>').join('')+'</select></div>'
-      +'<div class="fg" id="groupWrap" style="display:none"><label>Group</label><select id="f_group" onchange="onClassChange()"></select></div>';
+    return '<div class="fg"><label for="f_className">Class'+req+'</label><select id="f_className" onchange="onClassChange()">'+CLASS_LIST.map(c=>'<option'+(c==='Class 1'?' selected':'')+'>'+c+'</option>').join('')+'</select></div>'
+      +'<div class="fg" id="groupWrap" style="display:none"><label for="f_group">Group</label><select id="f_group" onchange="onClassChange()"></select></div>';
   }
   if(f.t==='subject'){
-    return '<div class="fg"><label>Subject'+req+'</label><select id="f_subject" onchange="onSubjectChange()"></select></div>'
-      +'<div class="fg" id="customSubWrap" style="display:none"><label>Custom Subject</label><input type="text" id="f_customSubject" placeholder="e.g. Arabic, Drawing..."></div>';
+    return '<div class="fg"><label for="f_subject">Subject'+req+'</label><select id="f_subject" onchange="onSubjectChange()"></select></div>'
+      +'<div class="fg" id="customSubWrap" style="display:none"><label for="f_customSubject">Custom Subject</label><input type="text" id="f_customSubject" placeholder="e.g. Arabic, Drawing..."></div>';
   }
   if(f.t==='unitsel'){
-    return '<div class="fg"><label>Unit / Lesson Mode</label><select id="f_unitMode" onchange="onUnitModeChange()"><option value="single">Single Unit</option><option value="custom">Custom Lessons (range)</option><option value="full">Full Book (all units)</option></select></div>'
-      +'<div class="fg" id="unitNoWrap"><label>Unit No.</label><select id="f_unitNumber">'+Array.from({length:12},(_,i)=>'<option>'+(i+1)+'</option>').join('')+'</select></div>'
-      +'<div class="fg" id="unitNameWrap"><label>Unit / Topic Name <b>*</b></label><input type="text" id="f_unitName" placeholder="e.g. Family and Friends"></div>'
-      +'<div class="fg" id="customRangeWrap" style="display:none"><label>Lessons Range <b>*</b></label><input type="text" id="f_customRange" placeholder="e.g. Lessons 3-7 or 2,4,9"></div>';
+    return '<div class="fg"><label for="f_unitMode">Unit / Lesson Mode</label><select id="f_unitMode" onchange="onUnitModeChange()"><option value="single">Single Unit</option><option value="custom">Custom Lessons (range)</option><option value="full">Full Book (all units)</option></select></div>'
+      +'<div class="fg" id="unitNoWrap"><label for="f_unitNumber">Unit No.</label><select id="f_unitNumber">'+Array.from({length:12},(_,i)=>'<option>'+(i+1)+'</option>').join('')+'</select></div>'
+      +'<div class="fg" id="unitNameWrap"><label for="f_unitName">Unit / Topic Name <b>*</b></label><input type="text" id="f_unitName" placeholder="e.g. Family and Friends"></div>'
+      +'<div class="fg" id="customRangeWrap" style="display:none"><label for="f_customRange">Lessons Range <b>*</b></label><input type="text" id="f_customRange" placeholder="e.g. Lessons 3-7 or 2,4,9"></div>';
   }
-  if(f.t==='dob'){return '<div class="fg"><label>'+f.l+'</label><input type="date" id="f_dob" onchange="onDobChange()"><span class="age-badge" id="ageBadge"></span></div>';}
-  if(f.t==='photo'){return '<div class="fg"><label>'+f.l+'</label><input type="file" id="f_photo" accept="image/*" onchange="onPhotoSel(event)" style="padding:8px"><span class="age-badge" id="photoBadge"></span></div>';}
+  if(f.t==='dob'){return '<div class="fg"><label for="f_dob">'+f.l+'</label><input type="date" id="f_dob" onchange="onDobChange()"><span class="age-badge" id="ageBadge"></span></div>';}
+  if(f.t==='photo'){return '<div class="fg"><label for="f_photo">'+f.l+'</label><input type="file" id="f_photo" accept="image/*" onchange="onPhotoSel(event)" style="padding:8px"><span class="age-badge" id="photoBadge"></span></div>';}
   if(f.t==='attrange'){
-    return '<div class="fg"><label>Duration Mode</label><select id="f_attMode" onchange="onAttModeChange()"><option value="month">Single Month</option><option value="custom">Custom Duration</option></select></div>'
-      +'<div class="fg" id="attMonthWrap"><label>Month</label><input type="month" id="f_attMonth"></div>'
-      +'<div class="fg" id="attFromWrap" style="display:none"><label>From</label><input type="date" id="f_attFrom"></div>'
-      +'<div class="fg" id="attToWrap" style="display:none"><label>To</label><input type="date" id="f_attTo"></div>';
+    return '<div class="fg"><label for="f_attMode">Duration Mode</label><select id="f_attMode" onchange="onAttModeChange()"><option value="month">Single Month</option><option value="custom">Custom Duration</option></select></div>'
+      +'<div class="fg" id="attMonthWrap"><label for="f_attMonth">Month</label><input type="month" id="f_attMonth"></div>'
+      +'<div class="fg" id="attFromWrap" style="display:none"><label for="f_attFrom">From</label><input type="date" id="f_attFrom"></div>'
+      +'<div class="fg" id="attToWrap" style="display:none"><label for="f_attTo">To</label><input type="date" id="f_attTo"></div>';
   }
-  if(f.t==='select'){return '<div class="fg"><label>'+f.l+req+'</label><select id="f_'+k+'">'+f.o.map(o=>'<option>'+o+'</option>').join('')+'</select></div>';}
-  if(f.t==='textarea'){return '<div class="fg full"><label>'+f.l+req+'</label><textarea id="f_'+k+'" placeholder="'+esc(f.ph||'')+'"></textarea></div>';}
+  if(f.t==='select'){return '<div class="fg"><label for="f_'+k+'">'+f.l+req+'</label><select id="f_'+k+'">'+f.o.map(o=>'<option>'+o+'</option>').join('')+'</select></div>';}
+  if(f.t==='textarea'){return '<div class="fg full"><label for="f_'+k+'">'+f.l+req+'</label><textarea id="f_'+k+'" placeholder="'+esc(f.ph||'')+'"></textarea></div>';}
   const type=f.t==='date'?'date':(f.t==='month'?'month':'text');
-  return '<div class="fg"><label>'+f.l+req+'</label><input type="'+type+'" id="f_'+k+'" placeholder="'+esc(f.ph||'')+'"></div>';
+  return '<div class="fg"><label for="f_'+k+'">'+f.l+req+'</label><input type="'+type+'" id="f_'+k+'" placeholder="'+esc(f.ph||'')+'"></div>';
 }
 function secCard(title,inner,extraHead){
   return '<div class="sec-card"><div class="sec-head"><div class="sec-bar"></div><div class="sec-title">'+title+'</div>'+(extraHead||'')+'</div><div class="sec-body"><div class="form-row">'+inner+'</div></div></div>';
@@ -1255,16 +1258,16 @@ function renderForm(){
     html+=secCard(title,g.keys.map(fieldHTML).join(''),head);
   });
   if(cfg.upload)html+='<div class="sec-card"><div class="sec-head"><div class="sec-bar"></div><div class="sec-title">Book / Syllabus Upload <span style="text-transform:none;font-weight:600;color:var(--g400)">(Optional — AI will read it deeply and build from it)</span></div></div><div class="sec-body">'
-    +'<div class="fg" style="margin-bottom:12px"><label>📚 Book Bank — curated STBB books (no upload needed)</label><select id="bankSel" onchange="onBankSel()"><option value="">— Select a book from the Book Bank —</option></select></div><div class="upload-zone" id="docDrop" ondrop="docDropFn(event)" ondragover="docOver(event)" ondragleave="docLeave(event)" onclick="document.getElementById(\'docFile\').click()"><div class="uz-ico">📖</div><div class="uz-title">Drop a book, syllabus or any document here</div><div class="uz-sub">Any size book is fine — pick a page range next if it\'s large</div></div><div style="margin-top:8px;font-size:10.5px;font-weight:600;color:var(--gold);background:var(--gold-bg);border:1px solid rgba(200,150,12,.25);border-radius:8px;padding:7px 11px;line-height:1.5">💡 <b>For best results:</b> a few focused pages read more accurately than a whole book — and files over 8MB use 2 credits instead of 1.</div><input type="file" id="docFile" accept=".pdf,image/*" style="display:none" onchange="docFileSel(event)"><div class="f-chip" id="docChip">✅ &nbsp;<span id="docFName">-</span> <button onclick="clearDocFile()" style="margin-left:8px;color:var(--red);font-weight:800">✕ Remove</button></div><div id="detectBanner" style="display:none;margin-top:8px;font-size:11.5px;font-weight:700;color:var(--navy);background:var(--gold-bg);border:1.5px solid var(--gold);border-radius:8px;padding:9px 12px"></div>'
+    +'<div class="fg" style="margin-bottom:12px"><label for="bankSel">📚 Book Bank — curated STBB books (no upload needed)</label><select id="bankSel" onchange="onBankSel()"><option value="">— Select a book from the Book Bank —</option></select></div><div class="upload-zone" id="docDrop" role="button" tabindex="0" aria-label="Upload a book, syllabus or any document" ondrop="docDropFn(event)" ondragover="docOver(event)" ondragleave="docLeave(event)" onclick="document.getElementById(\'docFile\').click()" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();this.click()}"><div class="uz-ico">📖</div><div class="uz-title">Drop a book, syllabus or any document here</div><div class="uz-sub">Any size book is fine — pick a page range next if it\'s large</div></div><div style="margin-top:8px;font-size:10.5px;font-weight:600;color:var(--gold);background:var(--gold-bg);border:1px solid rgba(200,150,12,.25);border-radius:8px;padding:7px 11px;line-height:1.5">💡 <b>For best results:</b> a few focused pages read more accurately than a whole book — and files over 8MB use 2 credits instead of 1.</div><input type="file" id="docFile" accept=".pdf,image/*" style="display:none" onchange="docFileSel(event)"><div class="f-chip" id="docChip">✅ &nbsp;<span id="docFName">-</span> <button onclick="clearDocFile()" style="margin-left:8px;color:var(--red);font-weight:800">✕ Remove</button></div><div id="detectBanner" style="display:none;margin-top:8px;font-size:11.5px;font-weight:700;color:var(--navy);background:var(--gold-bg);border:1.5px solid var(--gold);border-radius:8px;padding:9px 12px"></div>'
     +'<div id="pageRangeRow" style="display:none;margin-top:10px;padding:12px;background:var(--white);border:1.5px solid var(--g200);border-radius:10px">'
       +'<div style="font-size:11.5px;font-weight:800;color:var(--g800);margin-bottom:8px" id="pageRangeInfo">📄 Loading page count...</div>'
       +'<div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-start">'
         +'<canvas id="pagePreviewCanvas" style="max-width:260px;border:1px solid var(--g200);border-radius:6px;box-shadow:var(--sh-sm)"></canvas>'
         +'<div style="flex:1;min-width:180px">'
           +'<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">'
-            +'<input type="number" min="1" id="docPageFrom" placeholder="From" oninput="onPageRangeChange()" style="width:70px;padding:6px 9px;border:1.5px solid var(--g200);border-radius:8px;font-size:12px">'
+            +'<input type="number" min="1" id="docPageFrom" aria-label="From page" placeholder="From" oninput="onPageRangeChange()" style="width:70px;padding:6px 9px;border:1.5px solid var(--g200);border-radius:8px;font-size:12px">'
             +'<span style="font-size:11px;color:var(--g400)">to</span>'
-            +'<input type="number" min="1" id="docPageTo" placeholder="To" oninput="onPageRangeChange()" style="width:70px;padding:6px 9px;border:1.5px solid var(--g200);border-radius:8px;font-size:12px">'
+            +'<input type="number" min="1" id="docPageTo" aria-label="To page" placeholder="To" oninput="onPageRangeChange()" style="width:70px;padding:6px 9px;border:1.5px solid var(--g200);border-radius:8px;font-size:12px">'
             +'<span style="font-size:10.5px;color:var(--g400)" id="pageRangeSize"></span>'
           +'</div>'
           +'<button class="mini-btn primary" onclick="extractRangeAndAttach()" style="font-size:11px">✂️ Use Only This Page Range</button>'
@@ -1278,7 +1281,7 @@ function renderForm(){
     html+='<div id="fcWrap" style="display:none;padding:14px"><div style="font-size:12px;color:var(--g600);margin-bottom:10px;line-height:1.6">Enter marks for the <b>whole class</b> below (students loaded from your Student Database for the selected class). One click will generate <b>every student\'s result card</b> in a single Word file — each card on its own page.</div><div style="overflow-x:auto"><table class="db-table" id="fcTable"></table></div></div>';
     html+='</div></div>';
   }
-  html+=secCard('Extra Details','<div class="fg full"><label>Additional Information (Optional)</label><textarea id="f_extraData" placeholder="Any special requirement — optional"></textarea></div>');
+  html+=secCard('Extra Details','<div class="fg full"><label for="f_extraData">Additional Information (Optional)</label><textarea id="f_extraData" placeholder="Any special requirement — optional"></textarea></div>');
   document.getElementById('dynForm').innerHTML=html;
   /* header */
   const m=DOC_META[S.doc]||{i:'📄',s:''};
@@ -1984,7 +1987,7 @@ function crqClassChange(keep){
   if(keep&&list.includes(cur))sub.value=cur;
 }
 function setDiff(d){S.diff=d;['easy','medium','hard'].forEach(x=>{document.getElementById('d-'+x).className='diff-btn'+(d===x?' on-'+x:'');});}
-function toggleAK(){S.ak=!S.ak;document.getElementById('akToggle').classList.toggle('on',S.ak);}
+function toggleAK(){S.ak=!S.ak;document.getElementById('akToggle').classList.toggle('on',S.ak);document.querySelector('.ak-row').setAttribute('aria-checked',String(S.ak));}
 function crqFileSel(e){if(e.target.files[0])setCrqFile(e.target.files[0]);}
 function crqDropFn(e){e.preventDefault();document.getElementById('crqDrop').classList.remove('over');if(e.dataTransfer.files[0])setCrqFile(e.dataTransfer.files[0]);}
 function crqOver(e){e.preventDefault();document.getElementById('crqDrop').classList.add('over');}
@@ -2499,8 +2502,8 @@ function phInit(){
 function phTplChange(){
   const t=PH_TPL[val('phTpl')];
   document.getElementById('phFields').innerHTML=(t.fields||[]).map(f=>{
-    if(f.t==='textarea')return '<div class="form-row"><div class="fg full"><label>'+f.l+'</label><textarea id="phf_'+f.id+'" placeholder="'+esc(f.ph||'')+'" oninput="phPreviewOnly()"></textarea></div></div>';
-    return '<div class="form-row"><div class="fg full"><label>'+f.l+'</label><input type="'+(f.t==='date'?'date':'text')+'" id="phf_'+f.id+'" placeholder="'+esc(f.ph||'')+'" oninput="phPreviewOnly()"></div></div>';
+    if(f.t==='textarea')return '<div class="form-row"><div class="fg full"><label for="phf_'+f.id+'">'+f.l+'</label><textarea id="phf_'+f.id+'" placeholder="'+esc(f.ph||'')+'" oninput="phPreviewOnly()"></textarea></div></div>';
+    return '<div class="form-row"><div class="fg full"><label for="phf_'+f.id+'">'+f.l+'</label><input type="'+(f.t==='date'?'date':'text')+'" id="phf_'+f.id+'" placeholder="'+esc(f.ph||'')+'" oninput="phPreviewOnly()"></div></div>';
   }).join('');
   phRender();
 }
