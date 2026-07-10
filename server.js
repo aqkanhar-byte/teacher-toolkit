@@ -48,7 +48,21 @@ app.use((req, res, next) => {
   if (proto !== 'https') return res.redirect(301, `https://${host}${req.originalUrl}`);
   next();
 });
+/* Baseline security headers — CSP intentionally omitted for now: the app relies on inline
+   <script> blocks throughout index.html/admin.html, so a strict CSP would need a nonce-based
+   refactor and real cross-browser testing before it's safe to ship. */
+app.use((req, res, next) => {
+  res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
+  next();
+});
 app.use(express.static('public'));
+/* Browsers/crawlers probe /favicon.ico directly regardless of <link rel="icon">, so without this
+   every single page load logged a real 404 — no icon file of that exact name exists in public/. */
+app.get('/favicon.ico', (req, res) => res.sendFile(path.join(__dirname, 'public', 'icon-192.png')));
 
 startCleanup();
 
