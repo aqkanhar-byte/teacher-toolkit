@@ -540,13 +540,14 @@ const uploadBook = multer({
 
 /* ═══════════════ BOOK BANK (Supabase Storage — curated STBB books) ═══════════════ */
 app.get('/books', async (req, res) => {
-  if (!sb) return res.json({ success: true, books: [] });
   /* Curated STBB library is a login-gated benefit, not public content — without this check
      anyone could scrape the entire catalog + download every book via the URL route below
      without ever creating an account. Admin panel also lists all books for management, so
-     accept either a logged-in teacher session or the admin key. */
+     accept either a logged-in teacher session or the admin key. This MUST run before the
+     `!sb` fallback below — a DB outage must not silently bypass the auth gate. */
   const user = await userFromReq(req);
   if (!user && !isAdmin(req)) return res.status(401).json({ success: false, error: 'Login required', books: [] });
+  if (!sb) return res.json({ success: true, books: [] });
   let q = sb.from('tt_books').select('id,class_name,subject,title,unit_label,size_mb').order('created_at', { ascending: false });
   /* ilike (bina wildcard) = case-insensitive exact match — "ENGLISH" bhi "English" se mil jayega */
   if (req.query.className) q = q.ilike('class_name', String(req.query.className).trim());
@@ -559,9 +560,9 @@ app.get('/books', async (req, res) => {
    DIRECTLY from Supabase Storage — the server never buffers the whole thing in memory just to
    relay it. The client then extracts a small page range with pdf-lib before ever touching the AI. */
 app.get('/books/:id/download-url', async (req, res) => {
-  if (!sb) return res.json({ success: false, error: 'Not configured' });
   const user = await userFromReq(req);
   if (!user) return res.status(401).json({ success: false, error: 'Login required' });
+  if (!sb) return res.json({ success: false, error: 'Not configured' });
   if (!rateLimit('bookurl:' + req.ip, 30, 10 * 60 * 1000)) return tooMany(res);
   const { data: book } = await sb.from('tt_books').select('*').eq('id', req.params.id).maybeSingle();
   if (!book) return res.json({ success: false, error: 'Book not found' });
