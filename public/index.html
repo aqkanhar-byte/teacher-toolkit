@@ -163,6 +163,11 @@ button{cursor:pointer;border:none;background:none}
 .tb-right{display:flex;align-items:center;gap:8px}
 .dev-badge{font-size:10px;font-weight:700;color:var(--g400);padding:4px 11px;border-radius:99px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05)}
 .dev-badge em{color:var(--gold-light);font-style:normal}
+.user-chip{display:flex;align-items:center;gap:8px;padding:3px 10px 3px 3px;border-radius:99px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05)}
+.user-avatar{width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,var(--gold),var(--gold-light));color:var(--navy-dark);font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.user-txt{line-height:1.25;text-align:left}
+.user-name{font-size:11px;font-weight:800;color:#fff;white-space:nowrap}
+.user-role{font-size:9px;font-weight:600;color:rgba(255,255,255,.45);white-space:nowrap}
 .ai-badge{font-size:10px;font-weight:800;color:var(--navy-dark);padding:5px 12px;border-radius:99px;background:linear-gradient(135deg,var(--gold),var(--gold-light))}
 .tb-greet{display:none;align-items:center;margin-left:4px;font-size:12.5px;font-weight:700;color:#fff;white-space:nowrap}
 .tb-greet b{color:var(--gold-light);font-weight:800}
@@ -2538,10 +2543,10 @@ function updateGenRemain(d){
 }
 async function updateAuthUI(){
   const chip=document.getElementById('credChip'),btn=document.getElementById('authBtn'),refBtn=document.getElementById('referBtn');
-  if(!token()){chip.style.display='none';refBtn.style.display='none';btn.innerHTML='👤 Login';updateGenRemain(null);return;}
+  if(!token()){chip.style.display='none';refBtn.style.display='none';btn.className='dev-badge';btn.innerHTML='👤 Login';updateGenRemain(null);return;}
   try{
     const r=await fetch('/wallet',{headers:authHeaders()});const d=await r.json();
-    if(!d.success){localStorage.removeItem('tt_token');chip.style.display='none';refBtn.style.display='none';btn.innerHTML='👤 Login';updateGenRemain(null);return;}
+    if(!d.success){localStorage.removeItem('tt_token');chip.style.display='none';refBtn.style.display='none';btn.className='dev-badge';btn.innerHTML='👤 Login';updateGenRemain(null);return;}
     chip.style.display='inline-block';
     refBtn.style.display='inline-block';
     MY_PHONE=d.phone||'';MY_NAME=d.name||'';MY_SCHOOL=d.school||'';renderGreeting();
@@ -2551,7 +2556,11 @@ async function updateAuthUI(){
     }else{
       chip.innerHTML='💳 <em>'+d.credits+'</em> credits';
     }
-    btn.innerHTML='👤 '+esc((d.name||'').split(' ')[0]);
+    const firstName=(d.name||'').trim().split(' ')[0]||'Teacher';
+    const initials=(d.name||'T').trim().split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();
+    const role=(getProfile().desig||'Teacher');
+    btn.className='user-chip';
+    btn.innerHTML='<div class="user-avatar">'+esc(initials)+'</div><div class="user-txt"><div class="user-name">'+esc(firstName)+'</div><div class="user-role">'+esc(role)+'</div></div>';
     updateGenRemain(d);
   }catch(e){}
 }
