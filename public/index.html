@@ -55,7 +55,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Teacher Toolkit">
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Noto+Nastaliq+Urdu:wght@400;600&family=Amiri:wght@400;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Manrope:wght@600;700;800&family=Noto+Nastaliq+Urdu:wght@400;600&family=Amiri:wght@400;700&display=swap" rel="stylesheet">
 
 <!-- ═══ ANALYTICS CONFIG — sirf yahan apni real IDs daalen, neeche kuch edit karne ki zaroorat nahi ═══
      GA4 Measurement ID GA4 property > Admin > Data Streams mein milta hai (jaisa G-ABC1234XYZ)
@@ -96,23 +96,27 @@
 <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
 :root{
-  --navy:#1a2744;--navy-dark:#0f1a2e;--navy-mid:#243257;
-  --gold:#c8960c;--gold-light:#f5c842;--gold-bg:#fef9e7;
+  /* Premium indigo + gold + emerald palette — same variable names as the old navy palette
+     (--navy/--navy-dark/--navy-mid), so this single block reshapes the hero, header, buttons,
+     and every "premium dark surface" in the app without touching hundreds of call sites. */
+  --navy:#2E2A87;--navy-dark:#1B1B3A;--navy-mid:#4338CA;
+  --gold:#C9962C;--gold-light:#f5c842;--gold-bg:#fef9e7;
   --white:#ffffff;--bg:#f4f6fb;
   --g100:#f1f4f9;--g200:#e2e8f4;--g300:#c8d3e8;--g400:#8898b8;--g600:#4a5878;--g800:#1e2d4a;
-  --green:#0a7c5c;--green-bg:#eafaf4;--red:#b91c1c;--red-bg:#fef2f2;--blue:#1d4ed8;--blue-bg:#eff6ff;
-  --sh-sm:0 1px 3px rgba(26,39,68,.08);--sh:0 4px 14px rgba(26,39,68,.1);--sh-lg:0 10px 30px rgba(26,39,68,.15);
+  --green:#0F9D6E;--green-bg:#eafaf4;--red:#b91c1c;--red-bg:#fef2f2;--blue:#1d4ed8;--blue-bg:#eff6ff;
+  --sh-sm:0 1px 3px rgba(46,42,135,.08);--sh:0 6px 20px rgba(46,42,135,.12);--sh-lg:0 14px 36px rgba(46,42,135,.16);
   --r:10px;--r-lg:14px;
   --dur:.18s;--ease:cubic-bezier(.4,0,.2,1);
   --heading:var(--navy);
+  --font-display:'Manrope',var(--font-body,'Plus Jakarta Sans',sans-serif);
   color-scheme:light;
 }
 /* ─── DARK MODE — same variable names, just repainted; every component "just works" ─── */
 :root[data-theme="dark"]{
-  --white:#16213b;--bg:#0b1220;
-  --g100:#1c2740;--g200:#2a3654;--g300:#3c4a6e;--g400:#8b96b8;--g600:#c2cbe3;--g800:#eef1fa;
-  --gold-bg:rgba(200,150,12,.16);--green-bg:rgba(10,124,92,.18);--red-bg:rgba(185,28,28,.18);--blue-bg:rgba(29,78,216,.2);
-  --sh-sm:0 1px 3px rgba(0,0,0,.3);--sh:0 4px 14px rgba(0,0,0,.35);--sh-lg:0 10px 30px rgba(0,0,0,.5);
+  --white:#191735;--bg:#100F24;
+  --g100:#211F45;--g200:#2E2B5C;--g300:#413C7A;--g400:#9490C4;--g600:#C7C4EC;--g800:#F1EFFF;
+  --gold-bg:rgba(201,150,44,.16);--green-bg:rgba(15,157,110,.18);--red-bg:rgba(185,28,28,.18);--blue-bg:rgba(29,78,216,.2);
+  --sh-sm:0 1px 3px rgba(0,0,0,.3);--sh:0 6px 20px rgba(0,0,0,.4);--sh-lg:0 14px 36px rgba(0,0,0,.55);
   --heading:#f2d67a; /* headings on cards use a warm gold-tinted light tone instead of navy-on-navy */
   color-scheme:dark;
 }
@@ -153,7 +157,7 @@ button{cursor:pointer;border:none;background:none}
 .menu-btn{display:none;width:36px;height:36px;border-radius:8px;background:rgba(255,255,255,.08);color:#fff;font-size:18px;align-items:center;justify-content:center}
 .brand-logo{width:34px;height:34px;border-radius:8px;background:linear-gradient(135deg,var(--gold),var(--gold-light));display:flex;align-items:center;justify-content:center;font-weight:800;color:var(--navy-dark);font-size:16px;letter-spacing:-1px}
 .brand-txt{line-height:1.2}
-.brand-name{font-size:15px;font-weight:800;color:#fff}
+.brand-name{font-family:var(--font-display);font-size:15px;font-weight:800;color:#fff}
 .brand-name span{color:var(--gold-light)}
 .brand-sub{font-size:9.5px;color:rgba(255,255,255,.45);font-weight:600}
 .tb-right{display:flex;align-items:center;gap:8px}
@@ -193,18 +197,25 @@ button{cursor:pointer;border:none;background:none}
 .hero{background:linear-gradient(150deg,var(--navy-dark) 0%,var(--navy) 55%,var(--navy-mid) 100%);border-radius:var(--r-lg);padding:24px 24px 20px;color:#fff;position:relative;overflow:hidden;border:1px solid rgba(200,150,12,.25);box-shadow:var(--sh);margin-bottom:18px}
 .hero::after{content:'';position:absolute;right:-50px;bottom:-60px;width:220px;height:220px;border-radius:50%;border:36px solid rgba(200,150,12,.08)}
 .hero-bis{position:absolute;top:16px;right:22px;font-family:'Amiri',serif;font-size:26px;color:var(--gold-light);opacity:.9;line-height:1.4;text-align:right}
-.hero h1{font-size:clamp(16px,2.6vw,22px);font-weight:800;letter-spacing:-.3px;max-width:70%;line-height:1.3}
+.hero h1{font-family:var(--font-display);font-size:clamp(16px,2.6vw,22px);font-weight:800;letter-spacing:-.3px;max-width:70%;line-height:1.3;text-wrap:balance}
 .hero-addr{font-size:11px;color:rgba(255,255,255,.55);margin-top:5px;font-weight:600}
 .hero-hm{font-size:11px;color:rgba(255,255,255,.55);margin-top:2px;font-weight:600}
 .hero-chips{display:flex;gap:7px;flex-wrap:wrap;margin-top:15px;position:relative;z-index:1}
 .h-chip{font-size:9.5px;font-weight:800;padding:5px 12px;border-radius:99px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);color:rgba(255,255,255,.8)}
 .h-chip.gold{background:rgba(200,150,12,.2);border-color:rgba(200,150,12,.4);color:var(--gold-light)}
 
+/* ─── STAT CARDS (real usage data — /stats) ─── */
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:18px}
+.stat-card{background:var(--white);border:1px solid var(--g200);border-radius:var(--r-lg);padding:14px 16px;box-shadow:var(--sh-sm);transition:box-shadow var(--dur) var(--ease),transform var(--dur) var(--ease)}
+.stat-card:hover{box-shadow:var(--sh);transform:translateY(-1px)}
+.stat-num{font-family:var(--font-display);font-size:22px;font-weight:800;color:var(--heading);line-height:1.1}
+.stat-label{font-size:9.5px;font-weight:800;color:var(--g400);text-transform:uppercase;letter-spacing:.6px;margin-top:5px}
+
 /* ─── DOC HEADER ─── */
 .doc-head{display:flex;align-items:center;gap:13px;margin-bottom:15px;flex-wrap:wrap}
 .dh-ico{width:44px;height:44px;border-radius:12px;background:var(--white);border:1px solid var(--g200);box-shadow:var(--sh-sm);display:flex;align-items:center;justify-content:center;font-size:22px}
 .dh-txt{flex:1;min-width:150px}
-.dh-name{font-size:18px;font-weight:800;color:var(--heading);letter-spacing:-.3px}
+.dh-name{font-family:var(--font-display);font-size:18px;font-weight:800;color:var(--heading);letter-spacing:-.3px}
 .dh-sub{font-size:11px;color:var(--g400);font-weight:600}
 .dh-right{display:flex;gap:8px;align-items:center}
 .mode-badge{font-size:9.5px;font-weight:800;padding:4px 12px;border-radius:99px;letter-spacing:.3px}
@@ -459,6 +470,7 @@ button{cursor:pointer;border:none;background:none}
 
   <!-- HERO -->
   <div class="hero" id="hero"></div>
+  <div id="impactBanner"></div>
 
   <!-- ══ VIEW: DOCUMENT FORM ══ -->
   <div class="view active" id="view-doc">
@@ -763,7 +775,6 @@ button{cursor:pointer;border:none;background:none}
       <div class="dh-txt"><h2 class="dh-name">My Documents</h2><div class="dh-sub">Every AI document you generate is saved here automatically</div></div>
       <div class="dh-right"><button class="mini-btn" onclick="loadMyDocs()">↻ Refresh</button></div>
     </div>
-    <div id="impactBanner"></div>
     <div class="sec-card"><div class="sec-body" id="myDocsList"><div class="db-empty">Loading...</div></div></div>
   </div>
 
@@ -1633,10 +1644,12 @@ async function loadImpactStats(){
     const d=await r.json();
     if(!d.success||!d.totalDocuments){banner.innerHTML='';return;}
     const hours=Math.round(d.estimatedMinutesSaved/60*10)/10;
-    banner.innerHTML='<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">'
-      +'<div style="flex:1;min-width:140px;background:var(--white);border:1px solid var(--g200);border-radius:var(--r);padding:13px 14px;box-shadow:var(--sh-sm)"><div style="font-size:21px;font-weight:800;color:var(--heading)">'+d.totalDocuments+'</div><div style="font-size:9.5px;font-weight:800;color:var(--g400);text-transform:uppercase;letter-spacing:.6px;margin-top:3px">Documents Generated</div></div>'
-      +'<div style="flex:1;min-width:140px;background:var(--white);border:1px solid var(--g200);border-radius:var(--r);padding:13px 14px;box-shadow:var(--sh-sm)"><div style="font-size:21px;font-weight:800;color:var(--heading)">~'+hours+'h</div><div style="font-size:9.5px;font-weight:800;color:var(--g400);text-transform:uppercase;letter-spacing:.6px;margin-top:3px">Estimated Time Saved</div></div>'
-      +'</div>';
+    const cards=[
+      {num:d.totalDocuments,label:'Documents Generated'},
+      {num:'~'+hours+'h',label:'Estimated Time Saved'}
+    ];
+    if(d.memberSince)cards.push({num:new Date(d.memberSince).toLocaleDateString('en-US',{month:'short',year:'numeric'}),label:'Member Since'});
+    banner.innerHTML='<div class="stat-grid">'+cards.map(c=>'<div class="stat-card"><div class="stat-num">'+esc(String(c.num))+'</div><div class="stat-label">'+esc(c.label)+'</div></div>').join('')+'</div>';
   }catch(e){banner.innerHTML='';}
 }
 /* ═══════════ MY DOCUMENTS — saved AI docs wapas kholo ═══════════ */
@@ -2879,7 +2892,7 @@ function applyShortcutParams() {
   applyShortcutParams();
   captureReferral();
   if (isRunningInstalled()) { const b=document.getElementById('installBtn'); if(b) b.style.display='none'; }
-  loadCfg().then(()=>updateAuthUI());
+  loadCfg().then(()=>updateAuthUI().then(loadImpactStats));
   if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});
   authTab('login');
   /* first run — pehle guided tour, phir profile setup (tour ke end par khulta hai) */
