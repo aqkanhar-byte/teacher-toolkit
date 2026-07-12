@@ -164,6 +164,14 @@ button{cursor:pointer;border:none;background:none}
 .dev-badge{font-size:10px;font-weight:700;color:var(--g400);padding:4px 11px;border-radius:99px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05)}
 .dev-badge em{color:var(--gold-light);font-style:normal}
 .ai-badge{font-size:10px;font-weight:800;color:var(--navy-dark);padding:5px 12px;border-radius:99px;background:linear-gradient(135deg,var(--gold),var(--gold-light))}
+.tb-greet{display:none;align-items:center;margin-left:4px;font-size:12.5px;font-weight:700;color:#fff;white-space:nowrap}
+.tb-greet b{color:var(--gold-light);font-weight:800}
+.tb-search{display:none;align-items:center;gap:8px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);border-radius:99px;padding:8px 14px;flex:1;max-width:340px;margin:0 16px}
+.tb-search:focus-within{border-color:var(--gold)}
+.tb-search input{background:none;border:none;outline:none;color:#fff;font-size:12.5px;flex:1;font-family:inherit;min-width:0}
+.tb-search input::placeholder{color:rgba(255,255,255,.4)}
+.tb-search-kbd{font-size:9.5px;font-weight:700;color:rgba(255,255,255,.4);border:1px solid rgba(255,255,255,.16);border-radius:5px;padding:1px 6px;flex-shrink:0}
+@media(min-width:861px){.tb-greet,.tb-search{display:flex}}
 
 /* ─── LAYOUT ─── */
 .layout{display:flex;padding-top:56px;min-height:100vh}
@@ -205,12 +213,46 @@ button{cursor:pointer;border:none;background:none}
 .h-chip{font-size:9.5px;font-weight:800;padding:5px 12px;border-radius:99px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);color:rgba(255,255,255,.8)}
 .h-chip.gold{background:rgba(200,150,12,.2);border-color:rgba(200,150,12,.4);color:var(--gold-light)}
 
+/* ─── DASHBOARD 2-COLUMN GRID (left: hero/actions, right: narrow widget rail) ─── */
+.dash-grid{display:grid;grid-template-columns:1fr 250px;gap:16px;align-items:start;margin-bottom:4px}
+.dash-right{display:flex;flex-direction:column;gap:14px}
+@media(max-width:860px){.dash-grid{grid-template-columns:1fr}}
+
 /* ─── STAT CARDS (real usage data — /stats) ─── */
 .stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:18px}
+.dash-right .stat-grid{grid-template-columns:1fr 1fr;margin-bottom:0}
 .stat-card{background:var(--white);border:1px solid var(--g200);border-radius:var(--r-lg);padding:14px 16px;box-shadow:var(--sh-sm);transition:box-shadow var(--dur) var(--ease),transform var(--dur) var(--ease)}
+.dash-right .stat-card{padding:11px 12px}
 .stat-card:hover{box-shadow:var(--sh);transform:translateY(-1px)}
 .stat-num{font-family:var(--font-display);font-size:22px;font-weight:800;color:var(--heading);line-height:1.1}
+.dash-right .stat-num{font-size:18px}
 .stat-label{font-size:9.5px;font-weight:800;color:var(--g400);text-transform:uppercase;letter-spacing:.6px;margin-top:5px}
+
+/* ─── WIDGET CARDS (Recent Activity, AI Assistant teaser) ─── */
+.widget-card{background:var(--white);border:1px solid var(--g200);border-radius:var(--r-lg);padding:14px 16px;box-shadow:var(--sh-sm)}
+.widget-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:11px;gap:8px}
+.widget-title{font-size:11.5px;font-weight:800;color:var(--heading)}
+.widget-link{font-size:10px;font-weight:700;color:var(--navy-mid);cursor:pointer;white-space:nowrap}
+.activity-row{display:flex;gap:9px;align-items:flex-start;padding:7px 0}
+.activity-row+.activity-row{border-top:1px solid var(--g100)}
+.activity-ico{width:26px;height:26px;border-radius:8px;background:var(--gold-bg);display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0}
+.activity-txt{font-size:11px;font-weight:600;color:var(--g800);line-height:1.4}
+.activity-txt b{font-weight:800}
+.activity-time{font-size:9.5px;color:var(--g400);font-weight:600;margin-top:1px}
+.widget-empty{font-size:11px;color:var(--g400);font-weight:600;text-align:center;padding:10px 0}
+.ast-teaser{background:linear-gradient(150deg,var(--navy-dark),var(--navy-mid));border:none;cursor:pointer;color:#fff;transition:transform var(--dur) var(--ease)}
+.ast-teaser:hover{transform:translateY(-1px)}
+.ast-teaser .widget-title{color:#fff}
+.ast-teaser-body{display:flex;align-items:center;gap:10px}
+.ast-teaser-ava{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,var(--gold),var(--gold-light));display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.ast-teaser-txt{font-size:11px;font-weight:600;color:rgba(255,255,255,.75);line-height:1.4}
+
+/* ─── TRUST STRIP ─── */
+.trust-strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;padding:16px 4px 20px;border-top:1px solid var(--g200);margin-top:6px}
+.trust-item{display:flex;align-items:center;gap:10px}
+.trust-ico{width:34px;height:34px;border-radius:9px;background:var(--g100);display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
+.trust-name{font-size:11.5px;font-weight:800;color:var(--g800)}
+.trust-sub{font-size:9.5px;color:var(--g400);font-weight:600;margin-top:1px}
 
 /* ─── QUICK ACTION TILES ─── */
 .quick-head{font-size:12.5px;font-weight:800;color:var(--heading);margin-bottom:10px}
@@ -457,6 +499,13 @@ button{cursor:pointer;border:none;background:none}
       <div class="brand-sub" id="tbSub">Sindh Education Department</div>
     </div>
   </div>
+  <div class="tb-greet" id="tbGreet"></div>
+  <label class="tb-search">
+    <span class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden">Search document types and tools</span>
+    <span aria-hidden="true">🔍</span>
+    <input type="text" id="tbSearchInp" placeholder="Search document types, tools..." oninput="tbSearch(this.value)" onkeydown="if(event.key==='Escape'){this.value='';tbSearch('');this.blur()}">
+    <span class="tb-search-kbd">Ctrl K</span>
+  </label>
   <div class="tb-right">
     <button class="dev-badge" id="installBtn" onclick="installApp()" style="cursor:pointer;display:none">⬇️ Install App</button>
     <button class="theme-btn" id="themeBtn" onclick="toggleTheme()" aria-label="Switch to dark mode" title="Switch theme"></button>
@@ -480,11 +529,35 @@ button{cursor:pointer;border:none;background:none}
 <!-- ═══ MAIN ═══ -->
 <main class="main" id="main">
 
-  <!-- HERO -->
-  <div class="hero" id="hero"></div>
-  <div id="impactBanner"></div>
-  <div class="quick-head">What would you like to create?</div>
-  <div class="quick-tiles" id="quickTiles"></div>
+  <!-- DASHBOARD: hero + quick actions (left) · real usage widgets (right) -->
+  <div class="dash-grid">
+    <div class="dash-left">
+      <div class="hero" id="hero"></div>
+      <div class="quick-head">What would you like to create?</div>
+      <div class="quick-tiles" id="quickTiles"></div>
+      <div id="dashRecentDocsWrap" style="display:none">
+        <div class="widget-head"><span class="widget-title">Recent Documents</span><span class="widget-link" onclick="sbClick(document.querySelector('.sb-item[data-key=\'view:docs\']'))">View all →</span></div>
+        <div id="dashRecentDocs" class="widget-card" style="padding:6px 0"></div>
+      </div>
+    </div>
+    <div class="dash-right">
+      <div id="impactBanner"></div>
+      <div class="widget-card">
+        <div class="widget-head"><span class="widget-title">Recent Activity</span><span class="widget-link" onclick="sbClick(document.querySelector('.sb-item[data-key=\'view:docs\']'))">View all</span></div>
+        <div id="recentActivity"><div class="widget-empty">—</div></div>
+      </div>
+      <div class="widget-card ast-teaser" onclick="astToggle()" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();astToggle()}">
+        <div class="widget-head"><span class="widget-title">✦ AI Assistant</span></div>
+        <div class="ast-teaser-body"><div class="ast-teaser-ava">💬</div><div class="ast-teaser-txt">Questions about a tool or feature? Ask here — instant answers.</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="trust-strip">
+    <div class="trust-item"><div class="trust-ico">🤖</div><div><div class="trust-name">AI Powered</div><div class="trust-sub">Smart content generation</div></div></div>
+    <div class="trust-item"><div class="trust-ico">⏱️</div><div><div class="trust-name">Time Saving</div><div class="trust-sub">Minimize your workload</div></div></div>
+    <div class="trust-item"><div class="trust-ico">✅</div><div><div class="trust-name">Curriculum Aligned</div><div class="trust-sub">Sindh textbook board</div></div></div>
+    <div class="trust-item"><div class="trust-ico">🔒</div><div><div class="trust-name">Secure &amp; Private</div><div class="trust-sub">Your data is protected</div></div></div>
+  </div>
 
   <!-- ══ VIEW: DOCUMENT FORM ══ -->
   <div class="view active" id="view-doc">
@@ -1191,6 +1264,34 @@ function toggleSidebar(force){
   sb.classList.toggle('open',open);ov.classList.toggle('open',open);
 }
 
+/* ═══════════ TOP BAR — greeting (real name + time-of-day) and search ═══════════ */
+function renderGreeting(){
+  const box=document.getElementById('tbGreet');if(!box)return;
+  const hr=new Date().getHours();
+  const part=hr<12?'Good morning':hr<17?'Good afternoon':'Good evening';
+  const name=(MY_NAME||'').trim().split(' ')[0];
+  box.innerHTML=name?(part+', <b>'+esc(name)+'</b> 👋'):(part+' 👋');
+}
+function tbSearch(qRaw){
+  const q=qRaw.trim().toLowerCase();
+  const items=document.querySelectorAll('.sb-item');
+  const secs=document.querySelectorAll('.sb-sec');
+  if(!q){items.forEach(i=>i.style.display='');secs.forEach(s=>s.style.display='');return;}
+  secs.forEach(s=>s.style.display='none');
+  items.forEach(i=>{
+    const name=(i.querySelector('.sb-name')||{}).textContent||'';
+    const sub=(i.querySelector('.sb-sub')||{}).textContent||'';
+    i.style.display=(name.toLowerCase().includes(q)||sub.toLowerCase().includes(q))?'':'none';
+  });
+}
+document.addEventListener('keydown',e=>{
+  if((e.ctrlKey||e.metaKey)&&e.key==='k'){
+    e.preventDefault();
+    const inp=document.getElementById('tbSearchInp');
+    if(inp){toggleSidebar(true);inp.focus();}
+  }
+});
+
 /* ═══════════ SCHOOL PROFILE (localStorage — hardcoding khatam) ═══════════ */
 function getProfile(){try{return JSON.parse(localStorage.getItem('tt_profile')||'{}');}catch(e){return{};}}
 function renderProfile(){
@@ -1673,18 +1774,60 @@ async function loadImpactStats(){
     const d=await r.json();
     if(!d.success||!d.totalDocuments){banner.innerHTML='';return;}
     const hours=Math.round(d.estimatedMinutesSaved/60*10)/10;
+    /* Narrow right-rail fits exactly 2 cards side by side without an awkward orphan row —
+       "Member Since" is still shown elsewhere (My Documents header), so nothing is lost. */
     const cards=[
       {num:d.totalDocuments,label:'Documents Generated'},
       {num:'~'+hours+'h',label:'Estimated Time Saved'}
     ];
-    if(d.memberSince)cards.push({num:new Date(d.memberSince).toLocaleDateString('en-US',{month:'short',year:'numeric'}),label:'Member Since'});
     banner.innerHTML='<div class="stat-grid">'+cards.map(c=>'<div class="stat-card"><div class="stat-num">'+esc(String(c.num))+'</div><div class="stat-label">'+esc(c.label)+'</div></div>').join('')+'</div>';
   }catch(e){banner.innerHTML='';}
+}
+/* ═══════════ RECENT ACTIVITY (dashboard right rail) — same real data as My Documents ═══════════ */
+function relTime(iso){
+  const diff=(Date.now()-new Date(iso).getTime())/1000;
+  if(diff<60)return 'just now';
+  if(diff<3600)return Math.floor(diff/60)+'m ago';
+  if(diff<86400)return Math.floor(diff/3600)+'h ago';
+  if(diff<604800)return Math.floor(diff/86400)+'d ago';
+  return new Date(iso).toLocaleDateString('en-GB',{day:'2-digit',month:'short'});
+}
+async function loadRecentActivity(){
+  const box=document.getElementById('recentActivity');if(!box)return;
+  if(!token()){box.innerHTML='<div class="widget-empty">Login to see your activity</div>';return;}
+  try{
+    const r=await fetch('/documents',{headers:authHeaders()});
+    const d=await r.json();
+    if(!d.success||!d.documents.length){box.innerHTML='<div class="widget-empty">No documents yet</div>';return;}
+    box.innerHTML=d.documents.slice(0,5).map(doc=>{
+      const ico=(DOC_META[doc.doc_type]||{}).i||'📄';
+      return '<div class="activity-row"><div class="activity-ico">'+ico+'</div><div style="min-width:0;flex:1"><div class="activity-txt">You created <b>'+esc(doc.doc_type)+'</b>'+(doc.title?' — '+esc(doc.title):'')+'</div><div class="activity-time">'+relTime(doc.created_at)+'</div></div></div>';
+    }).join('');
+  }catch(e){box.innerHTML='<div class="widget-empty">Could not load</div>';}
+}
+/* Dashboard preview of the same "My Documents" data — lets a teacher open/delete a recent
+   document without leaving the main page. openMyDoc/delMyDoc are the same functions the full
+   My Documents view uses, so behavior (and the delete confirmation) stays identical. */
+async function loadDashRecentDocs(){
+  const wrap=document.getElementById('dashRecentDocsWrap'),box=document.getElementById('dashRecentDocs');
+  if(!wrap||!box)return;
+  if(!token()){wrap.style.display='none';return;}
+  try{
+    const r=await fetch('/documents',{headers:authHeaders()});
+    const d=await r.json();
+    if(!d.success||!d.documents.length){wrap.style.display='none';return;}
+    wrap.style.display='';
+    box.innerHTML='<table class="db-table"><thead><tr><th></th><th>Title</th><th>Type</th><th>Date</th><th></th></tr></thead><tbody>'+
+      d.documents.slice(0,5).map(doc=>{
+        const ico=(DOC_META[doc.doc_type]||{}).i||'📄';
+        return '<tr><td style="width:30px">'+ico+'</td><td>'+esc(doc.title||'—')+'</td><td>'+esc(doc.doc_type)+'</td><td>'+relTime(doc.created_at)+'</td><td><div class="db-act"><button class="fill" onclick="openMyDoc(\''+esc(doc.id)+'\')">Open</button></div></td></tr>';
+      }).join('')+'</tbody></table>';
+  }catch(e){wrap.style.display='none';}
 }
 /* ═══════════ MY DOCUMENTS — saved AI docs wapas kholo ═══════════ */
 async function loadMyDocs(){
   const box=document.getElementById('myDocsList');
-  loadImpactStats();
+  loadImpactStats();loadRecentActivity();loadDashRecentDocs();
   if(!token()){box.innerHTML='<div class="db-empty">🔒 Please <a href="#" onclick="openAuth(\'Login to see your saved documents\');return false" style="color:var(--blue);font-weight:700">login</a> — every AI document you generate is saved to your account automatically.</div>';return;}
   box.innerHTML='<div class="db-empty">⏳ Loading your documents...</div>';
   try{
@@ -2302,7 +2445,7 @@ async function updateAuthUI(){
     if(!d.success){localStorage.removeItem('tt_token');chip.style.display='none';refBtn.style.display='none';btn.innerHTML='👤 Login';updateGenRemain(null);return;}
     chip.style.display='inline-block';
     refBtn.style.display='inline-block';
-    MY_PHONE=d.phone||'';MY_NAME=d.name||'';MY_SCHOOL=d.school||'';
+    MY_PHONE=d.phone||'';MY_NAME=d.name||'';MY_SCHOOL=d.school||'';renderGreeting();
     if(d.plan&&d.planLeft>0){
       const days=Math.max(0,Math.ceil((new Date(d.planExpires)-Date.now())/86400000));
       chip.innerHTML='⭐ <em>'+d.planLeft+'</em> docs · '+days+'d left';
@@ -2908,6 +3051,7 @@ function applyShortcutParams() {
   initTheme();
   renderSidebar();
   renderQuickTiles();
+  renderGreeting();
   renderProfile();
   /* CRQ + Upload selects */
   const cls=CLASS_LIST.map(c=>'<option'+(c==='Class 1'?' selected':'')+'>'+c+'</option>').join('');
@@ -2922,7 +3066,7 @@ function applyShortcutParams() {
   applyShortcutParams();
   captureReferral();
   if (isRunningInstalled()) { const b=document.getElementById('installBtn'); if(b) b.style.display='none'; }
-  loadCfg().then(()=>updateAuthUI().then(loadImpactStats));
+  loadCfg().then(()=>updateAuthUI().then(()=>{loadImpactStats();loadRecentActivity();loadDashRecentDocs();}));
   if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});
   authTab('login');
   /* first run — pehle guided tour, phir profile setup (tour ke end par khulta hai) */
