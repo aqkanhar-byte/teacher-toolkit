@@ -187,6 +187,12 @@ button{cursor:pointer;border:none;background:none}
 .sb-edit:hover{color:var(--heading)}
 .sb-setup{font-size:11px;color:var(--g600);line-height:1.5}
 .sb-setup button{margin-top:8px;background:var(--navy);color:#fff;font-size:10.5px;font-weight:700;padding:6px 14px;border-radius:8px}
+.sb-upgrade{margin-top:14px;background:linear-gradient(150deg,var(--navy-dark),var(--navy-mid));border-radius:var(--r-lg);padding:14px;cursor:pointer;position:relative;overflow:hidden}
+.sb-upgrade::after{content:'';position:absolute;top:-30px;right:-30px;width:100px;height:100px;border-radius:50%;border:20px solid rgba(255,255,255,.06)}
+.sb-upgrade-ico{width:28px;height:28px;border-radius:8px;background:rgba(255,255,255,.14);display:flex;align-items:center;justify-content:center;font-size:14px;margin-bottom:8px}
+.sb-upgrade-name{font-size:12px;font-weight:800;color:#fff}
+.sb-upgrade-sub{font-size:10px;color:rgba(255,255,255,.55);font-weight:600;margin-top:2px;line-height:1.4}
+.sb-upgrade-btn{margin-top:10px;background:#fff;color:var(--navy);font-size:10.5px;font-weight:800;padding:7px 12px;border-radius:8px;text-align:center}
 
 /* Sidebar nav */
 .sb-sec{font-size:9.5px;font-weight:800;color:var(--g400);text-transform:uppercase;letter-spacing:1px;margin:16px 6px 7px}
@@ -194,6 +200,9 @@ button{cursor:pointer;border:none;background:none}
 .sb-item:hover{background:var(--g100)}
 .sb-item.active{background:var(--navy-mid);border-color:var(--navy-mid)}
 .sb-ico{width:30px;height:30px;border-radius:8px;background:var(--g100);display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
+.sb-tint-gold .sb-ico{background:var(--gold-bg)}
+.sb-tint-indigo .sb-ico{background:rgba(67,56,202,.1)}
+.sb-tint-emerald .sb-ico{background:var(--green-bg)}
 .sb-item.active .sb-ico{background:rgba(255,255,255,.18)}
 .sb-txt{min-width:0;flex:1}
 .sb-name{font-size:12px;font-weight:700;color:var(--g800);line-height:1.25}
@@ -201,6 +210,8 @@ button{cursor:pointer;border:none;background:none}
 .sb-item.active .sb-sub{color:rgba(255,255,255,.65)}
 .sb-sub{font-size:9.5px;color:var(--g400);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .noai{font-size:9.5px;font-weight:800;background:var(--green-bg);color:var(--green);border:1px solid rgba(10,124,92,.3);padding:2px 7px;border-radius:99px;flex-shrink:0;letter-spacing:.3px}
+.sb-count{font-size:9.5px;font-weight:800;background:var(--g100);color:var(--g400);padding:2px 8px;border-radius:99px;flex-shrink:0}
+.sb-item.active .sb-count{background:rgba(255,255,255,.2);color:#fff}
 
 /* ─── HERO CARD ─── */
 .hero{background:linear-gradient(150deg,var(--navy-dark) 0%,var(--navy) 55%,var(--navy-mid) 100%);border-radius:var(--r-lg);padding:24px 24px 20px;color:#fff;position:relative;overflow:hidden;border:1px solid rgba(200,150,12,.25);box-shadow:var(--sh);margin-bottom:18px}
@@ -524,6 +535,12 @@ button{cursor:pointer;border:none;background:none}
 <aside class="sidebar" id="sidebar">
   <div class="sb-profile" id="sbProfile"></div>
   <nav id="sbNav"></nav>
+  <div class="sb-upgrade" onclick="openBuy()" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openBuy()}">
+    <div class="sb-upgrade-ico">⭐</div>
+    <div class="sb-upgrade-name">Upgrade to Monthly Pro</div>
+    <div class="sb-upgrade-sub">More documents, better price per doc</div>
+    <div class="sb-upgrade-btn">View Plans →</div>
+  </div>
 </aside>
 
 <!-- ═══ MAIN ═══ -->
@@ -1155,7 +1172,7 @@ function hasStudentFields(doc){const c=DOC_CONFIG[doc];return c&&c.f.some(k=>F[k
 
 /* ═══════════ SIDEBAR ═══════════ */
 const SIDEBAR=[
- {sec:'Academic Documents',items:[
+ {sec:'Academic Documents',tint:'gold',items:[
   {d:'Weekly Pack',i:'📦',s:'Lesson Plan + Worksheet + Homework in 1 click'},
   {d:'Lesson Plan',i:'📚',s:"PPP + Bloom's Taxonomy"},
   {v:'upload',n:'Upload & Generate',i:'📖',s:'Books, syllabus, any document'},
@@ -1169,7 +1186,7 @@ const SIDEBAR=[
   {d:'Monthly Teaching Plan',i:'🗓️',s:'Monthly breakup'},
   {d:'Progress Report',i:'📈',s:'Student performance'}
  ]},
- {sec:'Certificates & Letters',items:[
+ {sec:'Certificates & Letters',tint:'indigo',items:[
   {d:'Character Certificate',i:'🏅',s:'Conduct document'},
   {d:'Transfer Certificate',i:'🔄',s:'TC document'},
   {d:'Bonafide Certificate',i:'📜',s:'Enrollment proof'},
@@ -1180,7 +1197,7 @@ const SIDEBAR=[
   {d:'Salary Certificate',i:'💼',s:'Salary proof'},
   {d:'Official Letter',i:'✉️',s:'General correspondence'}
  ]},
- {sec:'Student Records',items:[
+ {sec:'Student Records',tint:'emerald',items:[
   {v:'db',n:'Student Database',i:'🗄️',s:'Import · Export · Auto-fill'},
   {d:'Result Card',i:'📋',s:'Annual result'},
   {d:'Attendance Sheet',i:'✔️',s:'Monthly register'},
@@ -1189,14 +1206,16 @@ const SIDEBAR=[
   {d:'Scholarship Form',i:'💰',s:'Wazifa application'},
   {d:'Parent Notice',i:'👨‍👩‍👧',s:'Letter to parent'}
  ]},
- {sec:'Premium Tools',items:[
+ {sec:'Premium Tools',tint:'gold',items:[
   {v:'analyze',n:'Performance Analyzer',i:'📊',s:'Learning gaps · at-risk students'},
   {v:'parent',n:'Parent Communication',i:'💬',s:'1-click WhatsApp to parents'}
  ]},
  {sec:'My Account',items:[
-  {v:'docs',n:'My Documents',i:'📂',s:'Re-open saved AI documents'}
+  {v:'docs',n:'My Documents',i:'📂',s:'Re-open saved AI documents'},
+  {a:'openProfile',n:'My Profile',i:'👤',s:'School, head master, logo'},
+  {a:'astToggle',n:'Help & Support',i:'💬',s:'Ask the Toolkit Assistant'}
  ]},
- {sec:'Admin & Tools',items:[
+ {sec:'Admin & Tools',tint:'indigo',items:[
   {d:'Leave Application',i:'📨',s:'Official request'},
   {d:'School Improvement Plan',i:'📈',s:'SIP document'},
   {d:'Meeting Minutes',i:'🗒️',s:'SMC / Staff meeting'},
@@ -1214,10 +1233,15 @@ function renderSidebar(){
   let html='';
   SIDEBAR.forEach(g=>{
     html+='<div class="sb-sec">'+g.sec+'</div>';
+    const tintClass=g.tint?' sb-tint-'+g.tint:'';
     g.items.forEach(it=>{
-      const key=it.d?('doc:'+it.d):('view:'+it.v);
       const noai=it.d&&NO_AI.includes(it.d)?'<span class="noai">No AI</span>':'';
-      html+='<div class="sb-item" data-key="'+key+'" role="button" tabindex="0" onclick="sbClick(this)" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();sbClick(this)}"><div class="sb-ico">'+it.i+'</div><div class="sb-txt"><div class="sb-name">'+(it.d||it.n)+'</div><div class="sb-sub">'+it.s+'</div></div>'+noai+'</div>';
+      if(it.a){
+        html+='<div class="sb-item'+tintClass+'" role="button" tabindex="0" onclick="'+it.a+'()" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();'+it.a+'()}"><div class="sb-ico">'+it.i+'</div><div class="sb-txt"><div class="sb-name">'+it.n+'</div><div class="sb-sub">'+it.s+'</div></div></div>';
+        return;
+      }
+      const key=it.d?('doc:'+it.d):('view:'+it.v);
+      html+='<div class="sb-item'+tintClass+'" data-key="'+key+'" role="button" tabindex="0" onclick="sbClick(this)" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();sbClick(this)}"><div class="sb-ico">'+it.i+'</div><div class="sb-txt"><div class="sb-name">'+(it.d||it.n)+'</div><div class="sb-sub">'+it.s+'</div></div>'+noai+'</div>';
     });
   });
   document.getElementById('sbNav').innerHTML=html;
@@ -1783,7 +1807,9 @@ async function loadImpactStats(){
     banner.innerHTML='<div class="stat-grid">'+cards.map(c=>'<div class="stat-card"><div class="stat-num">'+esc(String(c.num))+'</div><div class="stat-label">'+esc(c.label)+'</div></div>').join('')+'</div>';
   }catch(e){banner.innerHTML='';}
 }
-/* ═══════════ RECENT ACTIVITY (dashboard right rail) — same real data as My Documents ═══════════ */
+/* ═══════════ DASHBOARD DATA — one /documents fetch, shared by Recent Activity, the Recent
+   Documents table, and sidebar badge counts (previously 2 of these independently re-fetched
+   the exact same endpoint) ═══════════ */
 function relTime(iso){
   const diff=(Date.now()-new Date(iso).getTime())/1000;
   if(diff<60)return 'just now';
@@ -1792,42 +1818,60 @@ function relTime(iso){
   if(diff<604800)return Math.floor(diff/86400)+'d ago';
   return new Date(iso).toLocaleDateString('en-GB',{day:'2-digit',month:'short'});
 }
-async function loadRecentActivity(){
-  const box=document.getElementById('recentActivity');if(!box)return;
-  if(!token()){box.innerHTML='<div class="widget-empty">Login to see your activity</div>';return;}
+let MY_DOCS_CACHE=null;
+async function loadDashboardData(){
+  if(!token()){MY_DOCS_CACHE=null;renderRecentActivity([]);renderDashRecentDocs([]);renderSidebarBadges([]);return;}
   try{
     const r=await fetch('/documents',{headers:authHeaders()});
     const d=await r.json();
-    if(!d.success||!d.documents.length){box.innerHTML='<div class="widget-empty">No documents yet</div>';return;}
-    box.innerHTML=d.documents.slice(0,5).map(doc=>{
-      const ico=(DOC_META[doc.doc_type]||{}).i||'📄';
-      return '<div class="activity-row"><div class="activity-ico">'+ico+'</div><div style="min-width:0;flex:1"><div class="activity-txt">You created <b>'+esc(doc.doc_type)+'</b>'+(doc.title?' — '+esc(doc.title):'')+'</div><div class="activity-time">'+relTime(doc.created_at)+'</div></div></div>';
-    }).join('');
-  }catch(e){box.innerHTML='<div class="widget-empty">Could not load</div>';}
+    MY_DOCS_CACHE=(d.success&&d.documents)?d.documents:[];
+  }catch(e){MY_DOCS_CACHE=[];}
+  renderRecentActivity(MY_DOCS_CACHE);
+  renderDashRecentDocs(MY_DOCS_CACHE);
+  renderSidebarBadges(MY_DOCS_CACHE);
+}
+function renderRecentActivity(docs){
+  const box=document.getElementById('recentActivity');if(!box)return;
+  if(!token()){box.innerHTML='<div class="widget-empty">Login to see your activity</div>';return;}
+  if(!docs.length){box.innerHTML='<div class="widget-empty">No documents yet</div>';return;}
+  box.innerHTML=docs.slice(0,5).map(doc=>{
+    const ico=(DOC_META[doc.doc_type]||{}).i||'📄';
+    return '<div class="activity-row"><div class="activity-ico">'+ico+'</div><div style="min-width:0;flex:1"><div class="activity-txt">You created <b>'+esc(doc.doc_type)+'</b>'+(doc.title?' — '+esc(doc.title):'')+'</div><div class="activity-time">'+relTime(doc.created_at)+'</div></div></div>';
+  }).join('');
 }
 /* Dashboard preview of the same "My Documents" data — lets a teacher open/delete a recent
    document without leaving the main page. openMyDoc/delMyDoc are the same functions the full
    My Documents view uses, so behavior (and the delete confirmation) stays identical. */
-async function loadDashRecentDocs(){
+function renderDashRecentDocs(docs){
   const wrap=document.getElementById('dashRecentDocsWrap'),box=document.getElementById('dashRecentDocs');
   if(!wrap||!box)return;
-  if(!token()){wrap.style.display='none';return;}
-  try{
-    const r=await fetch('/documents',{headers:authHeaders()});
-    const d=await r.json();
-    if(!d.success||!d.documents.length){wrap.style.display='none';return;}
-    wrap.style.display='';
-    box.innerHTML='<table class="db-table"><thead><tr><th></th><th>Title</th><th>Type</th><th>Date</th><th></th></tr></thead><tbody>'+
-      d.documents.slice(0,5).map(doc=>{
-        const ico=(DOC_META[doc.doc_type]||{}).i||'📄';
-        return '<tr><td style="width:30px">'+ico+'</td><td>'+esc(doc.title||'—')+'</td><td>'+esc(doc.doc_type)+'</td><td>'+relTime(doc.created_at)+'</td><td><div class="db-act"><button class="fill" onclick="openMyDoc(\''+esc(doc.id)+'\')">Open</button></div></td></tr>';
-      }).join('')+'</tbody></table>';
-  }catch(e){wrap.style.display='none';}
+  if(!token()||!docs.length){wrap.style.display='none';return;}
+  wrap.style.display='';
+  box.innerHTML='<table class="db-table"><thead><tr><th></th><th>Title</th><th>Type</th><th>Date</th><th></th></tr></thead><tbody>'+
+    docs.slice(0,5).map(doc=>{
+      const ico=(DOC_META[doc.doc_type]||{}).i||'📄';
+      return '<tr><td style="width:30px">'+ico+'</td><td>'+esc(doc.title||'—')+'</td><td>'+esc(doc.doc_type)+'</td><td>'+relTime(doc.created_at)+'</td><td><div class="db-act"><button class="fill" onclick="openMyDoc(\''+esc(doc.id)+'\')">Open</button></div></td></tr>';
+    }).join('')+'</tbody></table>';
+}
+/* Real per-document-type counts (matches the badges the reference design shows next to each
+   sidebar item) — computed client-side from data already fetched, no extra backend call. */
+function renderSidebarBadges(docs){
+  const counts={};
+  docs.forEach(doc=>{counts[doc.doc_type]=(counts[doc.doc_type]||0)+1;});
+  document.querySelectorAll('.sb-item[data-key^="doc:"]').forEach(el=>{
+    const docType=el.dataset.key.slice(4);
+    const n=counts[docType]||0;
+    let badge=el.querySelector('.sb-count');
+    if(n>0){
+      if(!badge){badge=document.createElement('span');badge.className='sb-count';el.appendChild(badge);}
+      badge.textContent=n;
+    }else if(badge){badge.remove();}
+  });
 }
 /* ═══════════ MY DOCUMENTS — saved AI docs wapas kholo ═══════════ */
 async function loadMyDocs(){
   const box=document.getElementById('myDocsList');
-  loadImpactStats();loadRecentActivity();loadDashRecentDocs();
+  loadDashboardData();
   if(!token()){box.innerHTML='<div class="db-empty">🔒 Please <a href="#" onclick="openAuth(\'Login to see your saved documents\');return false" style="color:var(--blue);font-weight:700">login</a> — every AI document you generate is saved to your account automatically.</div>';return;}
   box.innerHTML='<div class="db-empty">⏳ Loading your documents...</div>';
   try{
@@ -3066,7 +3110,7 @@ function applyShortcutParams() {
   applyShortcutParams();
   captureReferral();
   if (isRunningInstalled()) { const b=document.getElementById('installBtn'); if(b) b.style.display='none'; }
-  loadCfg().then(()=>updateAuthUI().then(()=>{loadImpactStats();loadRecentActivity();loadDashRecentDocs();}));
+  loadCfg().then(()=>updateAuthUI().then(()=>{loadImpactStats();loadDashboardData();}));
   if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});
   authTab('login');
   /* first run — pehle guided tour, phir profile setup (tour ke end par khulta hai) */
