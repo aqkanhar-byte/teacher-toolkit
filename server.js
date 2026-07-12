@@ -59,6 +59,13 @@ app.use((req, res, next) => {
   res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
   next();
 });
+/* The service worker file itself must never be cached — if a browser holds onto an old copy of
+   sw.js, it keeps running old (possibly buggy) fetch-handling logic indefinitely, since browsers
+   only check for SW updates periodically. This forces a fresh fetch on every check. */
+app.use((req, res, next) => {
+  if (req.path === '/sw.js') res.setHeader('Cache-Control', 'no-store');
+  next();
+});
 app.use(express.static('public'));
 /* Browsers/crawlers probe /favicon.ico directly regardless of <link rel="icon">, so without this
    every single page load logged a real 404 — no icon file of that exact name exists in public/. */

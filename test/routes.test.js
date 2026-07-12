@@ -84,6 +84,22 @@ test('SEO: homepage canonical/OG tags use the www host consistently', async () =
   assert.match(html, /og:url" content="https:\/\/www\.teachertoolkitsindh\.com\/"/);
 });
 
+/* Regression test for a real bug: the service worker's fetch handler used to cache ANY network
+   response including error pages, so a transient 404/500 could get stuck and resurface on every
+   later network hiccup, indefinitely, even after the live server was fixed. Also guards that the
+   sw.js file itself is never HTTP-cached, so browsers pick up the fixed version promptly. */
+test('PWA: sw.js is served with no-store so browsers never get stuck on an old copy', async () => {
+  const r = await fetch(base + '/sw.js');
+  assert.equal(r.status, 200);
+  assert.equal(r.headers.get('cache-control'), 'no-store');
+});
+
+test('PWA: service worker never caches error responses (only res.ok is cached)', async () => {
+  const r = await fetch(base + '/sw.js');
+  const js = await r.text();
+  assert.match(js, /if\s*\(res\.ok\)\s*\{\s*const copy/, 'app-shell fetch handler must guard cache writes with res.ok');
+});
+
 /* ─── Security headers ─────────────────────────────────────────────────── */
 test('security headers are present on every response', async () => {
   const r = await fetch(base + '/');
