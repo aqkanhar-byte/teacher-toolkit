@@ -104,7 +104,7 @@
   --white:#ffffff;--bg:#f4f6fb;
   --g100:#f1f4f9;--g200:#e2e8f4;--g300:#c8d3e8;--g400:#8898b8;--g600:#4a5878;--g800:#1e2d4a;
   --green:#0F9D6E;--green-bg:#eafaf4;--red:#b91c1c;--red-bg:#fef2f2;--blue:#1d4ed8;--blue-bg:#eff6ff;
-  --sh-sm:0 1px 3px rgba(46,42,135,.08);--sh:0 6px 20px rgba(46,42,135,.12);--sh-lg:0 14px 36px rgba(46,42,135,.16);
+  --sh-sm:0 2px 7px rgba(46,42,135,.12);--sh:0 10px 30px rgba(46,42,135,.18);--sh-lg:0 22px 50px rgba(46,42,135,.24);
   --r:10px;--r-lg:14px;
   --dur:.18s;--ease:cubic-bezier(.4,0,.2,1);
   --heading:var(--navy);
@@ -116,7 +116,7 @@
   --white:#191735;--bg:#100F24;
   --g100:#211F45;--g200:#2E2B5C;--g300:#413C7A;--g400:#9490C4;--g600:#C7C4EC;--g800:#F1EFFF;
   --gold-bg:rgba(201,150,44,.16);--green-bg:rgba(15,157,110,.18);--red-bg:rgba(185,28,28,.18);--blue-bg:rgba(29,78,216,.2);
-  --sh-sm:0 1px 3px rgba(0,0,0,.3);--sh:0 6px 20px rgba(0,0,0,.4);--sh-lg:0 14px 36px rgba(0,0,0,.55);
+  --sh-sm:0 2px 7px rgba(0,0,0,.35);--sh:0 10px 30px rgba(0,0,0,.45);--sh-lg:0 22px 50px rgba(0,0,0,.6);
   --heading:#f2d67a; /* headings on cards use a warm gold-tinted light tone instead of navy-on-navy */
   color-scheme:dark;
 }
@@ -214,8 +214,9 @@ button{cursor:pointer;border:none;background:none}
 .sb-item.active .sb-count{background:rgba(255,255,255,.2);color:#fff}
 
 /* ─── HERO CARD ─── */
-.hero{background:linear-gradient(150deg,var(--navy-dark) 0%,var(--navy) 55%,var(--navy-mid) 100%);border-radius:var(--r-lg);padding:24px 24px 20px;color:#fff;position:relative;overflow:hidden;border:1px solid rgba(200,150,12,.25);box-shadow:var(--sh);margin-bottom:18px}
-.hero::after{content:'';position:absolute;right:-50px;bottom:-60px;width:220px;height:220px;border-radius:50%;border:36px solid rgba(200,150,12,.08)}
+.hero{background:linear-gradient(150deg,var(--navy-dark) 0%,var(--navy) 55%,var(--navy-mid) 100%);border-radius:var(--r-lg);padding:26px 24px 22px;color:#fff;position:relative;overflow:hidden;border:1px solid rgba(200,150,12,.25);box-shadow:var(--sh-lg);margin-bottom:18px;min-height:190px}
+.hero::before{content:'';position:absolute;right:-30px;top:-50px;width:320px;height:320px;border-radius:50%;background:radial-gradient(circle,rgba(245,200,66,.22) 0%,rgba(67,56,202,0) 68%);pointer-events:none}
+.hero::after{content:'';position:absolute;right:-50px;bottom:-60px;width:220px;height:220px;border-radius:50%;border:36px solid rgba(200,150,12,.14)}
 .hero-bis{position:absolute;top:16px;right:22px;font-family:'Amiri',serif;font-size:26px;color:var(--gold-light);opacity:.9;line-height:1.4;text-align:right}
 .hero h1{font-family:var(--font-display);font-size:clamp(16px,2.6vw,22px);font-weight:800;letter-spacing:-.3px;max-width:70%;line-height:1.3;text-wrap:balance}
 .hero-addr{font-size:11px;color:rgba(255,255,255,.55);margin-top:5px;font-weight:600}
@@ -223,8 +224,14 @@ button{cursor:pointer;border:none;background:none}
 .hero-chips{display:flex;gap:7px;flex-wrap:wrap;margin-top:15px;position:relative;z-index:1}
 .h-chip{font-size:9.5px;font-weight:800;padding:5px 12px;border-radius:99px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);color:rgba(255,255,255,.8)}
 .h-chip.gold{background:rgba(200,150,12,.2);border-color:rgba(200,150,12,.4);color:var(--gold-light)}
-.hero-illust{display:none;position:absolute;right:14px;top:50%;transform:translateY(-50%);width:150px;height:auto;opacity:.95;pointer-events:none}
-@media(min-width:861px){.hero-illust{display:block}.hero h1{max-width:66%}}
+.hero-illust{display:none;position:absolute;right:8px;top:50%;transform:translateY(-50%);width:190px;height:auto;pointer-events:none;filter:drop-shadow(0 10px 18px rgba(0,0,0,.28))}
+/* The 861px breakpoint elsewhere is a viewport-width check, but the hero's own available width
+   is viewport minus the persistent 252px sidebar minus the 250px dash-right column — at 861-1050px
+   viewport that leaves the hero too narrow for a 190px illustration + readable text side by side
+   (verified: caused a real overlap at 870px). 1080px is the empirically-checked safe minimum. */
+@media(min-width:1080px){.hero-illust{display:block}.hero h1,.hero-addr,.hero-hm,.hero-chips{max-width:48%}.hero-bis{display:none}}
+@media(min-width:1300px){.hero-illust{width:225px}}
+@media(min-width:1500px){.hero-illust{width:250px}}
 
 /* ─── DASHBOARD 2-COLUMN GRID (left: hero/actions, right: narrow widget rail) ─── */
 .dash-grid{display:grid;grid-template-columns:1fr 250px;gap:16px;align-items:start;margin-bottom:4px}
@@ -1342,20 +1349,34 @@ function renderProfile(){
    as a flat gradient banner. Simple shapes only, no hand-drawn path data. Hidden on narrow
    dash-left columns where it would collide with the real content (school name/address/chips). */
 function heroIllustration(){
-  return '<svg class="hero-illust" viewBox="0 0 220 170" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">'
-   +'<ellipse cx="110" cy="150" rx="85" ry="10" fill="rgba(0,0,0,.18)"/>'
-   +'<rect x="55" y="55" width="90" height="62" rx="6" fill="#20204a"/>'
-   +'<rect x="61" y="61" width="78" height="50" rx="3" fill="#3730A3"/>'
-   +'<text x="100" y="92" font-family="Manrope,sans-serif" font-size="20" font-weight="800" fill="#f5c842" text-anchor="middle">TT</text>'
-   +'<path d="M40 117 L160 117 L172 132 L28 132 Z" fill="#15153a"/>'
-   +'<rect x="35" y="10" width="34" height="34" rx="9" fill="#C9962C" transform="rotate(-8 52 27)"/>'
-   +'<text x="52" y="32" font-size="15" text-anchor="middle" transform="rotate(-8 52 27)">📊</text>'
-   +'<rect x="150" y="20" width="34" height="34" rx="9" fill="#0F9D6E" transform="rotate(7 167 37)"/>'
-   +'<text x="167" y="42" font-size="15" text-anchor="middle" transform="rotate(7 167 37)">📈</text>'
-   +'<rect x="165" y="80" width="30" height="30" rx="8" fill="#4338CA" transform="rotate(-6 180 95)"/>'
-   +'<text x="180" y="100" font-size="13" text-anchor="middle" transform="rotate(-6 180 95)">✓</text>'
-   +'<g transform="translate(20,95)"><rect x="0" y="18" width="18" height="14" rx="2" fill="#8a5a2e"/><ellipse cx="9" cy="10" rx="11" ry="13" fill="#0F9D6E"/><ellipse cx="2" cy="4" rx="6" ry="8" fill="#3FCF9E"/></g>'
-   +'<circle cx="30" cy="35" r="2.5" fill="#f5c842"/><circle cx="195" cy="55" r="2" fill="#f5c842"/><circle cx="45" cy="140" r="2" fill="#f5c842"/>'
+  return '<svg class="hero-illust" viewBox="0 0 260 200" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">'
+   +'<ellipse cx="130" cy="175" rx="100" ry="11" fill="rgba(0,0,0,.2)"/>'
+   /* laptop */
+   +'<rect x="65" y="60" width="106" height="74" rx="7" fill="#20204a"/>'
+   +'<rect x="72" y="67" width="92" height="60" rx="4" fill="#3730A3"/>'
+   +'<rect x="72" y="67" width="92" height="60" rx="4" fill="url(#heroScreenGlow)"/>'
+   +'<text x="118" y="106" font-family="Manrope,sans-serif" font-size="24" font-weight="800" fill="#f5c842" text-anchor="middle">TT</text>'
+   +'<path d="M46 137 L190 137 L204 155 L32 155 Z" fill="#15153a"/>'
+   +'<rect x="90" y="144" width="38" height="4" rx="2" fill="rgba(255,255,255,.12)"/>'
+   /* floating tool icons */
+   +'<rect x="30" y="8" width="38" height="38" rx="10" fill="#C9962C" transform="rotate(-8 49 27)"/>'
+   +'<text x="49" y="33" font-size="16" text-anchor="middle" transform="rotate(-8 49 27)">📊</text>'
+   +'<rect x="178" y="18" width="38" height="38" rx="10" fill="#0F9D6E" transform="rotate(7 197 37)"/>'
+   +'<text x="197" y="43" font-size="16" text-anchor="middle" transform="rotate(7 197 37)">📈</text>'
+   +'<rect x="196" y="92" width="34" height="34" rx="9" fill="#4338CA" transform="rotate(-6 213 109)"/>'
+   +'<text x="213" y="115" font-size="14" text-anchor="middle" transform="rotate(-6 213 109)">✓</text>'
+   +'<rect x="8" y="88" width="32" height="32" rx="9" fill="#D4537E" transform="rotate(9 24 104)"/>'
+   +'<text x="24" y="110" font-size="13" text-anchor="middle" transform="rotate(9 24 104)">📄</text>'
+   +'<rect x="185" y="150" width="30" height="30" rx="8" fill="#378ADD" transform="rotate(-10 200 165)"/>'
+   +'<text x="200" y="170" font-size="13" text-anchor="middle" transform="rotate(-10 200 165)">💬</text>'
+   /* coffee cup */
+   +'<g transform="translate(190,58)"><path d="M0 6 h26 v16 a13 13 0 0 1 -26 0 Z" fill="#fff" opacity=".92"/><path d="M2 8 h22 v14 a11 11 0 0 1 -22 0 Z" fill="#C9962C"/><path d="M26 10 q9 0 9 8 t-9 8" fill="none" stroke="#fff" stroke-width="3" opacity=".8"/><path d="M6 -2 q3 -6 0 -10" stroke="rgba(255,255,255,.5)" stroke-width="2" fill="none"/><path d="M13 -2 q3 -6 0 -10" stroke="rgba(255,255,255,.5)" stroke-width="2" fill="none"/></g>'
+   /* plant */
+   +'<g transform="translate(15,120)"><rect x="0" y="20" width="20" height="16" rx="2" fill="#8a5a2e"/><ellipse cx="10" cy="11" rx="12" ry="15" fill="#0F9D6E"/><ellipse cx="2" cy="4" rx="7" ry="9" fill="#3FCF9E"/><ellipse cx="18" cy="6" rx="6" ry="8" fill="#3FCF9E"/></g>'
+   /* sparkles */
+   +'<circle cx="24" cy="42" r="3" fill="#f5c842"/><circle cx="232" cy="66" r="2.3" fill="#f5c842"/><circle cx="50" cy="165" r="2.3" fill="#f5c842"/>'
+   +'<circle cx="150" cy="18" r="2" fill="#fff" opacity=".7"/><circle cx="230" cy="130" r="2" fill="#fff" opacity=".6"/><circle cx="6" cy="70" r="1.8" fill="#fff" opacity=".6"/>'
+   +'<defs><linearGradient id="heroScreenGlow" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#fff" stop-opacity=".14"/><stop offset="60%" stop-color="#fff" stop-opacity="0"/></linearGradient></defs>'
    +'</svg>';
 }
 function onLogoSel(e){
