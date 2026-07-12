@@ -67,6 +67,23 @@ test('static assets: manifest, favicon, sitemap, robots all resolve', async () =
   assert.equal(robots.status, 200);
 });
 
+/* Regression test for a real bug: canonical/OG/structured-data/sitemap URLs must all agree with
+   the actual final-serving host (www) — apex 301s to www, so a canonical pointing at apex is a
+   self-contradicting signal to search engines and can suppress indexing. */
+test('SEO: sitemap URLs use the canonical www host, not the redirecting apex host', async () => {
+  const r = await fetch(base + '/sitemap.xml');
+  const xml = await r.text();
+  assert.match(xml, /https:\/\/www\.teachertoolkitsindh\.com\//);
+  assert.doesNotMatch(xml, /<loc>https:\/\/teachertoolkitsindh\.com\//);
+});
+
+test('SEO: homepage canonical/OG tags use the www host consistently', async () => {
+  const r = await fetch(base + '/');
+  const html = await r.text();
+  assert.match(html, /<link rel="canonical" href="https:\/\/www\.teachertoolkitsindh\.com\/">/);
+  assert.match(html, /og:url" content="https:\/\/www\.teachertoolkitsindh\.com\/"/);
+});
+
 /* ─── Security headers ─────────────────────────────────────────────────── */
 test('security headers are present on every response', async () => {
   const r = await fetch(base + '/');

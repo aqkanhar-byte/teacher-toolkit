@@ -884,7 +884,11 @@ app.post('/documents/delete', async (req, res) => {
 app.get('/version', (req, res) => res.json({ v: '3.4', features: ['generate-with-file', 'streaming', 'pdf-books', 'paid-system', 'book-bank', 'slo-bank', 'verify', 'documents', 'assistant', 'premium-tools', 'seo-pwa'] }));
 
 /* ─── SITEMAP — dynamic (lastmod hamesha aaj ki date, deploy hote hi taaza signal) ─────────── */
-const SITE_URL = 'https://teachertoolkitsindh.com';
+/* www is the final, canonical serving host — apex 301s to www (see the https-enforcement
+   middleware above / Render's domain config). Every URL we emit (sitemap, canonical, OG,
+   structured data) must match this exactly, or we're telling Google two different "correct"
+   addresses for the same page — a self-contradicting signal that can suppress indexing. */
+const SITE_URL = 'https://www.teachertoolkitsindh.com';
 app.get('/sitemap.xml', (req, res) => {
   const today = new Date().toISOString().slice(0, 10);
   const urls = [{ loc: '/', changefreq: 'weekly', priority: '1.0' }];
