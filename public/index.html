@@ -99,12 +99,12 @@
   /* Premium indigo + gold + emerald palette — same variable names as the old navy palette
      (--navy/--navy-dark/--navy-mid), so this single block reshapes the hero, header, buttons,
      and every "premium dark surface" in the app without touching hundreds of call sites. */
-  --navy:#2E2A87;--navy-dark:#1B1B3A;--navy-mid:#4338CA;
+  --navy:#4C2E9E;--navy-dark:#2A1B5E;--navy-mid:#6D28D9;
   --gold:#C9962C;--gold-light:#f5c842;--gold-bg:#fef9e7;
   --white:#ffffff;--bg:#f4f6fb;
   --g100:#f1f4f9;--g200:#e2e8f4;--g300:#c8d3e8;--g400:#8898b8;--g600:#4a5878;--g800:#1e2d4a;
   --green:#0F9D6E;--green-bg:#eafaf4;--red:#b91c1c;--red-bg:#fef2f2;--blue:#1d4ed8;--blue-bg:#eff6ff;
-  --sh-sm:0 2px 7px rgba(46,42,135,.12);--sh:0 10px 30px rgba(46,42,135,.18);--sh-lg:0 22px 50px rgba(46,42,135,.24);
+  --sh-sm:0 2px 7px rgba(76,46,158,.14);--sh:0 10px 30px rgba(76,46,158,.2);--sh-lg:0 22px 50px rgba(76,46,158,.26);
   --r:10px;--r-lg:14px;
   --dur:.18s;--ease:cubic-bezier(.4,0,.2,1);
   --heading:var(--navy);
@@ -200,9 +200,12 @@ button{cursor:pointer;border:none;background:none}
 .sb-item:hover{background:var(--g100)}
 .sb-item.active{background:var(--navy-mid);border-color:var(--navy-mid)}
 .sb-ico{width:30px;height:30px;border-radius:8px;background:var(--g100);display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
-.sb-tint-gold .sb-ico{background:var(--gold-bg)}
-.sb-tint-indigo .sb-ico{background:rgba(67,56,202,.1)}
-.sb-tint-emerald .sb-ico{background:var(--green-bg)}
+.sb-tint-gold .sb-ico{background:#FBEAC7}
+.sb-tint-indigo .sb-ico{background:#DFD3FA}
+.sb-tint-emerald .sb-ico{background:#C7F0DE}
+:root[data-theme="dark"] .sb-tint-gold .sb-ico{background:rgba(201,150,44,.28)}
+:root[data-theme="dark"] .sb-tint-indigo .sb-ico{background:rgba(109,40,217,.32)}
+:root[data-theme="dark"] .sb-tint-emerald .sb-ico{background:rgba(15,157,110,.3)}
 .sb-item.active .sb-ico{background:rgba(255,255,255,.18)}
 .sb-txt{min-width:0;flex:1}
 .sb-name{font-size:12px;font-weight:700;color:var(--g800);line-height:1.25}
@@ -217,7 +220,6 @@ button{cursor:pointer;border:none;background:none}
 .hero{background:linear-gradient(150deg,var(--navy-dark) 0%,var(--navy) 55%,var(--navy-mid) 100%);border-radius:var(--r-lg);padding:26px 24px 22px;color:#fff;position:relative;overflow:hidden;border:1px solid rgba(200,150,12,.25);box-shadow:var(--sh-lg);margin-bottom:18px;min-height:190px}
 .hero::before{content:'';position:absolute;right:-30px;top:-50px;width:320px;height:320px;border-radius:50%;background:radial-gradient(circle,rgba(245,200,66,.22) 0%,rgba(67,56,202,0) 68%);pointer-events:none}
 .hero::after{content:'';position:absolute;right:-50px;bottom:-60px;width:220px;height:220px;border-radius:50%;border:36px solid rgba(200,150,12,.14)}
-.hero-bis{position:absolute;top:16px;right:22px;font-family:'Amiri',serif;font-size:26px;color:var(--gold-light);opacity:.9;line-height:1.4;text-align:right}
 .hero h1{font-family:var(--font-display);font-size:clamp(16px,2.6vw,22px);font-weight:800;letter-spacing:-.3px;max-width:70%;line-height:1.3;text-wrap:balance}
 .hero-addr{font-size:11px;color:rgba(255,255,255,.55);margin-top:5px;font-weight:600}
 .hero-hm{font-size:11px;color:rgba(255,255,255,.55);margin-top:2px;font-weight:600}
@@ -229,7 +231,7 @@ button{cursor:pointer;border:none;background:none}
    is viewport minus the persistent 252px sidebar minus the 250px dash-right column — at 861-1050px
    viewport that leaves the hero too narrow for a 190px illustration + readable text side by side
    (verified: caused a real overlap at 870px). 1080px is the empirically-checked safe minimum. */
-@media(min-width:1080px){.hero-illust{display:block}.hero h1,.hero-addr,.hero-hm,.hero-chips{max-width:48%}.hero-bis{display:none}}
+@media(min-width:1080px){.hero-illust{display:block}.hero h1,.hero-addr,.hero-hm,.hero-chips{max-width:48%}}
 @media(min-width:1300px){.hero-illust{width:225px}}
 @media(min-width:1500px){.hero-illust{width:250px}}
 
@@ -244,6 +246,12 @@ button{cursor:pointer;border:none;background:none}
 .stat-card{background:var(--white);border:1px solid var(--g200);border-radius:var(--r-lg);padding:14px 16px;box-shadow:var(--sh-sm);transition:box-shadow var(--dur) var(--ease),transform var(--dur) var(--ease)}
 .dash-right .stat-card{padding:11px 12px}
 .stat-card:hover{box-shadow:var(--sh);transform:translateY(-1px)}
+.stat-ico{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;margin-bottom:8px}
+.stat-ico.c1{background:#CFE3FC}.stat-ico.c2{background:#C7F0DE}.stat-ico.c3{background:#DFD3FA}.stat-ico.c4{background:#FBEAC7}
+:root[data-theme="dark"] .stat-ico.c1{background:rgba(55,138,221,.3)}
+:root[data-theme="dark"] .stat-ico.c2{background:rgba(15,157,110,.3)}
+:root[data-theme="dark"] .stat-ico.c3{background:rgba(109,40,217,.32)}
+:root[data-theme="dark"] .stat-ico.c4{background:rgba(201,150,44,.28)}
 .stat-num{font-family:var(--font-display);font-size:22px;font-weight:800;color:var(--heading);line-height:1.1}
 .dash-right .stat-num{font-size:18px}
 .stat-label{font-size:9.5px;font-weight:800;color:var(--g400);text-transform:uppercase;letter-spacing:.6px;margin-top:5px}
@@ -279,9 +287,14 @@ button{cursor:pointer;border:none;background:none}
 .quick-tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:20px}
 .quick-tile{background:var(--white);border:1px solid var(--g200);border-radius:var(--r-lg);padding:14px;cursor:pointer;transition:all var(--dur) var(--ease)}
 .quick-tile:hover{border-color:var(--navy-mid);box-shadow:var(--sh);transform:translateY(-2px)}
-.quick-tile-ico{width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:15px;margin-bottom:9px;background:var(--gold-bg)}
-.quick-tile:nth-child(4n+2) .quick-tile-ico{background:rgba(67,56,202,.1)}
-.quick-tile:nth-child(4n+3) .quick-tile-ico{background:var(--green-bg)}
+.quick-tile-ico{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px;margin-bottom:9px;background:#FBEAC7}
+.quick-tile:nth-child(4n+2) .quick-tile-ico{background:#DFD3FA}
+.quick-tile:nth-child(4n+3) .quick-tile-ico{background:#C7F0DE}
+.quick-tile:nth-child(4n) .quick-tile-ico{background:#CFE3FC}
+:root[data-theme="dark"] .quick-tile-ico{background:rgba(201,150,44,.28)}
+:root[data-theme="dark"] .quick-tile:nth-child(4n+2) .quick-tile-ico{background:rgba(109,40,217,.32)}
+:root[data-theme="dark"] .quick-tile:nth-child(4n+3) .quick-tile-ico{background:rgba(15,157,110,.3)}
+:root[data-theme="dark"] .quick-tile:nth-child(4n) .quick-tile-ico{background:rgba(55,138,221,.3)}
 .quick-tile-name{font-size:12px;font-weight:700;color:var(--g800)}
 .quick-tile-sub{font-size:9.5px;color:var(--g400);font-weight:600;margin-top:2px}
 
@@ -434,7 +447,6 @@ button{cursor:pointer;border:none;background:none}
   .main{padding:16px 14px 90px}
   .form-row{grid-template-columns:1fr}
   .crq-grid2,.crq-grid3{grid-template-columns:1fr}
-  .hero-bis{font-size:20px;top:12px;right:14px}
   .hero h1{max-width:100%}
   /* "AI Powered" sirf decorative hai — mobile par jagah bachane ke liye chhupao.
      Credits chip aur Login button dono functional hain, hamesha nazar aane chahiye
@@ -1338,8 +1350,7 @@ function renderProfile(){
     document.getElementById('tbSub').textContent='Sindh Education Department';
   }
   const hero=document.getElementById('hero');
-  hero.innerHTML='<div class="hero-bis">بِسْمِ اللهِ الرَّحْمٰنِ<br>الرَّحِيْمِ</div>'
-   +'<h1>'+esc(p.school||'Teacher Toolkit — Smart School Documents')+'</h1>'
+  hero.innerHTML='<h1>'+esc(p.school||'Teacher Toolkit — Smart School Documents')+'</h1>'
    +(p.addr?'<div class="hero-addr">'+esc(p.addr)+'</div>':(p.school?'':'<div class="hero-addr">Sindh Education &amp; Literacy Department</div>'))
    +(p.hm?'<div class="hero-hm">Head Master: '+esc(p.hm)+(p.desig?' ('+esc(p.desig)+')':'')+(p.semis?' · SEMIS: '+esc(p.semis):'')+'</div>':'')
    +'<div class="hero-chips"><span class="h-chip">29+ Document Types</span><span class="h-chip">ECCE – Class 12</span><span class="h-chip">8 Languages</span><span class="h-chip gold">Word · PDF · Excel Export</span><span class="h-chip">Student Database</span></div>'
@@ -1845,10 +1856,10 @@ async function loadImpactStats(){
     /* Narrow right-rail fits exactly 2 cards side by side without an awkward orphan row —
        "Member Since" is still shown elsewhere (My Documents header), so nothing is lost. */
     const cards=[
-      {num:d.totalDocuments,label:'Documents Generated'},
-      {num:'~'+hours+'h',label:'Estimated Time Saved'}
+      {num:d.totalDocuments,label:'Documents Generated',ico:'📄',c:'c1'},
+      {num:'~'+hours+'h',label:'Estimated Time Saved',ico:'⏱️',c:'c2'}
     ];
-    banner.innerHTML='<div class="stat-grid">'+cards.map(c=>'<div class="stat-card"><div class="stat-num">'+esc(String(c.num))+'</div><div class="stat-label">'+esc(c.label)+'</div></div>').join('')+'</div>';
+    banner.innerHTML='<div class="stat-grid">'+cards.map(c=>'<div class="stat-card"><div class="stat-ico '+c.c+'">'+c.ico+'</div><div class="stat-num">'+esc(String(c.num))+'</div><div class="stat-label">'+esc(c.label)+'</div></div>').join('')+'</div>';
   }catch(e){banner.innerHTML='';}
 }
 /* ═══════════ DASHBOARD DATA — one /documents fetch, shared by Recent Activity, the Recent
