@@ -77,6 +77,12 @@ test('SEO: sitemap URLs use the canonical www host, not the redirecting apex hos
   assert.doesNotMatch(xml, /<loc>https:\/\/teachertoolkitsindh\.com\//);
 });
 
+test('SEO: robots.txt Sitemap directive also uses the www host, not the redirecting apex host', async () => {
+  const r = await fetch(base + '/robots.txt');
+  const txt = await r.text();
+  assert.match(txt, /Sitemap: https:\/\/www\.teachertoolkitsindh\.com\/sitemap\.xml/);
+});
+
 test('SEO: homepage canonical/OG tags use the www host consistently', async () => {
   const r = await fetch(base + '/');
   const html = await r.text();
