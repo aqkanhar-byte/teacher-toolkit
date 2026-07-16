@@ -1840,7 +1840,11 @@ async function onBankSel(){
     const r=await fetch('/books/'+encodeURIComponent(S.bookId)+'/download-url',{headers:authHeaders()});
     const d=await r.json();
     if(!d.success)throw new Error(d.error||'Could not get book');
-    const fr=await fetch(d.url);
+    /* Supabase's d.url is a self-contained signed URL (no auth needed); our own /drive-stream
+       route for Drive-hosted books is login-gated like every other endpoint, so it needs the
+       same auth header or it 401s. */
+    const fr=await fetch(d.url,{headers:d.url.startsWith('/')?authHeaders():{}});
+    if(!fr.ok)throw new Error('Could not download book (HTTP '+fr.status+')');
     const bytes=new Uint8Array(await fr.arrayBuffer());
     await loadPdfForRange(bytes,title+'.pdf');
   }catch(e){
