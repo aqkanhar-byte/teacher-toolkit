@@ -566,8 +566,15 @@ async function retryBulkFix(i){
   }
 }
 let DRIVE_FILES=[];
+function extractDriveFolderId(raw){
+  const s=String(raw||'').trim();
+  const m=s.match(/[-\w]{25,}/);
+  return m?m[0]:s;
+}
 async function loadDriveFiles(){
-  const folderId=document.getElementById('drv_folder').value.trim();
+  const folderInput=document.getElementById('drv_folder');
+  const folderId=extractDriveFolderId(folderInput.value);
+  folderInput.value=folderId;
   const msg=document.getElementById('driveMsg'),list=document.getElementById('driveFileList');
   if(!folderId){msg.innerHTML='<span class="err">Paste the Drive folder ID first</span>';return;}
   msg.innerHTML='Listing files...';list.innerHTML='';
