@@ -1016,6 +1016,22 @@ button{cursor:pointer;border:none;background:none}
   </div>
 </div>
 
+<!-- BOOK PAGE PREVIEW ZOOM MODAL -->
+<div class="overlay" id="zoomPreviewOverlay">
+  <div class="modal" style="max-width:min(94vw,760px)">
+    <div class="modal-head">📄 Page Preview <button class="modal-close" onclick="closePagePreviewZoom()" aria-label="Close">✕</button></div>
+    <div class="modal-body" style="text-align:center;padding:14px">
+      <div style="display:flex;justify-content:center;gap:8px;margin-bottom:10px">
+        <button class="mini-btn" onclick="zoomPagePreview(-0.4)" aria-label="Zoom out">➖</button>
+        <button class="mini-btn" onclick="zoomPagePreview(0.4)" aria-label="Zoom in">➕</button>
+      </div>
+      <div style="overflow:auto;max-height:72vh;border:1px solid var(--g200);border-radius:8px;background:var(--g50,#f7f7f9)">
+        <canvas id="zoomPreviewCanvas" style="display:block;margin:0 auto"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- PROFILE MODAL -->
 <div class="overlay" id="profileOverlay">
   <div class="modal">
@@ -1487,7 +1503,7 @@ function renderForm(){
     +'<div id="pageRangeRow" style="display:none;margin-top:10px;padding:12px;background:var(--white);border:1.5px solid var(--g200);border-radius:10px">'
       +'<div style="font-size:11.5px;font-weight:800;color:var(--g800);margin-bottom:8px" id="pageRangeInfo">📄 Loading page count...</div>'
       +'<div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-start">'
-        +'<canvas id="pagePreviewCanvas" style="max-width:260px;border:1px solid var(--g200);border-radius:6px;box-shadow:var(--sh-sm)"></canvas>'
+        +'<div style="position:relative;cursor:zoom-in" onclick="openPagePreviewZoom()" title="Click to zoom"><canvas id="pagePreviewCanvas" style="max-width:260px;border:1px solid var(--g200);border-radius:6px;box-shadow:var(--sh-sm)"></canvas><button type="button" onclick="event.stopPropagation();openPagePreviewZoom()" title="Zoom in" aria-label="Zoom preview" style="position:absolute;bottom:6px;right:6px;width:28px;height:28px;border-radius:50%;background:rgba(15,26,46,.72);color:#fff;font-size:13px;display:flex;align-items:center;justify-content:center;border:none">🔍</button></div>'
         +'<div style="flex:1;min-width:180px">'
           +'<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">'
             +'<input type="number" min="1" id="docPageFrom" aria-label="From page" placeholder="From" oninput="onPageRangeChange()" style="width:70px;padding:6px 9px;border:1.5px solid var(--g200);border-radius:8px;font-size:12px">'
@@ -2097,6 +2113,30 @@ async function renderPagePreview(pageNum){
     canvas.width=viewport.width;canvas.height=viewport.height;
     await page.render({canvasContext:canvas.getContext('2d'),viewport}).promise;
   }catch(e){}
+}
+let ZOOM_SCALE=2.2;
+async function renderZoomPreview(){
+  const canvas=document.getElementById('zoomPreviewCanvas');if(!canvas||!BOOK_PDF_BYTES||typeof pdfjsLib==='undefined')return;
+  const from=Math.max(1,+val('docPageFrom')||1);
+  try{
+    pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    const pdf=await pdfjsLib.getDocument({data:BOOK_PDF_BYTES.slice()}).promise;
+    const page=await pdf.getPage(Math.min(from,pdf.numPages));
+    const viewport=page.getViewport({scale:ZOOM_SCALE});
+    canvas.width=viewport.width;canvas.height=viewport.height;
+    await page.render({canvasContext:canvas.getContext('2d'),viewport}).promise;
+  }catch(e){}
+}
+function openPagePreviewZoom(){
+  if(!BOOK_PDF_BYTES)return;
+  ZOOM_SCALE=2.2;
+  document.getElementById('zoomPreviewOverlay').classList.add('open');
+  renderZoomPreview();
+}
+function closePagePreviewZoom(){document.getElementById('zoomPreviewOverlay').classList.remove('open');}
+function zoomPagePreview(delta){
+  ZOOM_SCALE=Math.max(0.6,Math.min(5,ZOOM_SCALE+delta));
+  renderZoomPreview();
 }
 let pageRangeDebounce=null;
 function onPageRangeChange(){
