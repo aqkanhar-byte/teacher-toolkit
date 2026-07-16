@@ -521,7 +521,10 @@ const storage = multer.diskStorage({
     if (!fs.existsSync('uploads')) fs.mkdirSync('uploads');
     cb(null, 'uploads/');
   },
-  filename: (req, file, cb) => cb(null, Date.now() + path.extname(file.originalname))
+  /* crypto.randomUUID, not Date.now() — under real concurrent traffic (many teachers uploading
+     in the same millisecond) a timestamp-only filename collides, and one upload can silently
+     overwrite or get read as another's temp file. */
+  filename: (req, file, cb) => cb(null, crypto.randomUUID() + path.extname(file.originalname))
 });
 const upload = multer({
   storage,
@@ -720,26 +723,34 @@ async function fetchBookToTemp(bookId) {
   if (!book) throw new Error('Book not found in Book Bank');
   if (!fs.existsSync('uploads')) fs.mkdirSync('uploads');
   const ext = book.storage_provider === 'drive' ? (path.extname(book.title) || '.pdf') : path.extname(book.storage_path);
-  const tmp = 'uploads/bank_' + Date.now() + ext;
-  if (book.storage_provider === 'drive') {
-    const meta = await googleDrive.getFileMeta(book.storage_path);
-    const drive = googleDrive.getDrive();
-    const { data: stream } = await drive.files.get({ fileId: book.storage_path, alt: 'media' }, { responseType: 'stream' });
-    await new Promise((resolve, reject) => {
-      const out = fs.createWriteStream(tmp);
-      stream.on('error', reject);
-      out.on('error', reject);
-      out.on('finish', resolve);
-      stream.pipe(out);
-    });
-    const size = fs.statSync(tmp).size;
-    return { path: tmp, originalname: book.title + ext, size, book };
+  /* crypto.randomUUID, not Date.now() — many teachers can hit this in the same millisecond
+     under real concurrent load, and a timestamp-only name would collide between them. */
+  const tmp = 'uploads/bank_' + crypto.randomUUID() + ext;
+  try {
+    if (book.storage_provider === 'drive') {
+      const drive = googleDrive.getDrive();
+      const { data: stream } = await drive.files.get({ fileId: book.storage_path, alt: 'media' }, { responseType: 'stream' });
+      await new Promise((resolve, reject) => {
+        const out = fs.createWriteStream(tmp);
+        stream.on('error', reject);
+        out.on('error', reject);
+        out.on('finish', resolve);
+        stream.pipe(out);
+      });
+      const size = fs.statSync(tmp).size;
+      return { path: tmp, originalname: book.title + ext, size, book };
+    }
+    const { data: blob, error } = await sb.storage.from('books').download(book.storage_path);
+    if (error) throw new Error('Could not download book: ' + error.message);
+    const buf = Buffer.from(await blob.arrayBuffer());
+    fs.writeFileSync(tmp, buf);
+    return { path: tmp, originalname: book.title + ext, size: buf.length, book };
+  } catch (e) {
+    /* Partial download (e.g. Drive stream dropped mid-transfer) can leave a truncated file on
+       disk with nothing left holding a reference to it — clean it up before re-throwing. */
+    try { fs.unlinkSync(tmp); } catch (e2) {}
+    throw e;
   }
-  const { data: blob, error } = await sb.storage.from('books').download(book.storage_path);
-  if (error) throw new Error('Could not download book: ' + error.message);
-  const buf = Buffer.from(await blob.arrayBuffer());
-  fs.writeFileSync(tmp, buf);
-  return { path: tmp, originalname: book.title + ext, size: buf.length, book };
 }
 
 /* ═══════════════ SLO BANK — official curriculum SLOs, prompts mein inject ═══════════════ */
@@ -1646,7 +1657,12 @@ function safeFileName(name, fallback) {
 }
 
 app.post('/download-docx', async (req, res) => {
+  /* CPU-bound (docx.Packer) and previously had no gate at all — unlimited large `content`
+     payloads here would block Node's single event-loop thread for every concurrent user, not
+     just the caller. Same 40/10min ceiling as the other download routes below. */
+  if (!rateLimit('dl:' + req.ip, 40, 10 * 60 * 1000)) return tooMany(res);
   const { content, fileName, photo, logo, documentType } = req.body;
+  if (!content) return res.status(400).json({ success: false, error: 'No content to download' });
   let photoBuf = null, photoType = 'jpg', logoBuf = null, logoType = 'png';
   if (photo && /^data:image\/(png|jpe?g);base64,/.test(photo)) {
     photoType = photo.includes('image/png') ? 'png' : 'jpg';
@@ -1786,7 +1802,9 @@ app.post('/download-docx', async (req, res) => {
 
 /* ─── DOWNLOAD PDF (HTML-based, with table support) ──────────────────────── */
 app.post('/download-pdf', async (req, res) => {
+  if (!rateLimit('dl:' + req.ip, 40, 10 * 60 * 1000)) return tooMany(res);
   const { content, fileName, photo, logo } = req.body;
+  if (!content) return res.status(400).json({ success: false, error: 'No content to download' });
   const photoOk = photo && /^data:image\/(png|jpe?g);base64,/.test(photo);
   const logoOk = logo && /^data:image\/(png|jpe?g);base64,/.test(logo);
   try {
@@ -1870,6 +1888,7 @@ ${html}
 
 /* ─── DOWNLOAD EXCEL (Student Database export) ───────────────────────────── */
 app.post('/download-excel', async (req, res) => {
+  if (!rateLimit('dl:' + req.ip, 40, 10 * 60 * 1000)) return tooMany(res);
   const { students, className, fileName } = req.body;
   try {
     const headers = ['G.R Number','Roll/Seat No','Student Name','Father Name','Class','Date of Birth','Age','Address','Phone'];
