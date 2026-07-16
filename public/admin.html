@@ -580,7 +580,7 @@ async function loadDriveFiles(){
     msg.innerHTML='<span class="ok">✅ Found '+DRIVE_FILES.length+' file(s)</span> — pick Class/Subject/Title for each, then Import.';
     list.innerHTML='<table><thead><tr><th>File</th><th>Size</th><th>Class</th><th>Subject</th><th>Title</th><th>Unit (optional)</th><th></th></tr></thead><tbody>'
       +DRIVE_FILES.map((f,i)=>{
-        const guessTitle=deriveTitleFromFilename(f.name);
+        const guessTitle=deriveTitleFromFilename(f.name.split('/').pop());
         return '<tr id="dvRow_'+i+'"><td>'+esc(f.name)+'</td><td>'+esc(f.sizeMb)+'MB</td>'
           +'<td><select id="dvCls_'+i+'" onchange="onDriveClassChange('+i+')">'+bulkFixClassOptions(CLASS_LIST[0])+'</select></td>'
           +'<td><select id="dvSubj_'+i+'">'+bulkFixSubjectOptions(CLASS_LIST[0],'')+'</select></td>'
