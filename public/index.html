@@ -2099,30 +2099,38 @@ async function loadPdfForRange(bytes,name){
     document.getElementById('docPageTo').value=Math.min(BOOK_PDF_PAGES,10);
     document.getElementById('pageRangeInfo').textContent='📄 '+BOOK_PDF_PAGES+' pages total — pick a range below (preview shows the first page of your selection)';
     row.style.display='block';
-    onPageRangeChange();
-    renderPagePreview(1);
+    onPageRangeChange(); // debounced — also triggers the first preview render, no need to call it twice
   }catch(e){row.style.display='none';} // not a real PDF (e.g. an image) — nothing to range-pick
 }
+/* Large books (Book Bank files up to 200MB+) take several seconds to parse, so two renders
+   fired close together (e.g. the debounced range-change render racing a manual re-render) can
+   land out of order and leave the canvas showing a stale/garbled frame — a generation token
+   makes only the most recently REQUESTED render allowed to actually paint. */
+let previewGen=0;
 async function renderPagePreview(pageNum){
   const canvas=document.getElementById('pagePreviewCanvas');if(!canvas||!BOOK_PDF_BYTES||typeof pdfjsLib==='undefined')return;
+  const myGen=++previewGen;
   try{
     pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
     const pdf=await pdfjsLib.getDocument({data:BOOK_PDF_BYTES.slice()}).promise;
     const page=await pdf.getPage(Math.max(1,Math.min(pageNum,pdf.numPages)));
     const viewport=page.getViewport({scale:0.9});
+    if(myGen!==previewGen)return; // a newer preview request superseded this one — don't paint stale content
     canvas.width=viewport.width;canvas.height=viewport.height;
     await page.render({canvasContext:canvas.getContext('2d'),viewport}).promise;
   }catch(e){}
 }
-let ZOOM_SCALE=2.2;
+let ZOOM_SCALE=2.2,zoomPreviewGen=0;
 async function renderZoomPreview(){
   const canvas=document.getElementById('zoomPreviewCanvas');if(!canvas||!BOOK_PDF_BYTES||typeof pdfjsLib==='undefined')return;
   const from=Math.max(1,+val('docPageFrom')||1);
+  const myGen=++zoomPreviewGen;
   try{
     pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
     const pdf=await pdfjsLib.getDocument({data:BOOK_PDF_BYTES.slice()}).promise;
     const page=await pdf.getPage(Math.min(from,pdf.numPages));
     const viewport=page.getViewport({scale:ZOOM_SCALE});
+    if(myGen!==zoomPreviewGen)return; // a newer zoom request (e.g. +/- clicked again) superseded this one
     canvas.width=viewport.width;canvas.height=viewport.height;
     await page.render({canvasContext:canvas.getContext('2d'),viewport}).promise;
   }catch(e){}
