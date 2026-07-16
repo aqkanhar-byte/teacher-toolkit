@@ -57,7 +57,7 @@ CREATE TABLE IF NOT EXISTS tt_students (
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 
--- ═══════════════ tt_books — Book Bank (curated STB textbooks in Supabase Storage) ═══════════════
+-- ═══════════════ tt_books — Book Bank (curated STB textbooks) ═══════════════
 CREATE TABLE IF NOT EXISTS tt_books (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   class_name text NOT NULL,
@@ -69,6 +69,10 @@ CREATE TABLE IF NOT EXISTS tt_books (
   created_at timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_tt_books_class_subject ON tt_books(class_name, subject);
+-- Supabase Storage's free-tier quota (1GB) fills up fast with real textbook PDFs — this lets an
+-- admin import books from a Google Drive folder instead. storage_path holds either the Supabase
+-- storage path (provider='supabase', default) or the Drive file ID (provider='drive').
+ALTER TABLE tt_books ADD COLUMN IF NOT EXISTS storage_provider text NOT NULL DEFAULT 'supabase';
 
 -- ═══════════════ tt_slos — official curriculum Student Learning Outcomes ═══════════════
 CREATE TABLE IF NOT EXISTS tt_slos (

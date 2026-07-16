@@ -143,6 +143,17 @@ td{padding:8px 10px;border-bottom:1px solid var(--g100)}
   </div>
 
   <div class="card">
+    <h3>🗂️ Import from Google Drive — when Supabase Storage runs out of space</h3>
+    <div style="font-size:11px;color:var(--g600);margin-bottom:8px">Share a Drive folder (Viewer access) with <code id="driveSaEmail">the service account</code>, paste the folder ID from its URL below, then import books one at a time — the file stays in Drive, it never gets uploaded anywhere.</div>
+    <div class="row" style="grid-template-columns:2fr 1fr">
+      <input type="text" id="drv_folder" placeholder="Drive folder ID (from the folder's URL)">
+      <button onclick="loadDriveFiles()">🔍 List Files</button>
+    </div>
+    <div id="driveMsg" style="margin-top:8px"></div>
+    <div id="driveFileList" style="margin-top:10px"></div>
+  </div>
+
+  <div class="card">
     <h3>🎯 SLO Bank — official curriculum SLOs (AI in par lock hota hai)</h3>
     <div class="row" style="grid-template-columns:1fr 1fr">
       <select id="sl_class" onchange="fillSloSubjects()"></select>
@@ -554,6 +565,59 @@ async function retryBulkFix(i){
     alert('Upload failed: '+e.message);
   }
 }
+let DRIVE_FILES=[];
+async function loadDriveFiles(){
+  const folderId=document.getElementById('drv_folder').value.trim();
+  const msg=document.getElementById('driveMsg'),list=document.getElementById('driveFileList');
+  if(!folderId){msg.innerHTML='<span class="err">Paste the Drive folder ID first</span>';return;}
+  msg.innerHTML='Listing files...';list.innerHTML='';
+  try{
+    const r=await fetch('/admin/drive-list?folderId='+encodeURIComponent(folderId),{headers:hdr()});
+    const d=await r.json();
+    if(!d.success){msg.innerHTML='<span class="err">'+esc(d.error||'Could not list folder — check the folder ID and that it\'s shared with the service account')+'</span>';return;}
+    DRIVE_FILES=d.files||[];
+    if(!DRIVE_FILES.length){msg.innerHTML='<span class="ok">Folder has no new files to import (already imported, or empty)</span>';return;}
+    msg.innerHTML='<span class="ok">✅ Found '+DRIVE_FILES.length+' file(s)</span> — pick Class/Subject/Title for each, then Import.';
+    list.innerHTML='<table><thead><tr><th>File</th><th>Size</th><th>Class</th><th>Subject</th><th>Title</th><th>Unit (optional)</th><th></th></tr></thead><tbody>'
+      +DRIVE_FILES.map((f,i)=>{
+        const guessTitle=deriveTitleFromFilename(f.name);
+        return '<tr id="dvRow_'+i+'"><td>'+esc(f.name)+'</td><td>'+esc(f.sizeMb)+'MB</td>'
+          +'<td><select id="dvCls_'+i+'" onchange="onDriveClassChange('+i+')">'+bulkFixClassOptions(CLASS_LIST[0])+'</select></td>'
+          +'<td><select id="dvSubj_'+i+'">'+bulkFixSubjectOptions(CLASS_LIST[0],'')+'</select></td>'
+          +'<td><input type="text" id="dvTitle_'+i+'" value="'+esc(guessTitle)+'" style="width:100%"></td>'
+          +'<td><input type="text" id="dvUnit_'+i+'" placeholder="e.g. Chapter 5" style="width:100%"></td>'
+          +'<td><button id="dvBtn_'+i+'" style="padding:5px 12px;font-size:11px" onclick="importDriveFile('+i+')">Import</button></td></tr>';
+      }).join('')+'</tbody></table>';
+  }catch(e){msg.innerHTML='<span class="err">'+esc(e.message)+'</span>';}
+}
+function onDriveClassChange(i){
+  const cls=document.getElementById('dvCls_'+i).value;
+  document.getElementById('dvSubj_'+i).innerHTML=bulkFixSubjectOptions(cls,'');
+}
+async function importDriveFile(i){
+  const f=DRIVE_FILES[i];
+  if(!f)return;
+  const className=document.getElementById('dvCls_'+i).value;
+  const subject=document.getElementById('dvSubj_'+i).value;
+  const title=document.getElementById('dvTitle_'+i).value.trim()||f.name;
+  const unitLabel=document.getElementById('dvUnit_'+i).value.trim();
+  const row=document.getElementById('dvRow_'+i),btn=document.getElementById('dvBtn_'+i);
+  btn.disabled=true;btn.textContent='Importing...';
+  try{
+    const r=await fetch('/admin/drive-import',{method:'POST',headers:hdr(),body:JSON.stringify({fileId:f.id,className,subject,title,unitLabel})});
+    const d=await r.json();
+    if(d.success){
+      row.innerHTML='<td colspan="7"><span class="ok">✅ '+esc(f.name)+' — imported as '+esc(className)+' / '+esc(subject)+'</span></td>';
+      loadBooks();
+    }else{
+      btn.disabled=false;btn.textContent='Import';
+      alert('Import failed: '+(d.error||'unknown error'));
+    }
+  }catch(e){
+    btn.disabled=false;btn.textContent='Import';
+    alert('Import failed: '+e.message);
+  }
+}
 async function loadBooks(){
   try{
     const r=await fetch('/books',{headers:hdr()});const d=await r.json();
@@ -729,6 +793,7 @@ async function load(){
     document.getElementById('resetNote').textContent=d.statsResetAt?('(since '+new Date(d.statsResetAt).toLocaleDateString()+')'):'';
     renderUsers();
     fillCls();loadBooks();loadSlos();loadPackages();
+    document.getElementById('driveSaEmail').textContent='teachertoolkitbooks@teachertoolkit-502612.iam.gserviceaccount.com';
     return true;
   }catch(e){return false;}
 }

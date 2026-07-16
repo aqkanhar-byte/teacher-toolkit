@@ -16,6 +16,7 @@ const { planActive, REFERRAL_CREDITS, PLANS, PRICES, creditsForFile } = require(
 const { logError } = require('./lib/logger');
 const { recordPayment, GATEWAYS } = require('./lib/payments');
 const { pageRangeInstruction } = require('./lib/pageRange');
+const googleDrive = require('./lib/googleDrive');
 
 const app = express();
 app.disable('x-powered-by');
@@ -573,9 +574,29 @@ app.get('/books/:id/download-url', async (req, res) => {
   if (!rateLimit('bookurl:' + req.ip, 30, 10 * 60 * 1000)) return tooMany(res);
   const { data: book } = await sb.from('tt_books').select('*').eq('id', req.params.id).maybeSingle();
   if (!book) return res.json({ success: false, error: 'Book not found' });
+  /* Drive-hosted books: Drive has no CORS support for direct browser fetches, so the client
+     gets a same-origin URL that streams through our own server instead of a real signed URL. */
+  if (book.storage_provider === 'drive') {
+    return res.json({ success: true, url: '/books/' + book.id + '/drive-stream', title: book.title });
+  }
   const { data, error } = await sb.storage.from('books').createSignedUrl(book.storage_path, 300);
   if (error) return res.json({ success: false, error: error.message });
   res.json({ success: true, url: data.signedUrl, title: book.title });
+});
+/* Streams a Drive-hosted book's bytes to the browser — same auth gate as download-url above,
+   since this URL is predictable (not a random signed token) unlike the Supabase case. */
+app.get('/books/:id/drive-stream', async (req, res) => {
+  const user = await userFromReq(req);
+  if (!user) return res.status(401).json({ success: false, error: 'Login required' });
+  if (!sb) return res.status(404).end();
+  const { data: book } = await sb.from('tt_books').select('*').eq('id', req.params.id).maybeSingle();
+  if (!book || book.storage_provider !== 'drive') return res.status(404).end();
+  try {
+    await googleDrive.streamFileTo(book.storage_path, res);
+  } catch (e) {
+    logError('drive-stream', e, { bookId: book.id });
+    if (!res.headersSent) res.status(502).json({ success: false, error: 'Could not fetch this book from Google Drive.' });
+  }
 });
 app.post('/admin/upload-book', uploadBook.single('file'), async (req, res) => {
   if (!adminGate(req, res)) { if (req.file) { try { fs.unlinkSync(req.file.path); } catch(e) {} } return; }
@@ -642,11 +663,53 @@ app.post('/admin/book-confirm', async (req, res) => {
   }
   res.json({ success: true, book: data });
 });
+/* ─── GOOGLE DRIVE IMPORT (alternative to Supabase Storage when its 1GB free quota runs out) ──
+   Admin shares a Drive folder with the service account (Viewer access), gives us its folder ID,
+   and imports books from it one at a time with the same Class/Subject/Title fields as a normal
+   upload — the file itself never leaves Drive or passes through this server during import. */
+app.get('/admin/drive-list', async (req, res) => {
+  if (!adminGate(req, res)) return;
+  const folderId = String(req.query.folderId || '').trim();
+  if (!folderId) return res.json({ success: false, error: 'Drive folder ID is required' });
+  try {
+    const { data: existing } = await sb.from('tt_books').select('storage_path').eq('storage_provider', 'drive');
+    const importedIds = (existing || []).map(b => b.storage_path);
+    const files = await googleDrive.listFolderFiles(folderId, importedIds);
+    res.json({ success: true, files: files.map(f => ({ id: f.id, name: f.name, sizeMb: f.size ? +(f.size / 1048576).toFixed(2) : null })) });
+  } catch (e) {
+    logError('drive-list', e, { folderId });
+    res.json({ success: false, error: e.message });
+  }
+});
+app.post('/admin/drive-import', async (req, res) => {
+  if (!adminGate(req, res)) return;
+  const fileId = String(req.body.fileId || '').trim();
+  const className = String(req.body.className || '').trim();
+  const subject = String(req.body.subject || '').trim();
+  const title = String(req.body.title || '').trim();
+  const unitLabel = String(req.body.unitLabel || '').trim();
+  if (!fileId || !className || !subject || !title) return res.json({ success: false, error: 'Missing required fields' });
+  try {
+    const meta = await googleDrive.getFileMeta(fileId);
+    const { data, error } = await sb.from('tt_books').insert({
+      class_name: className, subject, title, unit_label: unitLabel,
+      storage_path: fileId, storage_provider: 'drive',
+      size_mb: meta.size ? +(meta.size / 1048576).toFixed(2) : null
+    }).select().maybeSingle();
+    if (error) throw new Error(error.message);
+    res.json({ success: true, book: data });
+  } catch (e) {
+    logError('drive-import', e, { fileId });
+    res.json({ success: false, error: e.message });
+  }
+});
 app.post('/admin/delete-book', async (req, res) => {
   if (!adminGate(req, res)) return;
   const { data: book } = await sb.from('tt_books').select('*').eq('id', req.body.id).maybeSingle();
   if (book) {
-    try { await sb.storage.from('books').remove([book.storage_path]); } catch(e) {}
+    /* Drive-hosted books were never uploaded into Supabase Storage, so there's nothing there
+       to remove — the file itself stays untouched in the admin's Drive folder. */
+    if (book.storage_provider !== 'drive') { try { await sb.storage.from('books').remove([book.storage_path]); } catch(e) {} }
     await sb.from('tt_books').delete().eq('id', book.id);
   }
   res.json({ success: true });
@@ -655,13 +718,28 @@ app.post('/admin/delete-book', async (req, res) => {
 async function fetchBookToTemp(bookId) {
   const { data: book } = await sb.from('tt_books').select('*').eq('id', bookId).maybeSingle();
   if (!book) throw new Error('Book not found in Book Bank');
+  if (!fs.existsSync('uploads')) fs.mkdirSync('uploads');
+  const ext = book.storage_provider === 'drive' ? (path.extname(book.title) || '.pdf') : path.extname(book.storage_path);
+  const tmp = 'uploads/bank_' + Date.now() + ext;
+  if (book.storage_provider === 'drive') {
+    const meta = await googleDrive.getFileMeta(book.storage_path);
+    const drive = googleDrive.getDrive();
+    const { data: stream } = await drive.files.get({ fileId: book.storage_path, alt: 'media' }, { responseType: 'stream' });
+    await new Promise((resolve, reject) => {
+      const out = fs.createWriteStream(tmp);
+      stream.on('error', reject);
+      out.on('error', reject);
+      out.on('finish', resolve);
+      stream.pipe(out);
+    });
+    const size = fs.statSync(tmp).size;
+    return { path: tmp, originalname: book.title + ext, size, book };
+  }
   const { data: blob, error } = await sb.storage.from('books').download(book.storage_path);
   if (error) throw new Error('Could not download book: ' + error.message);
   const buf = Buffer.from(await blob.arrayBuffer());
-  if (!fs.existsSync('uploads')) fs.mkdirSync('uploads');
-  const tmp = 'uploads/bank_' + Date.now() + path.extname(book.storage_path);
   fs.writeFileSync(tmp, buf);
-  return { path: tmp, originalname: book.title + path.extname(book.storage_path), size: buf.length, book };
+  return { path: tmp, originalname: book.title + ext, size: buf.length, book };
 }
 
 /* ═══════════════ SLO BANK — official curriculum SLOs, prompts mein inject ═══════════════ */
