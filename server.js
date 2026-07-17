@@ -1847,8 +1847,19 @@ function runFromText(text, opts) {
 }
 /* User-supplied download filenames go straight into a Content-Disposition header — strip quotes/
    control chars so a value can't break out of the quoted attribute or inject header fields. */
+/* HTTP header VALUES must be plain ASCII (Node throws "Invalid character in header content"
+   otherwise) — a title/name with an em-dash, Urdu/Sindhi text, or any other non-ASCII character
+   would crash every download route that builds Content-Disposition from user data. Transliterate
+   the common punctuation first so the name stays readable, then drop anything else non-ASCII. */
 function safeFileName(name, fallback) {
-  return String(name || fallback).replace(/["\r\n]/g, '').trim() || fallback;
+  const cleaned = String(name || fallback)
+    .replace(/[‒-―−]/g, '-') // em/en dash, minus sign -> hyphen
+    .replace(/[‘’]/g, "'")
+    .replace(/[“”]/g, '"')
+    .replace(/["\r\n]/g, '')
+    .replace(/[^\x20-\x7E]/g, '') // strip anything left that isn't printable ASCII
+    .trim();
+  return cleaned || fallback;
 }
 
 app.post('/download-docx', async (req, res) => {
