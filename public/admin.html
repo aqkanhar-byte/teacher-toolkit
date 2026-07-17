@@ -571,6 +571,34 @@ function extractDriveFolderId(raw){
   const m=s.match(/[-\w]{25,}/);
   return m?m[0]:s;
 }
+/* Admins organize the Drive folder as Class/Subject/book.pdf — the file's listed name already
+   carries that path prefix (e.g. "Class XI/Urdu/Salees Urdu...pdf"), so auto-select the matching
+   Class + Subject from it instead of dumping every row on the ECCE default and making the admin
+   fix all of them by hand every single time. */
+const ROMAN_CLASS_MAP={'ECCE - KACHI':'ECCE (Katchi)','ECCE-KACHI':'ECCE (Katchi)','ECCE':'ECCE (Katchi)','KACHI':'ECCE (Katchi)',
+  'I':'Class 1','II':'Class 2','III':'Class 3','IV':'Class 4','V':'Class 5','VI':'Class 6',
+  'VII':'Class 7','VIII':'Class 8','IX':'Class 9','X':'Class 10','XI':'Class 11','XII':'Class 12'};
+function guessClassFromFolder(folderName){
+  const n=String(folderName||'').trim();
+  if(!n)return '';
+  const m=n.match(/^Class\s+(.+)$/i);
+  const key=(m?m[1]:n).trim().toUpperCase();
+  if(ROMAN_CLASS_MAP[key])return ROMAN_CLASS_MAP[key];
+  const direct=CLASS_LIST.find(c=>c.toUpperCase()===n.toUpperCase());
+  return direct||'';
+}
+const SUBJECT_ALIASES={'islamiyat':'Islamiat','science':'General Science','computer education':'Computer Science',
+  'computer ji taleem':'Computer Science','computer ki taleem':'Computer Science','mazhabi taleemat':'Islamiat'};
+function guessSubjectFromFolder(cls,folderName){
+  if(!cls||!folderName)return '';
+  const subs=allSubjectsFor(cls)||[];
+  const n=String(folderName).trim().toLowerCase();
+  let hit=subs.find(s=>s.toLowerCase()===n);
+  if(hit)return hit;
+  if(SUBJECT_ALIASES[n]&&subs.includes(SUBJECT_ALIASES[n]))return SUBJECT_ALIASES[n];
+  hit=subs.find(s=>n.includes(s.toLowerCase())||s.toLowerCase().includes(n));
+  return hit||'';
+}
 async function loadDriveFiles(){
   const folderInput=document.getElementById('drv_folder');
   const folderId=extractDriveFolderId(folderInput.value);
@@ -589,9 +617,12 @@ async function loadDriveFiles(){
     list.innerHTML='<table><thead><tr><th>File</th><th>Size</th><th>Class</th><th>Subject</th><th>Title</th><th>Unit (optional)</th><th></th></tr></thead><tbody>'
       +DRIVE_FILES.map((f,i)=>{
         const guessTitle=deriveTitleFromFilename(f.name.split('/').pop());
+        const parts=f.name.split('/');
+        const guessCls=guessClassFromFolder(parts[0])||CLASS_LIST[0];
+        const guessSubj=guessSubjectFromFolder(guessCls,parts[1])||'';
         return '<tr id="dvRow_'+i+'"><td>'+esc(f.name)+'</td><td>'+esc(f.sizeMb)+'MB</td>'
-          +'<td><select id="dvCls_'+i+'" onchange="onDriveClassChange('+i+')">'+bulkFixClassOptions(CLASS_LIST[0])+'</select></td>'
-          +'<td><select id="dvSubj_'+i+'">'+bulkFixSubjectOptions(CLASS_LIST[0],'')+'</select></td>'
+          +'<td><select id="dvCls_'+i+'" onchange="onDriveClassChange('+i+')">'+bulkFixClassOptions(guessCls)+'</select></td>'
+          +'<td><select id="dvSubj_'+i+'">'+bulkFixSubjectOptions(guessCls,guessSubj)+'</select></td>'
           +'<td><input type="text" id="dvTitle_'+i+'" value="'+esc(guessTitle)+'" style="width:100%"></td>'
           +'<td><input type="text" id="dvUnit_'+i+'" placeholder="e.g. Chapter 5" style="width:100%"></td>'
           +'<td><button id="dvBtn_'+i+'" style="padding:5px 12px;font-size:11px" onclick="importDriveFile('+i+')">Import</button></td></tr>';
