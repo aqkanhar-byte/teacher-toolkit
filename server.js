@@ -1624,7 +1624,7 @@ const L10N = {
     titles: { charCert: '\u06AA\u0631\u062F\u0627\u0631 \u0633\u0631\u067D\u064A\u0641\u06AA\u064A\u067D', bonafide: '\u0628\u0648\u0646\u0627\u0641\u0627\u0626\u064A\u068A \u0633\u0631\u067D\u064A\u0641\u06AA\u064A\u067D', transfer: '\u067D\u0631\u0627\u0646\u0633\u0641\u0631 \u0633\u0631\u067D\u064A\u0641\u06AA\u064A\u067D',
       leaving: '\u0627\u0633\u06AA\u0648\u0644 \u0687\u068F\u06BB \u062C\u0648 \u0633\u0631\u067D\u064A\u0641\u06AA\u064A\u067D', noc: '\u0639\u062F\u0645 \u0627\u0639\u062A\u0631\u0627\u0636 \u0633\u0631\u067D\u064A\u0641\u06AA\u064A\u067D (\u0627\u064A\u0646 \u0627\u0648 \u0633\u064A)', experience: '\u062A\u062C\u0631\u0628\u064A \u062C\u0648 \u0633\u0631\u067D\u064A\u0641\u06AA\u064A\u067D',
       salary: '\u067E\u06AF\u0647\u0627\u0631 \u0633\u0631\u067D\u064A\u0641\u06AA\u064A\u067D', enrollment: '\u0634\u0627\u06AF\u0631\u062F \u062F\u0627\u062E\u0644\u0627 \u0641\u0627\u0631\u0645', profile: '\u0634\u0627\u06AF\u0631\u062F \u067E\u0631\u0648\u0641\u0627\u0626\u0644',
-      result: '\u0646\u062A\u064A\u062C\u064A \u06AA\u0627\u0631\u068A', attendance: '\u062D\u0627\u0636\u0631\u064A \u0634\u064A\u067D', affidavit: '\u062D\u0644\u0641 \u0646\u0627\u0645\u0648\u0646',
+      result: '\u0646\u062A\u064A\u062C\u064A \u06AA\u0627\u0631\u068A', attendance: '\u062D\u0627\u0636\u0631\u064A \u0634\u064A\u067D', affidavit: '\u062D\u0644\u0641 \u0646\u0627\u0645\u0648',
       scholarship: '\u0648\u0638\u064A\u0641\u064A \u062C\u064A \u062F\u0631\u062E\u0648\u0627\u0633\u062A \u0641\u0627\u0631\u0645', achievement: '\u06AA\u0627\u0645\u064A\u0627\u0628\u064A \u062C\u0648 \u0633\u0631\u067D\u064A\u0641\u06AA\u064A\u067D' }
   },
   roman_urdu: {
@@ -1697,9 +1697,9 @@ const OFFLINE_BUILDERS = {
 
 یہ سرٹیفکیٹ ان کی درخواست پر${f.purpose ? ` **${f.purpose}** کے لیے` : ''} جاری کیا جاتا ہے۔ ادارہ ان کے روشن مستقبل کے لیے نیک خواہشات کا اظہار کرتا ہے۔`;
     } else if (l === 'sindhi') {
-      body = `\nهيءَ سرٽيفڪيٽ هن ڳالهه جي تصديق ڪري ٿي ته **${blank(f.studentName, 25)}**، ${sdOf(f.fatherName, t)}، جي آر نمبر **${blank(f.grNumber, 8)}**، هن ادار ي ۾ ${f.className ? '**' + f.className + '**' : ''} زير تعليم رهيو/رهي${period ? ` تاريخ **${fmt(f.periodFrom) || '________'}** کان **${fmt(f.periodTo) || '________'}** تائين` : ''}. ${f.dob ? `\n\nڄمڻ جي تاريخ (اسڪول ريڪارڊ موجب): **${fmt(f.dob)}**${f.age ? ' — موجوده عمر: ' + f.age : ''}` : ''}
+      body = `\nهيءَ سرٽيفڪيٽ هن ڳالهه جي تصديق ڪري ٿي ته **${blank(f.studentName, 25)}**، ${sdOf(f.fatherName, t)}، جي آر نمبر **${blank(f.grNumber, 8)}**، هن اداري ۾ ${f.className ? '**' + f.className + '**' : ''} زير تعليم رهيو/رهي${period ? ` تاريخ **${fmt(f.periodFrom) || '________'}** کان **${fmt(f.periodTo) || '________'}** تائين` : ''}. ${f.dob ? `\n\nڄمڻ جي تاريخ (اسڪول ريڪارڊ موجب): **${fmt(f.dob)}**${f.age ? ' — موجوده عمر: ' + f.age : ''}` : ''}
 
-هن ادار ي ۾ رهڻ دوران موصوف جو اخلاق ۽ ڪردار **${conduct}** لڌو ويو. موصوف سٺي اخلاق جو مالڪ، باقاعده ۽ نظم ضبط جو پابند رهيو ۽ ڪڏهن به اسڪول جي قاعدن جي خلاف ڪنهن سرگرمي ۾ شامل نه ڏٺو ويو.
+هن اداري ۾ رهڻ دوران موصوف جو اخلاق ۽ ڪردار **${conduct}** لڌو ويو. موصوف سٺي اخلاق جو مالڪ، باقاعده ۽ نظم ضبط جو پابند رهيو ۽ ڪڏهن به اسڪول جي قاعدن جي خلاف ڪنهن سرگرمي ۾ شامل نه ڏٺو ويو.
 
 هيءَ سرٽيفڪيٽ سندس درخواست تي${f.purpose ? ` **${f.purpose}** جي مقصد لاءِ` : ''} جاري ڪئي وڃي ٿي. ادارو سندس روشن مستقبل لاءِ نيڪ خواهشون ظاهر ڪري ٿو.`;
     } else if (l === 'roman_urdu') {
@@ -1724,7 +1724,7 @@ This certificate is issued on his/her request${f.purpose ? ` for the purpose of 
     if (l === 'urdu') body = `\nیہ سرٹیفکیٹ اس بات کی تصدیق کرتا ہے کہ **${blank(f.studentName, 25)}**، ${sdOf(f.fatherName, t)}، جی آر نمبر **${blank(f.grNumber, 8)}**، اس ادارے میں **${blank(f.className, 10)}** کے تعلیمی سیشن **${blank(f.sessionYear, 10)}** کے دوران باقاعدہ (بونافائیڈ) طالب علم ہیں/تھیں۔
 
 یہ سرٹیفکیٹ طالب علم/سرپرست کی درخواست پر${f.purpose ? ` **${f.purpose}** کے لیے` : ''} جاری کیا جاتا ہے۔`;
-    else if (l === 'sindhi') body = `\nهيءَ سرٽيفڪيٽ هن ڳالهه جي تصديق ڪري ٿي ته **${blank(f.studentName, 25)}**، ${sdOf(f.fatherName, t)}، جي آر نمبر **${blank(f.grNumber, 8)}**، هن ادار ي ۾ **${blank(f.className, 10)}** جي تعليمي سيشن **${blank(f.sessionYear, 10)}** دوران باقاعده (بونافائيڊ) شاگرد آهي/هئي.
+    else if (l === 'sindhi') body = `\nهيءَ سرٽيفڪيٽ هن ڳالهه جي تصديق ڪري ٿي ته **${blank(f.studentName, 25)}**، ${sdOf(f.fatherName, t)}، جي آر نمبر **${blank(f.grNumber, 8)}**، هن اداري ۾ **${blank(f.className, 10)}** جي تعليمي سيشن **${blank(f.sessionYear, 10)}** دوران باقاعده (بونافائيڊ) شاگرد آهي/هئي.
 
 هيءَ سرٽيفڪيٽ شاگرد/سرپرست جي درخواست تي${f.purpose ? ` **${f.purpose}** جي مقصد لاءِ` : ''} جاري ڪئي وڃي ٿي.`;
     else if (l === 'roman_urdu') body = `\nYeh certify kiya jata hai ke **${blank(f.studentName, 25)}**, ${sdOf(f.fatherName, t)}, G.R Number **${blank(f.grNumber, 8)}**, is idaray mein **${blank(f.className, 10)}** ke taleemi session **${blank(f.sessionYear, 10)}** ke doran ba-qaeda (bonafide) talib-e-ilm rahe/rahi hain.
@@ -1774,7 +1774,7 @@ ${closing}` + signBlockHM(f, l);
       closing = 'یہ اسکول لیونگ سرٹیفکیٹ ان کے والدین/سرپرست کی درخواست پر جاری کیا جاتا ہے۔';
       ageAtLeavingLbl = 'چھوڑتے وقت عمر'; dobRowLbl = 'تاریخ پیدائش (الفاظ اور ہندسوں میں)';
     } else if (l === 'sindhi') {
-      intro = `\nهيءَ سرٽيفڪيٽ هن ڳالهه جي تصديق ڪري ٿي ته **${blank(f.studentName, 25)}**، ${sdOf(f.fatherName, t)}، جي آر نمبر **${blank(f.grNumber, 8)}**، هن ادار ي جو شاگرد رهيو ۽ **${blank(f.leavingClass, 10)}** مان **${fmt(f.leavingDate) || today()}** تي اسڪول ڇڏي ويو.`;
+      intro = `\nهيءَ سرٽيفڪيٽ هن ڳالهه جي تصديق ڪري ٿي ته **${blank(f.studentName, 25)}**، ${sdOf(f.fatherName, t)}، جي آر نمبر **${blank(f.grNumber, 8)}**، هن اداري جو شاگرد رهيو ۽ **${blank(f.leavingClass, 10)}** مان **${fmt(f.leavingDate) || today()}** تي اسڪول ڇڏي ويو.`;
       closing = 'هيءَ اسڪول ڇڏڻ جي سرٽيفڪيٽ سندس والدين/سرپرست جي درخواست تي جاري ڪئي وڃي ٿي.';
       ageAtLeavingLbl = 'ڇڏڻ وقت عمر'; dobRowLbl = 'ڄمڻ جي تاريخ (لفظن ۽ انگن ۾)';
     } else if (l === 'roman_urdu') {
@@ -1810,7 +1810,7 @@ ${closing}` + signBlockHM(f, l);
 یہ سرٹیفکیٹ ان کی درخواست پر جاری کیا جاتا ہے اور اس سے کوئی قانونی حق یا دعویٰ پیدا نہیں ہوتا۔`;
     } else if (l === 'sindhi') {
       heading = '**جنهن سان واسطو رکي**';
-      body = `\nهيءَ سرٽيفڪيٽ هن ڳالهه جي تصديق ڪري ٿي ته **${blank(f.personName, 25)}**${f.fatherName ? '، ' + sdOf(f.fatherName, t) : ''}${f.designation ? '، بحيثيت **' + f.designation + '**' : ''} هن ادار ي ۾${f.cnic ? '، قومي سڃاڻپ نمبر **' + f.cnic + '**' : ''}، هن ادار ي جو مستقل ملازم/ميمبر آهي.
+      body = `\nهيءَ سرٽيفڪيٽ هن ڳالهه جي تصديق ڪري ٿي ته **${blank(f.personName, 25)}**${f.fatherName ? '، ' + sdOf(f.fatherName, t) : ''}${f.designation ? '، بحيثيت **' + f.designation + '**' : ''} هن اداري ۾${f.cnic ? '، قومي سڃاڻپ نمبر **' + f.cnic + '**' : ''}، هن اداري جو مستقل ملازم/ميمبر آهي.
 
 هي ادارو ${f.purpose ? '**' + f.purpose + '**' : 'مٿي ڄاڻايل درخواست'} تي ڪوبه اعتراض نه ٿو رکي.
 
@@ -1841,7 +1841,7 @@ This certificate is issued on his/her request and does not confer any legal righ
 ملازمت کے دوران ان کی کارکردگی، اخلاق اور فرض سے لگن **انتہائی تسلی بخش** پائی گئی۔ انہوں نے اپنی تمام ذمہ داریاں نہایت ذمہ داری اور پیشہ ورانہ انداز میں نبھائیں۔
 
 ہم ان کے مستقبل کے پیشہ ورانہ سفر کے لیے نیک خواہشات کا اظہار کرتے ہیں۔`;
-    else if (l === 'sindhi') body = `\nهيءَ سرٽيفڪيٽ هن ڳالهه جي تصديق ڪري ٿي ته **${blank(f.personName, 25)}**${f.fatherName ? '، ' + sdOf(f.fatherName, t) : ''}${f.cnic ? '، قومي سڃاڻپ نمبر **' + f.cnic + '**' : ''}، هن ادار ي ۾ بطور **${blank(f.designation, 18)}** خدمتون سرانجام ڏنيون${f.fromDate || f.toDate ? ` تاريخ **${fmt(f.fromDate) || '________'}** کان **${fmt(f.toDate) || 'اڄ تائين'}**` : ''}.
+    else if (l === 'sindhi') body = `\nهيءَ سرٽيفڪيٽ هن ڳالهه جي تصديق ڪري ٿي ته **${blank(f.personName, 25)}**${f.fatherName ? '، ' + sdOf(f.fatherName, t) : ''}${f.cnic ? '، قومي سڃاڻپ نمبر **' + f.cnic + '**' : ''}، هن اداري ۾ بطور **${blank(f.designation, 18)}** خدمتون سرانجام ڏنيون${f.fromDate || f.toDate ? ` تاريخ **${fmt(f.fromDate) || '________'}** کان **${fmt(f.toDate) || 'اڄ تائين'}**` : ''}.
 
 ملازمت دوران سندس ڪارڪردگي، اخلاق ۽ فرض سان لڳاءُ **تمام تسلي بخش** لڌو ويو. هن پنهنجيون سموريون ذميواريون تمام ذميواري ۽ پيشه ورانه انداز ۾ نڀايون.
 
@@ -1864,7 +1864,7 @@ We wish him/her success in future professional endeavors.`;
     const govtScale = l === 'urdu' ? 'سرکاری تنخواہ سکیل کے مطابق' : l === 'sindhi' ? 'سرڪاري پگهار اسڪيل مطابق' : l === 'roman_urdu' ? 'Sarkari Tankhwah Scale ke Mutabiq' : 'As per Government pay scale';
     let intro, closing;
     if (l === 'urdu') { intro = `\nیہ سرٹیفکیٹ اس بات کی تصدیق کرتا ہے کہ **${blank(f.personName, 25)}**${f.cnic ? '، شناختی کارڈ نمبر **' + f.cnic + '**' : ''}، اس ادارے میں **${blank(f.designation, 18)}**${f.bps ? ' (**' + f.bps + '**)' : ''} کے عہدے پر خدمات سرانجام دے رہے ہیں۔`; closing = 'یہ سرٹیفکیٹ ان کی درخواست پر سرکاری استعمال کے لیے جاری کیا جاتا ہے۔'; }
-    else if (l === 'sindhi') { intro = `\nهيءَ سرٽيفڪيٽ هن ڳالهه جي تصديق ڪري ٿي ته **${blank(f.personName, 25)}**${f.cnic ? '، قومي سڃاڻپ نمبر **' + f.cnic + '**' : ''}، هن ادار ي ۾ **${blank(f.designation, 18)}**${f.bps ? ' (**' + f.bps + '**)' : ''} جي عهدي تي خدمتون سرانجام ڏئي رهيو آهي.`; closing = 'هيءَ سرٽيفڪيٽ سندس درخواست تي سرڪاري استعمال لاءِ جاري ڪئي وڃي ٿي.'; }
+    else if (l === 'sindhi') { intro = `\nهيءَ سرٽيفڪيٽ هن ڳالهه جي تصديق ڪري ٿي ته **${blank(f.personName, 25)}**${f.cnic ? '، قومي سڃاڻپ نمبر **' + f.cnic + '**' : ''}، هن اداري ۾ **${blank(f.designation, 18)}**${f.bps ? ' (**' + f.bps + '**)' : ''} جي عهدي تي خدمتون سرانجام ڏئي رهيو آهي.`; closing = 'هيءَ سرٽيفڪيٽ سندس درخواست تي سرڪاري استعمال لاءِ جاري ڪئي وڃي ٿي.'; }
     else if (l === 'roman_urdu') { intro = `\nYeh certify kiya jata hai ke **${blank(f.personName, 25)}**${f.cnic ? ', Shanakhti Card Number **' + f.cnic + '**' : ''}, is idaray mein **${blank(f.designation, 18)}**${f.bps ? ' (**' + f.bps + '**)' : ''} ke ohde par khidmat sar-anjam de rahe hain.`; closing = 'Yeh certificate unki darkhwast par sarkari istimal ke liye jari kiya jata hai.'; }
     else { intro = `\nThis is to certify that **${blank(f.personName, 25)}**${f.cnic ? ', CNIC / Personal ID No. **' + f.cnic + '**' : ''}, is serving at this institution on the post of **${blank(f.designation, 18)}**${f.bps ? ' (**' + f.bps + '**)' : ''}.`; closing = 'This certificate is issued on his/her request for official use.'; }
     return headerBlock(f, 'salary', l) + intro +
@@ -1902,7 +1902,7 @@ ${awardedOn}: ${today()}` + signBlockHM(f, l);
       declareText = `میں، **${blank(f.fatherName, 25)}**، بذریعہ حلف اعلان کرتا/کرتی ہوں کہ **${blank(f.studentName, 25)}** میری اولاد ہے، اور مندرجہ بالا تمام معلومات میرے علم کے مطابق درست اور صحیح ہیں۔ مذکورہ تاریخ پیدائش ریکارڈ کے عین مطابق ہے۔`;
       sigLbl = 'والدین/سرپرست کے دستخط و انگوٹھا';
     } else if (l === 'sindhi') {
-      affidavitHeading = "والدين / سرپرست جو حلف نامون";
+      affidavitHeading = "والدين / سرپرست جو حلف نامو";
       declareText = `مان، **${blank(f.fatherName, 25)}**، حلف سان اعلان ڪريان ٿو/ٿي ته **${blank(f.studentName, 25)}** منهنجو ٻار آهي، ۽ مٿي ڏنل سموريون معلومات منهنجي علم مطابق صحيح ۽ درست آهن. ٻڌايل ڄمڻ جي تاريخ رڪارڊ مطابق صحيح آهي.`;
       sigLbl = 'والدين/سرپرست جي صحيح ۽ آڱر جو نشان';
     } else if (l === 'roman_urdu') {
