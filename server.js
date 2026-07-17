@@ -1837,10 +1837,16 @@ function isArabicLine(t) {
   const lat = (t.match(/[A-Za-z]/g) || []).length;
   return ar > 0 && ar >= lat;  /* Urdu/Sindhi ghalib ho to RTL */
 }
+/* Sindhi has ~52 letters \u2014 these implosive/retroflex ones don't exist in Urdu at all, so seeing
+   even one of them means the text is genuinely Sindhi, not Urdu. "Jameel Noori Nastaleeq" (the
+   default RTL font below) is Urdu-only and doesn't have proper glyphs for these \u2014 a Sindhi
+   document using it renders these specific letters wrong or as missing-glyph boxes. */
+const SINDHI_ONLY_CHARS = /[\u067B\u067A\u067D\u067F\u0680\u0683\u0684\u0687\u068D\u068C\u068F\u068A\u068B\u06A6\u06B1\u06B3\u06BB\u06AA\u0699]/;
+function isSindhiLine(t) { return SINDHI_ONLY_CHARS.test(t); }
 function runFromText(text, opts) {
   const parts = [];
   const rtl = isArabicLine(text);
-  if (rtl) opts = { ...opts, font: 'Jameel Noori Nastaleeq', rightToLeft: true, size: Math.round((opts.size || 22) * 1.15) };
+  if (rtl) opts = { ...opts, font: isSindhiLine(text) ? 'Lateef' : 'Jameel Noori Nastaleeq', rightToLeft: true, size: Math.round((opts.size || 22) * 1.15) };
   const re = /\*\*(.+?)\*\*/g;
   let last = 0, m;
   while ((m = re.exec(text)) !== null) {
@@ -2058,8 +2064,8 @@ app.post('/download-pdf', async (req, res) => {
       else if (line.startsWith('# ')) html += `<h1>${inline(line.slice(2))}</h1>`;
       else if (line.startsWith('## ')) html += `<h2>${inline(line.slice(3))}</h2>`;
       else if (line.startsWith('### ')) html += `<h3>${inline(line.slice(4))}</h3>`;
-      else if (line.startsWith('- ') || line.startsWith('• ')) html += `<li${isArabicLine(line) ? ' dir="rtl" class="ur"' : ''}>${inline(line.slice(2))}</li>`;
-      else html += `<p${isArabicLine(line) ? ' dir="rtl" class="ur"' : ''}>${inline(line)}</p>`;
+      else if (line.startsWith('- ') || line.startsWith('• ')) html += `<li${isArabicLine(line) ? ` dir="rtl" class="ur${isSindhiLine(line) ? ' sd' : ''}"` : ''}>${inline(line.slice(2))}</li>`;
+      else html += `<p${isArabicLine(line) ? ` dir="rtl" class="ur${isSindhiLine(line) ? ' sd' : ''}"` : ''}>${inline(line)}</p>`;
       i++;
     }
 
@@ -2068,7 +2074,7 @@ app.post('/download-pdf', async (req, res) => {
 <head>
 <meta charset="UTF-8">
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Noto+Nastaliq+Urdu&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Nastaliq+Urdu&family=Lateef&display=swap');
   body { font-family: Arial, sans-serif; font-size: 11.5pt; margin: 2cm; line-height: 1.7; color: #1e2d4a; }
   h1 { color: #1a2744; font-size: 17pt; text-align: center; border-bottom: 2px solid #c8960c; padding-bottom: 6px; margin: 10px 0; }
   h2 { color: #243257; font-size: 13.5pt; text-align: center; margin: 8px 0; }
@@ -2079,6 +2085,10 @@ app.post('/download-pdf', async (req, res) => {
   table { width: 100%; border-collapse: collapse; margin: 10px 0; }
   td, th { border: 1px solid #c8d3e8; padding: 6px 10px; font-size: 10.5pt; }
   .ur { font-family: 'Noto Nastaliq Urdu', 'Jameel Noori Nastaleeq', serif; font-size: 12.5pt; line-height: 2.1; text-align: right; }
+  /* 'Jameel Noori Nastaleeq' is Urdu-only — genuinely Sindhi text (has letters Urdu doesn't, like
+     ٻ ٺ ٽ ٿ ڀ ڃ ڄ ڍ ڏ ڦ ڱ ڳ ڻ ڪ ڙ) needs a font that actually covers those, so it gets 'Lateef'
+     (SIL's Sindhi/Arabic-extended font, web-loaded via the @import above) instead. */
+  .ur.sd { font-family: 'Lateef', 'Noto Nastaliq Urdu', serif; font-size: 15pt; }
   th { background: #1a2744; color: white; }
   li { margin: 4px 0 4px 18px; }
   @media print { body { margin: 1.5cm; } }
