@@ -1233,7 +1233,7 @@ app.post('/generate', async (req, res) => {
   if (documentType === 'Result Card' && req.body.fullClass && Array.isArray(req.body.studentsMarks)) {
     try {
       const cards = req.body.studentsMarks.map(sm =>
-        OFFLINE_BUILDERS['Result Card']({ ...fields, ...sm.student }, sm.marks || [])
+        OFFLINE_BUILDERS['Result Card']({ ...fields, ...sm.student }, sm.marks || [], [], language || 'english')
       );
       return res.json({ success: true, content: cards.join('\n\n[[PAGEBREAK]]\n\n'), offline: true });
     } catch (e) { return res.json({ success: false, error: e.message }); }
@@ -1242,7 +1242,7 @@ app.post('/generate', async (req, res) => {
   /* Instant offline documents — no API call */
   if (NO_AI_TYPES.includes(documentType)) {
     try {
-      const content = buildOfflineDocument(documentType, fields, marks, studentsList);
+      const content = buildOfflineDocument(documentType, fields, marks, studentsList, language);
       return res.json({ success: true, content, offline: true });
     } catch (e) {
       return res.json({ success: false, error: e.message });
@@ -1555,19 +1555,122 @@ function fmt(d) {
 }
 function today() { return fmt(new Date()); }
 function blank(v, len) { return v && String(v).trim() ? String(v).trim() : '_'.repeat(len || 15); }
-function sd(name) { return name ? `son/daughter of ${name}` : 'son/daughter of ' + '_'.repeat(20); }
+function sdOf(name, l) { return name ? `${l.sonDaughterOf} ${name}` : l.sonDaughterOf + ' ' + '_'.repeat(20); }
 
-function headerBlock(f, title) {
-  return `[[LOGO]]\n${BISMILLAH}\n\n# ${blank(f.schoolName, 40)}\n## ${title}\n\nDate: ${today()}${f.refNumber ? '\nRef / Inward-Outward No: ' + f.refNumber : ''}\n`;
+/* \u2500\u2500\u2500 Offline-document localization \u2014 the 14 "No AI" certificates/forms below are instant,
+   free, and template-based (no API call), so they can't lean on the AI to translate for them
+   the way every other document type does. Base languages only (english/urdu/sindhi/roman_urdu)
+   \u2014 a bilingual/trilingual selection just renders each requested base language in full, one
+   after another, separated by a page break, which is how real bilingual official certificates
+   in Pakistan are usually laid out (not interleaved sentence-by-sentence). */
+const OFFLINE_LANG_COMBOS = {
+  bilingual_en_ur: ['english', 'urdu'],
+  bilingual_en_sd: ['english', 'sindhi'],
+  trilingual: ['english', 'urdu', 'sindhi'],
+  en_ur_roman: ['english', 'urdu', 'roman_urdu']
+};
+const L10N = {
+  english: {
+    sonDaughterOf: 'son/daughter of', dateLbl: 'Date', refNo: 'Ref / Inward-Outward No',
+    hm: 'Head Master / Principal', classTeacher: 'Class Teacher', beatOfficer: 'Beat Officer / Supervisor',
+    signStamp: 'Signature & Stamp', signStampOfficial: 'Signature & Official Stamp',
+    studentName: "Student Name", fatherName: "Father's Name", grNo: 'G.R Number', rollNo: 'Roll / Seat No',
+    className: 'Class', dob: 'Date of Birth', age: 'Current Age', address: 'Address', guardianContact: 'Guardian Contact',
+    session: 'Session', exam: 'Examination', resultDate: 'Result Date', admissionClass: 'Class of Admission',
+    leavingClass: 'Class at the Time of Leaving', leavingDate: 'Date of Leaving', reason: 'Reason for Leaving',
+    conduct: 'Conduct', progress: 'Progress', dues: 'Dues', designation: 'Designation', bps: 'BPS / Grade',
+    salary: 'Monthly Salary', costCentre: 'Cost Centre / DDO Code', cnic: 'CNIC / Personal ID No',
+    fatherCnic: "Father's CNIC", workingDays: 'Total Working Days', field: 'Field', detail: 'Detail',
+    subject: 'Subject', totalMarks: 'Total Marks', obtainedMarks: 'Marks Obtained', grade: 'Grade', total: 'TOTAL',
+    sNo: 'S.No', present: 'Days Present', absent: 'Days Absent', leave: 'Leave', percent: '%',
+    titles: { charCert: 'CHARACTER CERTIFICATE', bonafide: 'BONAFIDE CERTIFICATE', transfer: 'TRANSFER CERTIFICATE',
+      leaving: 'SCHOOL LEAVING CERTIFICATE', noc: 'NO OBJECTION CERTIFICATE (NOC)', experience: 'EXPERIENCE CERTIFICATE',
+      salary: 'SALARY CERTIFICATE', enrollment: 'STUDENT ENROLLMENT / ADMISSION FORM', profile: 'STUDENT PROFILE',
+      result: 'STUDENT RESULT CARD', attendance: 'STUDENT ATTENDANCE SHEET', affidavit: 'AFFIDAVIT / UNDERTAKING',
+      scholarship: 'SCHOLARSHIP / WAZIFA APPLICATION FORM', achievement: 'CERTIFICATE OF ACHIEVEMENT' }
+  },
+  urdu: {
+    sonDaughterOf: '\u0648\u0644\u062F/\u0628\u0646\u062A', dateLbl: '\u062A\u0627\u0631\u06CC\u062E', refNo: '\u062D\u0648\u0627\u0644\u06C1 / \u0627\u0646-\u0622\u0624\u0679 \u0646\u0645\u0628\u0631',
+    hm: '\u06C1\u06CC\u0688 \u0645\u0627\u0633\u0679\u0631 / \u067E\u0631\u0646\u0633\u067E\u0644', classTeacher: '\u06A9\u0644\u0627\u0633 \u0679\u06CC\u0686\u0631', beatOfficer: '\u0628\u06CC\u0679 \u0622\u0641\u06CC\u0633\u0631 / \u0633\u067E\u0631\u0648\u0627\u0626\u0632\u0631',
+    signStamp: '\u062F\u0633\u062A\u062E\u0637 \u0627\u0648\u0631 \u0645\u06C1\u0631', signStampOfficial: '\u062F\u0633\u062A\u062E\u0637 \u0627\u0648\u0631 \u0633\u0631\u06A9\u0627\u0631\u06CC \u0645\u06C1\u0631',
+    studentName: '\u0637\u0627\u0644\u0628 \u0639\u0644\u0645 \u06A9\u0627 \u0646\u0627\u0645', fatherName: '\u0648\u0627\u0644\u062F \u06A9\u0627 \u0646\u0627\u0645', grNo: '\u062C\u06CC \u0622\u0631 \u0646\u0645\u0628\u0631', rollNo: '\u0631\u0648\u0644 / \u0633\u06CC\u0679 \u0646\u0645\u0628\u0631',
+    className: '\u062C\u0645\u0627\u0639\u062A', dob: '\u062A\u0627\u0631\u06CC\u062E \u067E\u06CC\u062F\u0627\u0626\u0634', age: '\u0645\u0648\u062C\u0648\u062F\u06C1 \u0639\u0645\u0631', address: '\u067E\u062A\u06C1', guardianContact: '\u0633\u0631\u067E\u0631\u0633\u062A \u06A9\u0627 \u0631\u0627\u0628\u0637\u06C1 \u0646\u0645\u0628\u0631',
+    session: '\u062A\u0639\u0644\u06CC\u0645\u06CC \u0633\u06CC\u0634\u0646', exam: '\u0627\u0645\u062A\u062D\u0627\u0646', resultDate: '\u0646\u062A\u06CC\u062C\u06C1 \u06A9\u06CC \u062A\u0627\u0631\u06CC\u062E', admissionClass: '\u062F\u0627\u062E\u0644\u06D2 \u06A9\u06CC \u062C\u0645\u0627\u0639\u062A',
+    leavingClass: '\u0686\u06BE\u0648\u0691\u062A\u06D2 \u0648\u0642\u062A \u062C\u0645\u0627\u0639\u062A', leavingDate: '\u0686\u06BE\u0648\u0691\u0646\u06D2 \u06A9\u06CC \u062A\u0627\u0631\u06CC\u062E', reason: '\u0686\u06BE\u0648\u0691\u0646\u06D2 \u06A9\u06CC \u0648\u062C\u06C1',
+    conduct: '\u0627\u062E\u0644\u0627\u0642', progress: '\u062A\u0639\u0644\u06CC\u0645\u06CC \u06A9\u0627\u0631\u06A9\u0631\u062F\u06AF\u06CC', dues: '\u0648\u0627\u062C\u0628\u0627\u062A', designation: '\u0639\u06C1\u062F\u06C1', bps: '\u0628\u06CC \u067E\u06CC \u0627\u06CC\u0633 / \u06AF\u0631\u06CC\u0688',
+    salary: '\u0645\u0627\u06C1\u0627\u0646\u06C1 \u062A\u0646\u062E\u0648\u0627\u06C1', costCentre: '\u06A9\u0648\u0633\u0679 \u0633\u06CC\u0646\u0679\u0631 / \u0688\u06CC \u0688\u06CC \u0627\u0648 \u06A9\u0648\u0688', cnic: '\u0634\u0646\u0627\u062E\u062A\u06CC \u06A9\u0627\u0631\u0688 \u0646\u0645\u0628\u0631',
+    fatherCnic: '\u0648\u0627\u0644\u062F \u06A9\u0627 \u0634\u0646\u0627\u062E\u062A\u06CC \u06A9\u0627\u0631\u0688 \u0646\u0645\u0628\u0631', workingDays: '\u06A9\u0644 \u062D\u0627\u0636\u0631\u06CC \u06A9\u06D2 \u062F\u0646', field: '\u062E\u0627\u0646\u06C1', detail: '\u062A\u0641\u0635\u06CC\u0644',
+    subject: '\u0645\u0636\u0645\u0648\u0646', totalMarks: '\u06A9\u0644 \u0646\u0645\u0628\u0631', obtainedMarks: '\u062D\u0627\u0635\u0644 \u06A9\u0631\u062F\u06C1 \u0646\u0645\u0628\u0631', grade: '\u06AF\u0631\u06CC\u0688', total: '\u0645\u06CC\u0632\u0627\u0646',
+    sNo: '\u0646\u0645\u0628\u0631 \u0634\u0645\u0627\u0631', present: '\u062D\u0627\u0636\u0631 \u062F\u0646', absent: '\u063A\u06CC\u0631 \u062D\u0627\u0636\u0631 \u062F\u0646', leave: '\u0631\u062E\u0635\u062A', percent: '\u0641\u06CC\u0635\u062F',
+    titles: { charCert: '\u06A9\u0631\u06CC\u06A9\u0679\u0631 \u0633\u0631\u0679\u06CC\u0641\u06A9\u06CC\u0679', bonafide: '\u0628\u0648\u0646\u0627\u0641\u0627\u0626\u06CC\u0688 \u0633\u0631\u0679\u06CC\u0641\u06A9\u06CC\u0679', transfer: '\u0679\u0631\u0627\u0646\u0633\u0641\u0631 \u0633\u0631\u0679\u06CC\u0641\u06A9\u06CC\u0679',
+      leaving: '\u0627\u0633\u06A9\u0648\u0644 \u0644\u06CC\u0648\u0646\u06AF \u0633\u0631\u0679\u06CC\u0641\u06A9\u06CC\u0679', noc: '\u0639\u062F\u0645 \u0627\u0639\u062A\u0631\u0627\u0636 \u0633\u0631\u0679\u06CC\u0641\u06A9\u06CC\u0679 (\u0627\u06CC\u0646 \u0627\u0648 \u0633\u06CC)', experience: '\u062A\u062C\u0631\u0628\u06C1 \u0633\u0631\u0679\u06CC\u0641\u06A9\u06CC\u0679',
+      salary: '\u062A\u0646\u062E\u0648\u0627\u06C1 \u0633\u0631\u0679\u06CC\u0641\u06A9\u06CC\u0679', enrollment: '\u0637\u0627\u0644\u0628 \u0639\u0644\u0645 \u062F\u0627\u062E\u0644\u06C1 \u0641\u0627\u0631\u0645', profile: '\u0637\u0627\u0644\u0628 \u0639\u0644\u0645 \u067E\u0631\u0648\u0641\u0627\u0626\u0644',
+      result: '\u0631\u0632\u0644\u0679 \u06A9\u0627\u0631\u0688', attendance: '\u062D\u0627\u0636\u0631\u06CC \u0634\u06CC\u0679', affidavit: '\u062D\u0644\u0641 \u0646\u0627\u0645\u06C1',
+      scholarship: '\u0648\u0638\u06CC\u0641\u06C1 \u062F\u0631\u062E\u0648\u0627\u0633\u062A \u0641\u0627\u0631\u0645', achievement: '\u0633\u0631\u0679\u06CC\u0641\u06A9\u06CC\u0679 \u0622\u0641 \u0627\u0686\u06CC\u0648\u0645\u0646\u0679' }
+  },
+  sindhi: {
+    sonDaughterOf: '\u067E\u067D/\u068C\u064A\u0621\u064F', dateLbl: '\u062A\u0627\u0631\u064A\u062E', refNo: '\u062D\u0648\u0627\u0644\u0648 \u0646\u0645\u0628\u0631',
+    hm: '\u0647\u064A\u068A \u0645\u0627\u0633\u062A\u0631 / \u067E\u0631\u0646\u0633\u067E\u0627\u0644', classTeacher: '\u06AA\u0644\u0627\u0633 \u067D\u064A\u0686\u0631', beatOfficer: '\u0628\u064A\u067D \u0622\u0641\u064A\u0633\u0631 / \u0633\u067E\u0631\u0648\u0627\u0626\u0632\u0631',
+    signStamp: '\u0635\u062D\u064A\u062D \u06FD \u0645\u0647\u0631', signStampOfficial: '\u0635\u062D\u064A\u062D \u06FD \u0633\u0631\u06AA\u0627\u0631\u064A \u0645\u0647\u0631',
+    studentName: '\u0634\u0627\u06AF\u0631\u062F \u062C\u0648 \u0646\u0627\u0644\u0648', fatherName: '\u067E\u064A\u0621\u064F \u062C\u0648 \u0646\u0627\u0644\u0648', grNo: '\u062C\u064A \u0622\u0631 \u0646\u0645\u0628\u0631', rollNo: '\u0631\u0648\u0644 / \u0633\u064A\u067D \u0646\u0645\u0628\u0631',
+    className: '\u062F\u0631\u062C\u0648', dob: '\u0684\u0645\u06BB \u062C\u064A \u062A\u0627\u0631\u064A\u062E', age: '\u0645\u0648\u062C\u0648\u062F\u0647 \u0639\u0645\u0631', address: '\u067E\u062A\u0648', guardianContact: '\u0633\u0631\u067E\u0631\u0633\u062A \u062C\u0648 \u0631\u0627\u0628\u0637\u0648',
+    session: '\u062A\u0639\u0644\u064A\u0645\u064A \u0633\u064A\u0634\u0646', exam: '\u0627\u0645\u062A\u062D\u0627\u0646', resultDate: '\u0646\u062A\u064A\u062C\u064A \u062C\u064A \u062A\u0627\u0631\u064A\u062E', admissionClass: '\u062F\u0627\u062E\u0644\u064A \u062C\u0648 \u062F\u0631\u062C\u0648',
+    leavingClass: '\u0687\u068F\u06BB \u0648\u0642\u062A \u062F\u0631\u062C\u0648', leavingDate: '\u0687\u068F\u06BB \u062C\u064A \u062A\u0627\u0631\u064A\u062E', reason: '\u0687\u068F\u06BB \u062C\u0648 \u0633\u0628\u0628',
+    conduct: '\u0627\u062E\u0644\u0627\u0642', progress: '\u062A\u0639\u0644\u064A\u0645\u064A \u06AA\u0627\u0631\u06AA\u0631\u062F\u06AF\u064A', dues: '\u0628\u0642\u0627\u064A\u0627', designation: '\u0639\u0647\u062F\u0648', bps: '\u0628\u064A \u067E\u064A \u0627\u064A\u0633 / \u06AF\u0631\u064A\u068A',
+    salary: '\u0645\u0647\u064A\u0646\u064A \u062C\u064A \u067E\u06AF\u0647\u0627\u0631', costCentre: '\u06AA\u0627\u0633\u067D \u0633\u064A\u0646\u067D\u0631 / \u068A\u064A \u068A\u064A \u0627\u0648 \u06AA\u0648\u068A', cnic: '\u0642\u0648\u0645\u064A \u0633\u0683\u0627\u06BB\u067E \u0646\u0645\u0628\u0631',
+    fatherCnic: '\u067E\u064A\u0621\u064F \u062C\u0648 \u0642\u0648\u0645\u064A \u0633\u0683\u0627\u06BB\u067E \u0646\u0645\u0628\u0631', workingDays: '\u06AA\u0644 \u062D\u0627\u0636\u0631\u064A \u062C\u0627 \u068F\u064A\u0646\u0647\u0646', field: '\u062E\u0627\u0646\u0648', detail: '\u062A\u0641\u0635\u064A\u0644',
+    subject: '\u0645\u0636\u0645\u0648\u0646', totalMarks: '\u06AA\u0644 \u0646\u0645\u0628\u0631', obtainedMarks: '\u062D\u0627\u0635\u0644 \u06AA\u064A\u0644 \u0646\u0645\u0628\u0631', grade: '\u06AF\u0631\u064A\u068A', total: '\u06AA\u0644',
+    sNo: '\u0646\u0645\u0628\u0631 \u0634\u0645\u0627\u0631', present: '\u062D\u0627\u0636\u0631 \u068F\u064A\u0646\u0647\u0646', absent: '\u063A\u064A\u0631 \u062D\u0627\u0636\u0631 \u068F\u064A\u0646\u0647\u0646', leave: '\u0645\u0648\u06AA\u0644', percent: '\u0641\u064A\u0635\u062F',
+    titles: { charCert: '\u06AA\u0631\u062F\u0627\u0631 \u0633\u0631\u067D\u064A\u0641\u06AA\u064A\u067D', bonafide: '\u0628\u0648\u0646\u0627\u0641\u0627\u0626\u064A\u068A \u0633\u0631\u067D\u064A\u0641\u06AA\u064A\u067D', transfer: '\u067D\u0631\u0627\u0646\u0633\u0641\u0631 \u0633\u0631\u067D\u064A\u0641\u06AA\u064A\u067D',
+      leaving: '\u0627\u0633\u06AA\u0648\u0644 \u0687\u068F\u06BB \u062C\u0648 \u0633\u0631\u067D\u064A\u0641\u06AA\u064A\u067D', noc: '\u0639\u062F\u0645 \u0627\u0639\u062A\u0631\u0627\u0636 \u0633\u0631\u067D\u064A\u0641\u06AA\u064A\u067D (\u0627\u064A\u0646 \u0627\u0648 \u0633\u064A)', experience: '\u062A\u062C\u0631\u0628\u064A \u062C\u0648 \u0633\u0631\u067D\u064A\u0641\u06AA\u064A\u067D',
+      salary: '\u067E\u06AF\u0647\u0627\u0631 \u0633\u0631\u067D\u064A\u0641\u06AA\u064A\u067D', enrollment: '\u0634\u0627\u06AF\u0631\u062F \u062F\u0627\u062E\u0644\u0627 \u0641\u0627\u0631\u0645', profile: '\u0634\u0627\u06AF\u0631\u062F \u067E\u0631\u0648\u0641\u0627\u0626\u0644',
+      result: '\u0646\u062A\u064A\u062C\u064A \u06AA\u0627\u0631\u068A', attendance: '\u062D\u0627\u0636\u0631\u064A \u0634\u064A\u067D', affidavit: '\u062D\u0644\u0641 \u0646\u0627\u0645\u0648\u0646',
+      scholarship: '\u0648\u0638\u064A\u0641\u064A \u062C\u064A \u062F\u0631\u062E\u0648\u0627\u0633\u062A \u0641\u0627\u0631\u0645', achievement: '\u06AA\u0627\u0645\u064A\u0627\u0628\u064A \u062C\u0648 \u0633\u0631\u067D\u064A\u0641\u06AA\u064A\u067D' }
+  },
+  roman_urdu: {
+    sonDaughterOf: 'walid/bint', dateLbl: 'Tareekh', refNo: 'Hawala Number',
+    hm: 'Head Master / Principal', classTeacher: 'Class Teacher', beatOfficer: 'Beat Officer / Supervisor',
+    signStamp: 'Dastkhat aur Mohar', signStampOfficial: 'Dastkhat aur Sarkari Mohar',
+    studentName: 'Talib-e-Ilm ka Naam', fatherName: 'Walid ka Naam', grNo: 'G.R Number', rollNo: 'Roll / Seat No',
+    className: 'Jamaat', dob: 'Tareekh-e-Paidaish', age: 'Mojooda Umar', address: 'Pata', guardianContact: 'Sarparast ka Rabta Number',
+    session: 'Taleemi Session', exam: 'Imtehan', resultDate: 'Nateeje ki Tareekh', admissionClass: 'Dakhle ki Jamaat',
+    leavingClass: 'Chhorte Waqt Jamaat', leavingDate: 'Chhorne ki Tareekh', reason: 'Chhorne ki Wajah',
+    conduct: 'Ikhlaq', progress: 'Taleemi Karkardagi', dues: 'Wajibat', designation: 'Ohda', bps: 'BPS / Grade',
+    salary: 'Mahana Tankhwah', costCentre: 'Cost Centre / DDO Code', cnic: 'Shanakhti Card Number',
+    fatherCnic: 'Walid ka Shanakhti Card Number', workingDays: 'Kul Hazri ke Din', field: 'Khana', detail: 'Tafseel',
+    subject: 'Mazmoon', totalMarks: 'Kul Number', obtainedMarks: 'Hasil Karda Number', grade: 'Grade', total: 'Majmoi',
+    sNo: 'Number Shumar', present: 'Hazir Din', absent: 'Ghair Hazir Din', leave: 'Rukhsat', percent: 'Fisad',
+    titles: { charCert: 'Character Certificate', bonafide: 'Bonafide Certificate', transfer: 'Transfer Certificate',
+      leaving: 'School Leaving Certificate', noc: 'No Objection Certificate (NOC)', experience: 'Experience Certificate',
+      salary: 'Salary Certificate', enrollment: 'Talib-e-Ilm Dakhla Form', profile: 'Talib-e-Ilm Profile',
+      result: 'Result Card', attendance: 'Hazri Sheet', affidavit: 'Halafnama',
+      scholarship: 'Wazifa Application Form', achievement: 'Certificate of Achievement' }
+  }
+};
+function l10n(lang) { return L10N[lang] || L10N.english; }
+/* Combo languages (e.g. "English + Urdu") render each base language in full, back to back,
+   separated by a page break \u2014 real bilingual certificates aren't interleaved sentence-by-sentence. */
+function renderLang(lang, bodyFn) {
+  const combo = OFFLINE_LANG_COMBOS[lang];
+  if (!combo) return bodyFn(lang);
+  return combo.map(bodyFn).join('\n\n[[PAGEBREAK]]\n\n');
 }
-function signBlock3() {
-  return `\n\n| Class Teacher | Head Master / Principal | Beat Officer / Supervisor |\n|---|---|---|\n| \u00A0 | \u00A0 | \u00A0 |\n| \u00A0 | \u00A0 | \u00A0 |\n| Signature & Stamp | Signature & Stamp | Signature & Stamp |`;
+
+function headerBlock(f, titleKey, lang) {
+  const l = l10n(lang);
+  return `[[LOGO]]\n${BISMILLAH}\n\n# ${blank(f.schoolName, 40)}\n## ${l.titles[titleKey]}\n\n${l.dateLbl}: ${today()}${f.refNumber ? '\n' + l.refNo + ': ' + f.refNumber : ''}\n`;
 }
-function signBlock2() {
-  return `\n\n| Class Teacher | Head Master / Principal |\n|---|---|\n| \u00A0 | \u00A0 |\n| \u00A0 | \u00A0 |\n| Signature & Stamp | Signature & Stamp |`;
+function signBlock3(lang) {
+  const l = l10n(lang);
+  return `\n\n| ${l.classTeacher} | ${l.hm} | ${l.beatOfficer} |\n|---|---|---|\n| \u00A0 | \u00A0 | \u00A0 |\n| \u00A0 | \u00A0 | \u00A0 |\n| ${l.signStamp} | ${l.signStamp} | ${l.signStamp} |`;
 }
-function signBlockHM(f) {
-  return `\n\n\n_______________________\n**Head Master / Principal**\n${blank(f.teacherName, 25)}\n${blank(f.schoolName, 35)}\nSignature & Official Stamp`;
+function signBlock2(lang) {
+  const l = l10n(lang);
+  return `\n\n| ${l.classTeacher} | ${l.hm} |\n|---|---|\n| \u00A0 | \u00A0 |\n| \u00A0 | \u00A0 |\n| ${l.signStamp} | ${l.signStamp} |`;
+}
+function signBlockHM(f, lang) {
+  const l = l10n(lang);
+  return `\n\n\n_______________________\n**${l.hm}**\n${blank(f.teacherName, 25)}\n${blank(f.schoolName, 35)}\n${l.signStampOfficial}`;
 }
 function gradeOf(pct) {
   if (pct >= 80) return 'A-1 (Outstanding)';
@@ -1581,208 +1684,420 @@ function gradeOf(pct) {
 
 const OFFLINE_BUILDERS = {
 
-  'Character Certificate': (f) => {
-    const conduct = (f.conduct || 'Good').toUpperCase();
-    return headerBlock(f, 'CHARACTER CERTIFICATE') +
-`\nThis is to certify that **${blank(f.studentName, 25)}**, ${sd(f.fatherName)}, bearing G.R No. **${blank(f.grNumber, 8)}**, ${f.className ? 'is/was a student of **' + f.className + '**' : 'is/was a student'} at this institution${f.periodFrom || f.periodTo ? ` from **${fmt(f.periodFrom) || '________'}** to **${fmt(f.periodTo) || '________'}**` : ''}.${f.dob ? `\n\nDate of Birth (as per school record): **${fmt(f.dob)}**${f.age ? ' — Current age: ' + f.age : ''}` : ''}
+  'Character Certificate': (f, marks, students, lang) => renderLang(lang, l => {
+    const t = l10n(l);
+    const conductDefault = l === 'urdu' ? 'اچھا' : l === 'sindhi' ? 'سٺو' : l === 'roman_urdu' ? 'Acha' : 'Good';
+    const conduct = (f.conduct || conductDefault).toString().toUpperCase();
+    const period = f.periodFrom || f.periodTo;
+    let body;
+    if (l === 'urdu') {
+      body = `\nیہ سرٹیفکیٹ اس بات کی تصدیق کرتا ہے کہ **${blank(f.studentName, 25)}**، ${sdOf(f.fatherName, t)}، جی آر نمبر **${blank(f.grNumber, 8)}**، اس ادارے میں ${f.className ? '**' + f.className + '**' : ''} زیرِ تعلیم رہے/رہیں${period ? ` بمن **${fmt(f.periodFrom) || '________'}** تا **${fmt(f.periodTo) || '________'}**` : ''}۔${f.dob ? `\n\nتاریخ پیدائش (بمطابق سکول ریکارڈ): **${fmt(f.dob)}**${f.age ? ' — موجودہ عمر: ' + f.age : ''}` : ''}
+
+اس ادارے میں قیام کے دوران موصوف کا اخلاق و کردار **${conduct}** پایا گیا۔ موصوف نیک اخلاق کے حامل، باقاعدہ اور نظم و ضبط کے پابند رہے اور کبھی بھی سکول کے قواعد و ضوابط کے خلاف کسی سرگرمی میں ملوث نہیں پائے گئے۔
+
+یہ سرٹیفکیٹ ان کی درخواست پر${f.purpose ? ` **${f.purpose}** کے لیے` : ''} جاری کیا جاتا ہے۔ ادارہ ان کے روشن مستقبل کے لیے نیک خواہشات کا اظہار کرتا ہے۔`;
+    } else if (l === 'sindhi') {
+      body = `\nهيءَ سرٽيفڪيٽ هن ڳالهه جي تصديق ڪري ٿي ته **${blank(f.studentName, 25)}**، ${sdOf(f.fatherName, t)}، جي آر نمبر **${blank(f.grNumber, 8)}**، هن ادار ي ۾ ${f.className ? '**' + f.className + '**' : ''} زير تعليم رهيو/رهي${period ? ` تاريخ **${fmt(f.periodFrom) || '________'}** کان **${fmt(f.periodTo) || '________'}** تائين` : ''}. ${f.dob ? `\n\nڄمڻ جي تاريخ (اسڪول ريڪارڊ موجب): **${fmt(f.dob)}**${f.age ? ' — موجوده عمر: ' + f.age : ''}` : ''}
+
+هن ادار ي ۾ رهڻ دوران موصوف جو اخلاق ۽ ڪردار **${conduct}** لڌو ويو. موصوف سٺي اخلاق جو مالڪ، باقاعده ۽ نظم ضبط جو پابند رهيو ۽ ڪڏهن به اسڪول جي قاعدن جي خلاف ڪنهن سرگرمي ۾ شامل نه ڏٺو ويو.
+
+هيءَ سرٽيفڪيٽ سندس درخواست تي${f.purpose ? ` **${f.purpose}** جي مقصد لاءِ` : ''} جاري ڪئي وڃي ٿي. ادارو سندس روشن مستقبل لاءِ نيڪ خواهشون ظاهر ڪري ٿو.`;
+    } else if (l === 'roman_urdu') {
+      body = `\nYeh certify kiya jata hai ke **${blank(f.studentName, 25)}**, ${sdOf(f.fatherName, t)}, G.R Number **${blank(f.grNumber, 8)}**, is idaray mein ${f.className ? '**' + f.className + '**' : ''} zer-e-taleem rahe/rahi hain${period ? ` tareekh **${fmt(f.periodFrom) || '________'}** se **${fmt(f.periodTo) || '________'}** tak` : ''}.${f.dob ? `\n\nTareekh-e-Paidaish (school record ke mutabiq): **${fmt(f.dob)}**${f.age ? ' — Mojooda umar: ' + f.age : ''}` : ''}
+
+Is idaray mein qayam ke doran unka ikhlaq o kirdar **${conduct}** paya gaya. Woh nek ikhlaq ke hamil, ba-qaeda aur nazm-o-zabt ke paband rahe aur kabhi bhi school ke qawaid ke khilaf kisi sargarmi mein mulawwas nahi paye gaye.
+
+Yeh certificate unki darkhwast par${f.purpose ? ` **${f.purpose}** ke liye` : ''} jari kiya jata hai. Idara unke roshan mustaqbil ke liye nek khwahishaat ka izhar karta hai.`;
+    } else {
+      body = `\nThis is to certify that **${blank(f.studentName, 25)}**, ${sdOf(f.fatherName, t)}, bearing G.R No. **${blank(f.grNumber, 8)}**, ${f.className ? 'is/was a student of **' + f.className + '**' : 'is/was a student'} at this institution${period ? ` from **${fmt(f.periodFrom) || '________'}** to **${fmt(f.periodTo) || '________'}**` : ''}.${f.dob ? `\n\nDate of Birth (as per school record): **${fmt(f.dob)}**${f.age ? ' — Current age: ' + f.age : ''}` : ''}
 
 During his/her stay at this institution, his/her character and conduct were found **${conduct}**. He/She bears a good moral character, remained regular and disciplined, and was never involved in any activity against the rules and discipline of the school.
 
-This certificate is issued on his/her request${f.purpose ? ` for the purpose of **${f.purpose}**` : ''}. The institution wishes him/her success in all future endeavors.` +
-signBlockHM(f);
-  },
+This certificate is issued on his/her request${f.purpose ? ` for the purpose of **${f.purpose}**` : ''}. The institution wishes him/her success in all future endeavors.`;
+    }
+    return headerBlock(f, 'charCert', l) + body + signBlockHM(f, l);
+  }),
 
-  'Bonafide Certificate': (f) =>
-    headerBlock(f, 'BONAFIDE CERTIFICATE') +
-`\nThis is to certify that **${blank(f.studentName, 25)}**, ${sd(f.fatherName)}, bearing G.R No. **${blank(f.grNumber, 8)}**, is a **BONAFIDE student of ${blank(f.className, 10)}** at this institution for the academic session **${blank(f.sessionYear, 10)}**.
+  'Bonafide Certificate': (f, marks, students, lang) => renderLang(lang, l => {
+    const t = l10n(l);
+    let body;
+    if (l === 'urdu') body = `\nیہ سرٹیفکیٹ اس بات کی تصدیق کرتا ہے کہ **${blank(f.studentName, 25)}**، ${sdOf(f.fatherName, t)}، جی آر نمبر **${blank(f.grNumber, 8)}**، اس ادارے میں **${blank(f.className, 10)}** کے تعلیمی سیشن **${blank(f.sessionYear, 10)}** کے دوران باقاعدہ (بونافائیڈ) طالب علم ہیں/تھیں۔
 
-This certificate is issued on the request of the student/guardian${f.purpose ? ` for the purpose of **${f.purpose}**` : ''}.` +
-    signBlockHM(f),
+یہ سرٹیفکیٹ طالب علم/سرپرست کی درخواست پر${f.purpose ? ` **${f.purpose}** کے لیے` : ''} جاری کیا جاتا ہے۔`;
+    else if (l === 'sindhi') body = `\nهيءَ سرٽيفڪيٽ هن ڳالهه جي تصديق ڪري ٿي ته **${blank(f.studentName, 25)}**، ${sdOf(f.fatherName, t)}، جي آر نمبر **${blank(f.grNumber, 8)}**، هن ادار ي ۾ **${blank(f.className, 10)}** جي تعليمي سيشن **${blank(f.sessionYear, 10)}** دوران باقاعده (بونافائيڊ) شاگرد آهي/هئي.
 
-  'Transfer Certificate': (f) =>
-    headerBlock(f, 'TRANSFER CERTIFICATE') +
+هيءَ سرٽيفڪيٽ شاگرد/سرپرست جي درخواست تي${f.purpose ? ` **${f.purpose}** جي مقصد لاءِ` : ''} جاري ڪئي وڃي ٿي.`;
+    else if (l === 'roman_urdu') body = `\nYeh certify kiya jata hai ke **${blank(f.studentName, 25)}**, ${sdOf(f.fatherName, t)}, G.R Number **${blank(f.grNumber, 8)}**, is idaray mein **${blank(f.className, 10)}** ke taleemi session **${blank(f.sessionYear, 10)}** ke doran ba-qaeda (bonafide) talib-e-ilm rahe/rahi hain.
+
+Yeh certificate talib-e-ilm/sarparast ki darkhwast par${f.purpose ? ` **${f.purpose}** ke liye` : ''} jari kiya jata hai.`;
+    else body = `\nThis is to certify that **${blank(f.studentName, 25)}**, ${sdOf(f.fatherName, t)}, bearing G.R No. **${blank(f.grNumber, 8)}**, is a **BONAFIDE student of ${blank(f.className, 10)}** at this institution for the academic session **${blank(f.sessionYear, 10)}**.
+
+This certificate is issued on the request of the student/guardian${f.purpose ? ` for the purpose of **${f.purpose}**` : ''}.`;
+    return headerBlock(f, 'bonafide', l) + body + signBlockHM(f, l);
+  }),
+
+  'Transfer Certificate': (f, marks, students, lang) => renderLang(lang, l => {
+    const t = l10n(l);
+    const conductDefault = l === 'urdu' ? 'اچھا' : l === 'sindhi' ? 'سٺو' : l === 'roman_urdu' ? 'Acha' : 'Good';
+    const satisfactory = l === 'urdu' ? 'تسلی بخش' : l === 'sindhi' ? 'تسلي بخش' : l === 'roman_urdu' ? 'Tasalli Bakhsh' : 'Satisfactory';
+    const nilDefault = l === 'urdu' ? 'نہیں' : l === 'sindhi' ? 'ڪونهي' : l === 'roman_urdu' ? 'Nil' : 'Nil';
+    const closing = l === 'urdu' ? 'تصدیق کی جاتی ہے کہ مندرجہ بالا معلومات سکول کے جنرل رجسٹر کے مطابق ہیں۔'
+      : l === 'sindhi' ? 'تصديق ڪئي وڃي ٿي ته مٿي ڏنل معلومات اسڪول جي جنرل رجسٹر مطابق آهن.'
+      : l === 'roman_urdu' ? 'Tasdeeq ki jati hai ke mundarja bala maloomat school ke General Register ke mutabiq hain.'
+      : 'Certified that the above information is in accordance with the school General Register.';
+    return headerBlock(f, 'transfer', l) +
 `
-| Field | Detail |
+| ${t.field} | ${t.detail} |
 |---|---|
-| Student Name | ${blank(f.studentName, 25)} |
-| Father's Name | ${blank(f.fatherName, 25)} |
-| G.R Number | ${blank(f.grNumber, 8)} |
-| Date of Birth | ${fmt(f.dob) || '____________'} |${f.age ? `\n| Current Age | ${f.age} |` : ''}
-| Class of Admission | ${blank(f.admissionClass, 10)} |
-| Class at the Time of Leaving | ${blank(f.leavingClass, 10)} |
-| Date of Leaving | ${fmt(f.leavingDate) || today()} |
-| Reason for Leaving | ${blank(f.reason, 20)} |
-| Conduct | ${f.conduct || 'Good'} |
-| Progress | Satisfactory |
-| Dues | Nil |
+| ${t.studentName} | ${blank(f.studentName, 25)} |
+| ${t.fatherName} | ${blank(f.fatherName, 25)} |
+| ${t.grNo} | ${blank(f.grNumber, 8)} |
+| ${t.dob} | ${fmt(f.dob) || '____________'} |${f.age ? `\n| ${t.age} | ${f.age} |` : ''}
+| ${t.admissionClass} | ${blank(f.admissionClass, 10)} |
+| ${t.leavingClass} | ${blank(f.leavingClass, 10)} |
+| ${t.leavingDate} | ${fmt(f.leavingDate) || today()} |
+| ${t.reason} | ${blank(f.reason, 20)} |
+| ${t.conduct} | ${f.conduct || conductDefault} |
+| ${t.progress} | ${satisfactory} |
+| ${t.dues} | ${nilDefault} |
 
-Certified that the above information is in accordance with the school General Register.` +
-    signBlockHM(f),
+${closing}` + signBlockHM(f, l);
+  }),
 
-  'School Leaving Certificate': (f) =>
-    headerBlock(f, 'SCHOOL LEAVING CERTIFICATE') +
-`\nThis is to certify that **${blank(f.studentName, 25)}**, ${sd(f.fatherName)}, bearing G.R No. **${blank(f.grNumber, 8)}**, was a student of this institution and left the school from **${blank(f.leavingClass, 10)}** on **${fmt(f.leavingDate) || today()}**.
+  'School Leaving Certificate': (f, marks, students, lang) => renderLang(lang, l => {
+    const t = l10n(l);
+    const conductDefault = l === 'urdu' ? 'اچھا' : l === 'sindhi' ? 'سٺو' : l === 'roman_urdu' ? 'Acha' : 'Good';
+    const nilDefault = l === 'urdu' ? 'نہیں' : l === 'sindhi' ? 'ڪونهي' : l === 'roman_urdu' ? 'Nil' : 'Nil';
+    let intro, closing, ageAtLeavingLbl, dobRowLbl;
+    if (l === 'urdu') {
+      intro = `\nیہ سرٹیفکیٹ اس بات کی تصدیق کرتا ہے کہ **${blank(f.studentName, 25)}**، ${sdOf(f.fatherName, t)}، جی آر نمبر **${blank(f.grNumber, 8)}**، اس ادارے کے طالب علم رہے اور **${blank(f.leavingClass, 10)}** سے **${fmt(f.leavingDate) || today()}** کو سکول چھوڑ گئے۔`;
+      closing = 'یہ اسکول لیونگ سرٹیفکیٹ ان کے والدین/سرپرست کی درخواست پر جاری کیا جاتا ہے۔';
+      ageAtLeavingLbl = 'چھوڑتے وقت عمر'; dobRowLbl = 'تاریخ پیدائش (الفاظ اور ہندسوں میں)';
+    } else if (l === 'sindhi') {
+      intro = `\nهيءَ سرٽيفڪيٽ هن ڳالهه جي تصديق ڪري ٿي ته **${blank(f.studentName, 25)}**، ${sdOf(f.fatherName, t)}، جي آر نمبر **${blank(f.grNumber, 8)}**، هن ادار ي جو شاگرد رهيو ۽ **${blank(f.leavingClass, 10)}** مان **${fmt(f.leavingDate) || today()}** تي اسڪول ڇڏي ويو.`;
+      closing = 'هيءَ اسڪول ڇڏڻ جي سرٽيفڪيٽ سندس والدين/سرپرست جي درخواست تي جاري ڪئي وڃي ٿي.';
+      ageAtLeavingLbl = 'ڇڏڻ وقت عمر'; dobRowLbl = 'ڄمڻ جي تاريخ (لفظن ۽ انگن ۾)';
+    } else if (l === 'roman_urdu') {
+      intro = `\nYeh certify kiya jata hai ke **${blank(f.studentName, 25)}**, ${sdOf(f.fatherName, t)}, G.R Number **${blank(f.grNumber, 8)}**, is idaray ke talib-e-ilm rahe aur **${blank(f.leavingClass, 10)}** se **${fmt(f.leavingDate) || today()}** ko school chhor gaye.`;
+      closing = 'Yeh School Leaving Certificate unke walidain/sarparast ki darkhwast par jari kiya jata hai.';
+      ageAtLeavingLbl = 'Chhorte Waqt Umar'; dobRowLbl = 'Tareekh-e-Paidaish (Alfaz aur Hindson mein)';
+    } else {
+      intro = `\nThis is to certify that **${blank(f.studentName, 25)}**, ${sdOf(f.fatherName, t)}, bearing G.R No. **${blank(f.grNumber, 8)}**, was a student of this institution and left the school from **${blank(f.leavingClass, 10)}** on **${fmt(f.leavingDate) || today()}**.`;
+      closing = 'He/She is granted this School Leaving Certificate on the request of his/her parent/guardian.';
+      ageAtLeavingLbl = 'Age at Leaving'; dobRowLbl = 'Date of Birth (in words & figures)';
+    }
+    return headerBlock(f, 'leaving', l) + intro +
+`
 
-| Field | Detail |
+| ${t.field} | ${t.detail} |
 |---|---|
-| Date of Birth (in words & figures) | ${fmt(f.dob) || '____________'} |${f.age ? `\n| Age at Leaving | ${f.age} |` : ''}
-| Conduct | ${f.conduct || 'Good'} |
-| Dues | Nil |
+| ${dobRowLbl} | ${fmt(f.dob) || '____________'} |${f.age ? `\n| ${ageAtLeavingLbl} | ${f.age} |` : ''}
+| ${t.conduct} | ${f.conduct || conductDefault} |
+| ${t.dues} | ${nilDefault} |
 
-He/She is granted this School Leaving Certificate on the request of his/her parent/guardian.` +
-    signBlockHM(f),
+${closing}` + signBlockHM(f, l);
+  }),
 
-  'NOC Letter': (f) =>
-    headerBlock(f, 'NO OBJECTION CERTIFICATE (NOC)') +
-`\n**To Whom It May Concern**
+  'NOC Letter': (f, marks, students, lang) => renderLang(lang, l => {
+    const t = l10n(l);
+    let body, heading;
+    if (l === 'urdu') {
+      heading = '**جس سے متعلق ہو**';
+      body = `\nیہ سرٹیفکیٹ اس بات کی تصدیق کرتا ہے کہ **${blank(f.personName, 25)}**${f.fatherName ? '، ' + sdOf(f.fatherName, t) : ''}${f.designation ? '، بحیثیت **' + f.designation + '**' : ''} اس ادارے میں${f.cnic ? '، شناختی کارڈ نمبر **' + f.cnic + '**' : ''}، اس ادارے کے مستقل ملازم/رکن ہیں۔
 
-This is to certify that **${blank(f.personName, 25)}**${f.fatherName ? ', ' + sd(f.fatherName) : ''}${f.designation ? ', serving as **' + f.designation + '**' : ''} at this institution${f.cnic ? ', CNIC / Personal ID No. **' + f.cnic + '**' : ''}, is a regular employee/member of this institution.
+یہ ادارہ ${f.purpose ? '**' + f.purpose + '**' : 'مذکورہ درخواست'} پر کوئی اعتراض نہیں رکھتا۔
+
+یہ سرٹیفکیٹ ان کی درخواست پر جاری کیا جاتا ہے اور اس سے کوئی قانونی حق یا دعویٰ پیدا نہیں ہوتا۔`;
+    } else if (l === 'sindhi') {
+      heading = '**جنهن سان واسطو رکي**';
+      body = `\nهيءَ سرٽيفڪيٽ هن ڳالهه جي تصديق ڪري ٿي ته **${blank(f.personName, 25)}**${f.fatherName ? '، ' + sdOf(f.fatherName, t) : ''}${f.designation ? '، بحيثيت **' + f.designation + '**' : ''} هن ادار ي ۾${f.cnic ? '، قومي سڃاڻپ نمبر **' + f.cnic + '**' : ''}، هن ادار ي جو مستقل ملازم/ميمبر آهي.
+
+هي ادارو ${f.purpose ? '**' + f.purpose + '**' : 'مٿي ڄاڻايل درخواست'} تي ڪوبه اعتراض نه ٿو رکي.
+
+هيءَ سرٽيفڪيٽ سندس درخواست تي جاري ڪئي وڃي ٿي ۽ ان سان ڪو به قانوني حق يا دعويٰ پيدا نه ٿو ٿئي.`;
+    } else if (l === 'roman_urdu') {
+      heading = '**Jis se Mutaliq Ho**';
+      body = `\nYeh certify kiya jata hai ke **${blank(f.personName, 25)}**${f.fatherName ? ', ' + sdOf(f.fatherName, t) : ''}${f.designation ? ', ba-haisiyat **' + f.designation + '**' : ''} is idaray mein${f.cnic ? ', Shanakhti Card Number **' + f.cnic + '**' : ''}, is idaray ke mustaqil mulazim/rukan hain.
+
+Yeh idara ${f.purpose ? '**' + f.purpose + '**' : 'mazkoora darkhwast'} par koi aetraz nahi rakhta.
+
+Yeh certificate unki darkhwast par jari kiya jata hai aur is se koi qanooni haq ya dawa paida nahi hota.`;
+    } else {
+      heading = '**To Whom It May Concern**';
+      body = `\nThis is to certify that **${blank(f.personName, 25)}**${f.fatherName ? ', ' + sdOf(f.fatherName, t) : ''}${f.designation ? ', serving as **' + f.designation + '**' : ''} at this institution${f.cnic ? ', CNIC / Personal ID No. **' + f.cnic + '**' : ''}, is a regular employee/member of this institution.
 
 This institution has **NO OBJECTION** ${f.purpose ? 'to the above-named person **' + f.purpose + '**' : 'to the above-named person applying for the stated purpose'}.
 
-This certificate is issued on his/her request and does not confer any legal right or claim.` +
-    signBlockHM(f),
+This certificate is issued on his/her request and does not confer any legal right or claim.`;
+    }
+    return headerBlock(f, 'noc', l) + '\n' + heading + '\n' + body + signBlockHM(f, l);
+  }),
 
-  'Experience Certificate': (f) =>
-    headerBlock(f, 'EXPERIENCE CERTIFICATE') +
-`\nThis is to certify that **${blank(f.personName, 25)}**${f.fatherName ? ', ' + sd(f.fatherName) : ''}${f.cnic ? ', CNIC / Personal ID No. **' + f.cnic + '**' : ''}, has served at this institution as **${blank(f.designation, 18)}**${f.fromDate || f.toDate ? ` from **${fmt(f.fromDate) || '________'}** to **${fmt(f.toDate) || 'to date'}**` : ''}.
+  'Experience Certificate': (f, marks, students, lang) => renderLang(lang, l => {
+    const t = l10n(l);
+    let body;
+    if (l === 'urdu') body = `\nیہ سرٹیفکیٹ اس بات کی تصدیق کرتا ہے کہ **${blank(f.personName, 25)}**${f.fatherName ? '، ' + sdOf(f.fatherName, t) : ''}${f.cnic ? '، شناختی کارڈ نمبر **' + f.cnic + '**' : ''}، نے اس ادارے میں بطور **${blank(f.designation, 18)}** خدمات سرانجام دیں${f.fromDate || f.toDate ? ` بمن **${fmt(f.fromDate) || '________'}** تا **${fmt(f.toDate) || 'تاحال'}**` : ''}۔
+
+ملازمت کے دوران ان کی کارکردگی، اخلاق اور فرض سے لگن **انتہائی تسلی بخش** پائی گئی۔ انہوں نے اپنی تمام ذمہ داریاں نہایت ذمہ داری اور پیشہ ورانہ انداز میں نبھائیں۔
+
+ہم ان کے مستقبل کے پیشہ ورانہ سفر کے لیے نیک خواہشات کا اظہار کرتے ہیں۔`;
+    else if (l === 'sindhi') body = `\nهيءَ سرٽيفڪيٽ هن ڳالهه جي تصديق ڪري ٿي ته **${blank(f.personName, 25)}**${f.fatherName ? '، ' + sdOf(f.fatherName, t) : ''}${f.cnic ? '، قومي سڃاڻپ نمبر **' + f.cnic + '**' : ''}، هن ادار ي ۾ بطور **${blank(f.designation, 18)}** خدمتون سرانجام ڏنيون${f.fromDate || f.toDate ? ` تاريخ **${fmt(f.fromDate) || '________'}** کان **${fmt(f.toDate) || 'اڄ تائين'}**` : ''}.
+
+ملازمت دوران سندس ڪارڪردگي، اخلاق ۽ فرض سان لڳاءُ **تمام تسلي بخش** لڌو ويو. هن پنهنجيون سموريون ذميواريون تمام ذميواري ۽ پيشه ورانه انداز ۾ نڀايون.
+
+اسان سندس مستقبل جي پيشه ورانه سفر لاءِ نيڪ خواهشون ظاهر ڪريون ٿا.`;
+    else if (l === 'roman_urdu') body = `\nYeh certify kiya jata hai ke **${blank(f.personName, 25)}**${f.fatherName ? ', ' + sdOf(f.fatherName, t) : ''}${f.cnic ? ', Shanakhti Card Number **' + f.cnic + '**' : ''}, ne is idaray mein ba-taur **${blank(f.designation, 18)}** khidmat sar-anjam dein${f.fromDate || f.toDate ? ` tareekh **${fmt(f.fromDate) || '________'}** se **${fmt(f.toDate) || 'ta-haal'}**` : ''}.
+
+Mulazmat ke doran unki karkardagi, ikhlaq aur farz se lagan **intehai tasalli bakhsh** payi gayi. Unhon ne apni tamam zimmedariyan nihayat zimmedari aur peshawarana andaz mein nibhaein.
+
+Hum unke mustaqbil ke peshawarana safar ke liye nek khwahishaat ka izhar karte hain.`;
+    else body = `\nThis is to certify that **${blank(f.personName, 25)}**${f.fatherName ? ', ' + sdOf(f.fatherName, t) : ''}${f.cnic ? ', CNIC / Personal ID No. **' + f.cnic + '**' : ''}, has served at this institution as **${blank(f.designation, 18)}**${f.fromDate || f.toDate ? ` from **${fmt(f.fromDate) || '________'}** to **${fmt(f.toDate) || 'to date'}**` : ''}.
 
 During the period of his/her service, his/her performance, conduct, and dedication towards duty were found **highly satisfactory**. He/She performed all assigned duties with responsibility and professionalism.
 
-We wish him/her success in future professional endeavors.` +
-    signBlockHM(f),
+We wish him/her success in future professional endeavors.`;
+    return headerBlock(f, 'experience', l) + body + signBlockHM(f, l);
+  }),
 
-  'Salary Certificate': (f) =>
-    headerBlock(f, 'SALARY CERTIFICATE') +
-`\nThis is to certify that **${blank(f.personName, 25)}**${f.cnic ? ', CNIC / Personal ID No. **' + f.cnic + '**' : ''}, is serving at this institution on the post of **${blank(f.designation, 18)}**${f.bps ? ' (**' + f.bps + '**)' : ''}.
-
-| Field | Detail |
-|---|---|
-| Designation | ${blank(f.designation, 18)} |${f.bps ? `\n| BPS / Grade | ${f.bps} |` : ''}${f.basicPay ? `\n| Monthly Salary | Rs. ${f.basicPay}/- |` : '\n| Monthly Salary | As per Government pay scale |'}${f.costCentre ? `\n| Cost Centre / DDO Code | ${f.costCentre} |` : ''}
-
-This certificate is issued on his/her request for official use.` +
-    signBlockHM(f),
-
-  'Prize Certificate': (f) =>
-    `${BISMILLAH}\n\n# ${blank(f.schoolName, 40)}\n## 🏆 CERTIFICATE OF ACHIEVEMENT 🏆\n\nThis certificate is proudly presented to\n\n# ★ ${blank(f.childName || f.studentName, 25)} ★\n\n${f.fatherName ? sd(f.fatherName).replace('son/daughter', 'Son/Daughter') + '\n' : ''}${f.className ? 'Class: **' + f.className + '**' : ''}${f.grNumber ? ' | G.R No: **' + f.grNumber + '**' : ''}${f.rollNumber ? ' | Roll No: **' + f.rollNumber + '**' : ''}
-
-In recognition of securing **${blank(f.prizeTitle, 18)}**${f.eventName ? ' in **' + f.eventName + '**' : ''}${f.eventDate ? ' held on **' + fmt(f.eventDate) + '**' : ''}.
-
-His/Her hard work, dedication, and outstanding performance make the whole school proud. Keep up the excellent work!
-
-Awarded on: ${today()}` +
-    signBlockHM(f),
-
-  'Enrollment Form': (f) =>
-    headerBlock(f, 'STUDENT ENROLLMENT / ADMISSION FORM') +
+  'Salary Certificate': (f, marks, students, lang) => renderLang(lang, l => {
+    const t = l10n(l);
+    const govtScale = l === 'urdu' ? 'سرکاری تنخواہ سکیل کے مطابق' : l === 'sindhi' ? 'سرڪاري پگهار اسڪيل مطابق' : l === 'roman_urdu' ? 'Sarkari Tankhwah Scale ke Mutabiq' : 'As per Government pay scale';
+    let intro, closing;
+    if (l === 'urdu') { intro = `\nیہ سرٹیفکیٹ اس بات کی تصدیق کرتا ہے کہ **${blank(f.personName, 25)}**${f.cnic ? '، شناختی کارڈ نمبر **' + f.cnic + '**' : ''}، اس ادارے میں **${blank(f.designation, 18)}**${f.bps ? ' (**' + f.bps + '**)' : ''} کے عہدے پر خدمات سرانجام دے رہے ہیں۔`; closing = 'یہ سرٹیفکیٹ ان کی درخواست پر سرکاری استعمال کے لیے جاری کیا جاتا ہے۔'; }
+    else if (l === 'sindhi') { intro = `\nهيءَ سرٽيفڪيٽ هن ڳالهه جي تصديق ڪري ٿي ته **${blank(f.personName, 25)}**${f.cnic ? '، قومي سڃاڻپ نمبر **' + f.cnic + '**' : ''}، هن ادار ي ۾ **${blank(f.designation, 18)}**${f.bps ? ' (**' + f.bps + '**)' : ''} جي عهدي تي خدمتون سرانجام ڏئي رهيو آهي.`; closing = 'هيءَ سرٽيفڪيٽ سندس درخواست تي سرڪاري استعمال لاءِ جاري ڪئي وڃي ٿي.'; }
+    else if (l === 'roman_urdu') { intro = `\nYeh certify kiya jata hai ke **${blank(f.personName, 25)}**${f.cnic ? ', Shanakhti Card Number **' + f.cnic + '**' : ''}, is idaray mein **${blank(f.designation, 18)}**${f.bps ? ' (**' + f.bps + '**)' : ''} ke ohde par khidmat sar-anjam de rahe hain.`; closing = 'Yeh certificate unki darkhwast par sarkari istimal ke liye jari kiya jata hai.'; }
+    else { intro = `\nThis is to certify that **${blank(f.personName, 25)}**${f.cnic ? ', CNIC / Personal ID No. **' + f.cnic + '**' : ''}, is serving at this institution on the post of **${blank(f.designation, 18)}**${f.bps ? ' (**' + f.bps + '**)' : ''}.`; closing = 'This certificate is issued on his/her request for official use.'; }
+    return headerBlock(f, 'salary', l) + intro +
 `
-| Field | Detail |
+
+| ${t.field} | ${t.detail} |
 |---|---|
-| G.R Number | ${blank(f.grNumber, 8)} |
-| Student Name | ${blank(f.studentName, 30)} |
-| Father's Name | ${blank(f.fatherName, 30)} |
-| Father's CNIC | ${blank(f.fatherCnic, 18)} |
-| Date of Birth | ${fmt(f.dob) || '____________'} |
-| Current Age | ${f.age || '____________'} |
-| Class of Admission | ${blank(f.className, 12)} |
-| Address | ${blank(f.address, 40)} |
+| ${t.designation} | ${blank(f.designation, 18)} |${f.bps ? `\n| ${t.bps} | ${f.bps} |` : ''}${f.basicPay ? `\n| ${t.salary} | Rs. ${f.basicPay}/- |` : `\n| ${t.salary} | ${govtScale} |`}${f.costCentre ? `\n| ${t.costCentre} | ${f.costCentre} |` : ''}
 
-### FATHER'S / GUARDIAN'S AFFIDAVIT
+${closing}` + signBlockHM(f, l);
+  }),
 
-I, **${blank(f.fatherName, 25)}**, hereby solemnly declare that **${blank(f.studentName, 25)}** is my child, and that all the information provided above is true and correct to the best of my knowledge. The date of birth stated above is accurate as per record.
+  'Prize Certificate': (f, marks, students, lang) => renderLang(lang, l => {
+    const t = l10n(l);
+    const name = f.childName || f.studentName;
+    let presented, inRecogOf, heldOn, hardWork, awardedOn;
+    if (l === 'urdu') { presented = 'یہ سرٹیفکیٹ فخر کے ساتھ پیش کیا جاتا ہے'; inRecogOf = 'حاصل کرنے کے اعتراف میں'; heldOn = 'جو منعقد ہوا'; hardWork = 'ان کی محنت، لگن اور شاندار کارکردگی نے پورے سکول کو فخر کا احساس دلایا۔ اسی طرح محنت جاری رکھیں!'; awardedOn = 'تاریخِ اجراء'; }
+    else if (l === 'sindhi') { presented = 'هيءَ سرٽيفڪيٽ فخر سان پيش ڪئي وڃي ٿي'; inRecogOf = 'حاصل ڪرڻ جي اعتراف ۾'; heldOn = 'جيڪو منعقد ٿيو'; hardWork = 'سندس محنت، لڳاءُ ۽ شاندار ڪارڪردگي سموري اسڪول کي فخر ڏياريو. اهڙيءَ طرح محنت جاري رکو!'; awardedOn = 'ڏيڻ جي تاريخ'; }
+    else if (l === 'roman_urdu') { presented = 'Yeh certificate fakhr ke sath pesh kiya jata hai'; inRecogOf = 'hasil karne ke aetraf mein'; heldOn = 'jo munaqid hua'; hardWork = 'Unki mehnat, lagan aur shandar karkardagi ne pooray school ko fakhr ka ehsaas dilaya. Isi tarah mehnat jari rakhein!'; awardedOn = 'Tareekh-e-Ijra'; }
+    else { presented = 'This certificate is proudly presented to'; inRecogOf = 'in recognition of securing'; heldOn = 'held on'; hardWork = 'His/Her hard work, dedication, and outstanding performance make the whole school proud. Keep up the excellent work!'; awardedOn = 'Awarded on'; }
+    return `${BISMILLAH}\n\n# ${blank(f.schoolName, 40)}\n## 🏆 ${t.titles.achievement} 🏆\n\n${presented}\n\n# ★ ${blank(name, 25)} ★\n\n${f.fatherName ? sdOf(f.fatherName, t) + '\n' : ''}${f.className ? t.className + ': **' + f.className + '**' : ''}${f.grNumber ? ' | ' + t.grNo + ': **' + f.grNumber + '**' : ''}${f.rollNumber ? ' | ' + t.rollNo + ': **' + f.rollNumber + '**' : ''}
 
-Father/Guardian Signature & Thumb Impression: ____________________  Date: ____________` +
-    signBlock3(),
+${inRecogOf} **${blank(f.prizeTitle, 18)}**${f.eventName ? ' — **' + f.eventName + '**' : ''}${f.eventDate ? ` ${heldOn} **${fmt(f.eventDate)}**` : ''}.
 
-  'Student Profile': (f) =>
-    headerBlock(f, 'STUDENT PROFILE') +
+${hardWork}
+
+${awardedOn}: ${today()}` + signBlockHM(f, l);
+  }),
+
+  'Enrollment Form': (f, marks, students, lang) => renderLang(lang, l => {
+    const t = l10n(l);
+    let affidavitHeading, declareText, sigLbl;
+    if (l === 'urdu') {
+      affidavitHeading = "والدین / سرپرست کا حلف نامہ";
+      declareText = `میں، **${blank(f.fatherName, 25)}**، بذریعہ حلف اعلان کرتا/کرتی ہوں کہ **${blank(f.studentName, 25)}** میری اولاد ہے، اور مندرجہ بالا تمام معلومات میرے علم کے مطابق درست اور صحیح ہیں۔ مذکورہ تاریخ پیدائش ریکارڈ کے عین مطابق ہے۔`;
+      sigLbl = 'والدین/سرپرست کے دستخط و انگوٹھا';
+    } else if (l === 'sindhi') {
+      affidavitHeading = "والدين / سرپرست جو حلف نامون";
+      declareText = `مان، **${blank(f.fatherName, 25)}**، حلف سان اعلان ڪريان ٿو/ٿي ته **${blank(f.studentName, 25)}** منهنجو ٻار آهي، ۽ مٿي ڏنل سموريون معلومات منهنجي علم مطابق صحيح ۽ درست آهن. ٻڌايل ڄمڻ جي تاريخ رڪارڊ مطابق صحيح آهي.`;
+      sigLbl = 'والدين/سرپرست جي صحيح ۽ آڱر جو نشان';
+    } else if (l === 'roman_urdu') {
+      affidavitHeading = "Walidain / Sarparast ka Halafnama";
+      declareText = `Main, **${blank(f.fatherName, 25)}**, bazariya halaf elaan karta/karti hoon ke **${blank(f.studentName, 25)}** meri aulaad hai, aur mundarja bala tamam maloomat mere ilm ke mutabiq durust aur sahi hain. Mazkoora tareekh-e-paidaish record ke ain mutabiq hai.`;
+      sigLbl = 'Walidain/Sarparast ke Dastkhat o Angoothha';
+    } else {
+      affidavitHeading = "FATHER'S / GUARDIAN'S AFFIDAVIT";
+      declareText = `I, **${blank(f.fatherName, 25)}**, hereby solemnly declare that **${blank(f.studentName, 25)}** is my child, and that all the information provided above is true and correct to the best of my knowledge. The date of birth stated above is accurate as per record.`;
+      sigLbl = 'Father/Guardian Signature & Thumb Impression';
+    }
+    return headerBlock(f, 'enrollment', l) +
+`
+| ${t.field} | ${t.detail} |
+|---|---|
+| ${t.grNo} | ${blank(f.grNumber, 8)} |
+| ${t.studentName} | ${blank(f.studentName, 30)} |
+| ${t.fatherName} | ${blank(f.fatherName, 30)} |
+| ${t.fatherCnic} | ${blank(f.fatherCnic, 18)} |
+| ${t.dob} | ${fmt(f.dob) || '____________'} |
+| ${t.age} | ${f.age || '____________'} |
+| ${t.admissionClass} | ${blank(f.className, 12)} |
+| ${t.address} | ${blank(f.address, 40)} |
+
+### ${affidavitHeading}
+
+${declareText}
+
+${sigLbl}: ____________________  ${t.dateLbl}: ____________` +
+    signBlock3(l);
+  }),
+
+  'Student Profile': (f, marks, students, lang) => renderLang(lang, l => {
+    const t = l10n(l);
+    const heading = l === 'urdu' ? 'تعلیمی و عمومی ریکارڈ' : l === 'sindhi' ? 'تعليمي ۽ عام رڪارڊ' : l === 'roman_urdu' ? 'Taleemi aur Aam Record' : 'Academic & General Record';
+    const areaLbl = l === 'urdu' ? 'شعبہ' : l === 'sindhi' ? 'شعبو' : l === 'roman_urdu' ? 'Shoba' : 'Area';
+    const remarksLbl = l === 'urdu' ? 'تبصرہ' : l === 'sindhi' ? 'رايو' : l === 'roman_urdu' ? 'Raye' : 'Remarks';
+    const areas = l === 'urdu' ? ['حاضری', 'تعلیمی کارکردگی', 'اخلاق و نظم و ضبط', 'ہم نصابی سرگرمیاں', 'صحت سے متعلق نوٹس']
+      : l === 'sindhi' ? ['حاضري', 'تعليمي ڪارڪردگي', 'اخلاق ۽ نظم ضبط', 'هم نصابي سرگرميون', 'صحت سان لاڳاپيل نوٽس']
+      : l === 'roman_urdu' ? ['Hazri', 'Taleemi Karkardagi', 'Ikhlaq aur Nazm-o-Zabt', 'Ham-Nisabi Sargarmiyan', 'Sehat se Mutaliq Notes']
+      : ['Attendance', 'Academic Performance', 'Behavior & Discipline', 'Co-curricular Activities', 'Health Notes'];
+    return headerBlock(f, 'profile', l) +
 `
 [[PHOTO]]
 
-| Field | Detail |
+| ${t.field} | ${t.detail} |
 |---|---|
-| Student Name | ${blank(f.studentName, 30)} |
-| Father's Name | ${blank(f.fatherName, 30)} |
-| G.R Number | ${blank(f.grNumber, 8)} |
-| Roll / Seat No | ${blank(f.rollNumber, 8)} |
-| Class | ${blank(f.className, 12)} |
-| Date of Birth | ${fmt(f.dob) || '____________'} |
-| Current Age | ${f.age || '____________'} |
-| Address | ${blank(f.address, 40)} |
-| Guardian Contact | ${blank(f.guardianContact, 15)} |
+| ${t.studentName} | ${blank(f.studentName, 30)} |
+| ${t.fatherName} | ${blank(f.fatherName, 30)} |
+| ${t.grNo} | ${blank(f.grNumber, 8)} |
+| ${t.rollNo} | ${blank(f.rollNumber, 8)} |
+| ${t.className} | ${blank(f.className, 12)} |
+| ${t.dob} | ${fmt(f.dob) || '____________'} |
+| ${t.age} | ${f.age || '____________'} |
+| ${t.address} | ${blank(f.address, 40)} |
+| ${t.guardianContact} | ${blank(f.guardianContact, 15)} |
 
-### Academic & General Record
+### ${heading}
 
-| Area | Remarks |
+| ${areaLbl} | ${remarksLbl} |
 |---|---|
-| Attendance | \u00A0 |
-| Academic Performance | \u00A0 |
-| Behavior & Discipline | \u00A0 |
-| Co-curricular Activities | \u00A0 |
-| Health Notes | \u00A0 |` +
-    signBlockHM(f),
+${areas.map(a => `| ${a} |   |`).join('\n')}` +
+    signBlockHM(f, l);
+  }),
 
-  'Result Card': (f, marks) => {
+  'Result Card': (f, marks, students, lang) => renderLang(lang, l => {
+    const t = l10n(l);
+    const subjectWiseHeading = l === 'urdu' ? 'مضمون وار نمبر' : l === 'sindhi' ? 'مضمون وار نمبر' : l === 'roman_urdu' ? 'Mazmoon-waar Number' : 'Subject-wise Marks';
+    const resultLbl = l === 'urdu' ? 'نتیجہ' : l === 'sindhi' ? 'نتيجو' : l === 'roman_urdu' ? 'Nateeja' : 'Result';
+    const passLbl = l === 'urdu' ? 'پاس — اگلی جماعت میں ترقی' : l === 'sindhi' ? 'پاس — ايندڙ درجي ۾ ترقي' : l === 'roman_urdu' ? 'Pass — Agli Jamaat mein Taraqqi' : 'PASS — Promoted to next class';
+    const failLbl = l === 'urdu' ? 'فیل' : l === 'sindhi' ? 'فيل' : l === 'roman_urdu' ? 'Fail' : 'FAIL';
+    const positionLbl = l === 'urdu' ? 'جماعت میں پوزیشن' : l === 'sindhi' ? 'درجي ۾ پوزيشن' : l === 'roman_urdu' ? 'Jamaat mein Position' : 'Position in Class';
+    const remarksLbl2 = l === 'urdu' ? 'تبصرہ' : l === 'sindhi' ? 'رايو' : l === 'roman_urdu' ? 'Remarks' : 'Remarks';
+    const annualLbl = l === 'urdu' ? 'سالانہ' : l === 'sindhi' ? 'سالياني' : l === 'roman_urdu' ? 'Salana' : 'Annual';
     let rows = '', totMax = 0, totObt = 0, allFilled = marks.length > 0;
     marks.forEach(m => {
-      const t = parseFloat(m.total) || 0;
+      const tot = parseFloat(m.total) || 0;
       const o = m.obtained === '' || m.obtained === undefined ? null : parseFloat(m.obtained);
-      totMax += t;
+      totMax += tot;
       if (o === null) allFilled = false; else totObt += o;
-      const pct = (o !== null && t) ? Math.round((o / t) * 100) : null;
-      rows += `| ${m.subject} | ${m.total} | ${o === null ? '\u00A0' : m.obtained} | ${pct === null ? '\u00A0' : gradeOf(pct)} |\n`;
+      const pct = (o !== null && tot) ? Math.round((o / tot) * 100) : null;
+      rows += `| ${m.subject} | ${m.total} | ${o === null ? ' ' : m.obtained} | ${pct === null ? ' ' : gradeOf(pct)} |\n`;
     });
     const overallPct = (allFilled && totMax) ? Math.round((totObt / totMax) * 100) : null;
-    return headerBlock(f, 'STUDENT RESULT CARD') +
+    return headerBlock(f, 'result', l) +
 `
 [[PHOTO]]
 
-| Field | Detail | Field | Detail |
+| ${t.field} | ${t.detail} | ${t.field} | ${t.detail} |
 |---|---|---|---|
-| Student Name | ${blank(f.studentName, 22)} | G.R Number | ${blank(f.grNumber, 8)} |
-| Father's Name | ${blank(f.fatherName, 22)} | Seat / Roll No | ${blank(f.rollNumber, 8)} |
-| Class | ${blank(f.className, 10)} | Session | ${blank(f.sessionYear, 10)} |
-| Examination | ${f.term || 'Annual'} | Result Date | ${today()} |
+| ${t.studentName} | ${blank(f.studentName, 22)} | ${t.grNo} | ${blank(f.grNumber, 8)} |
+| ${t.fatherName} | ${blank(f.fatherName, 22)} | ${t.rollNo} | ${blank(f.rollNumber, 8)} |
+| ${t.className} | ${blank(f.className, 10)} | ${t.session} | ${blank(f.sessionYear, 10)} |
+| ${t.exam} | ${f.term || annualLbl} | ${t.resultDate} | ${today()} |
 
-### Subject-wise Marks
+### ${subjectWiseHeading}
 
-| Subject | Total Marks | Marks Obtained | Grade |
+| ${t.subject} | ${t.totalMarks} | ${t.obtainedMarks} | ${t.grade} |
 |---|---|---|---|
-${rows}| **TOTAL** | **${totMax}** | **${allFilled ? totObt : '\u00A0'}** | **${overallPct === null ? '\u00A0' : overallPct + '% — ' + gradeOf(overallPct)}** |
+${rows}| **${t.total}** | **${totMax}** | **${allFilled ? totObt : ' '}** | **${overallPct === null ? ' ' : overallPct + '% — ' + gradeOf(overallPct)}** |
 
-**Result:** ${overallPct === null ? '________________' : (overallPct >= 33 ? 'PASS — Promoted to next class' : 'FAIL')}
-**Position in Class:** ________________
-**Remarks:** ________________________________________` +
-    signBlock2();
-  },
+**${resultLbl}:** ${overallPct === null ? '________________' : (overallPct >= 33 ? passLbl : failLbl)}
+**${positionLbl}:** ________________
+**${remarksLbl2}:** ________________________________________` +
+    signBlock2(l);
+  }),
 
-  'Attendance Sheet': (f, marks, students) => {
-    const label = f._attMode === 'custom'
-      ? `Duration: **${f.attDuration || '____________'}**`
-      : `Month: **${f.attDuration || '____________'}**`;
+  'Attendance Sheet': (f, marks, students, lang) => renderLang(lang, l => {
+    const t = l10n(l);
+    const durationLbl = l === 'urdu' ? 'مدت' : l === 'sindhi' ? 'مدت' : l === 'roman_urdu' ? 'Muddat' : 'Duration';
+    const monthLbl = l === 'urdu' ? 'مہینہ' : l === 'sindhi' ? 'مهينو' : l === 'roman_urdu' ? 'Maheena' : 'Month';
+    const autoNote = list => list.length ? (l === 'urdu' ? `\n*(طالب علموں کی فہرست خودکار طور پر طلبہ ڈیٹا بیس سے شامل کی گئی — ${list.length} طلبہ)*`
+      : l === 'sindhi' ? `\n*(شاگردن جي لسٽ خودڪار طور شاگرد ڊيٽابيس مان شامل ڪئي وئي — ${list.length} شاگرد)*`
+      : l === 'roman_urdu' ? `\n*(Talib-e-ilmon ki fehrist khudkaar tor par Student Database se shamil ki gayi — ${list.length} talib-e-ilm)*`
+      : `\n*(Student list auto-filled from Student Database — ${list.length} students)*`) : '';
+    const summaryLbl = l === 'urdu' ? 'خلاصہ' : l === 'sindhi' ? 'خلاصو' : l === 'roman_urdu' ? 'Khulasa' : 'Summary';
+    const totalStudentsLbl = l === 'urdu' ? 'کل طلبہ' : l === 'sindhi' ? 'ڪل شاگرد' : l === 'roman_urdu' ? 'Kul Talib-e-ilm' : 'Total Students';
+    const avgAttLbl = l === 'urdu' ? 'اوسط حاضری' : l === 'sindhi' ? 'اوسط حاضري' : l === 'roman_urdu' ? 'Ausat Hazri' : 'Average Attendance';
+    const label = f._attMode === 'custom' ? `${durationLbl}: **${f.attDuration || '____________'}**` : `${monthLbl}: **${f.attDuration || '____________'}**`;
     let rows = '';
     const list = (students && students.length) ? students : [];
     const n = Math.max(list.length, 15);
     for (let i = 0; i < n; i++) {
       const s = list[i] || {};
-      rows += `| ${i + 1} | ${s.grNumber || '\u00A0'} | ${s.rollNumber || '\u00A0'} | ${s.name || '\u00A0'} | \u00A0 | \u00A0 | \u00A0 | \u00A0 |\n`;
+      rows += `| ${i + 1} | ${s.grNumber || ' '} | ${s.rollNumber || ' '} | ${s.name || ' '} |   |   |   |   |\n`;
     }
-    return headerBlock(f, 'STUDENT ATTENDANCE SHEET') +
+    return headerBlock(f, 'attendance', l) +
 `
-**Class:** ${blank(f.className, 12)}${f.section ? ' — Section: **' + f.section + '**' : ''}
-${label}${f.workingDays ? '\n**Total Working Days:** ' + f.workingDays : ''}
-${list.length ? '\n*(Student list auto-filled from Student Database — ' + list.length + ' students)*' : ''}
+**${t.className}:** ${blank(f.className, 12)}${f.section ? ' — ' + t.className + ': **' + f.section + '**' : ''}
+${label}${f.workingDays ? '\n**' + t.workingDays + ':** ' + f.workingDays : ''}
+${autoNote(list)}
 
-| S.No | G.R No | Roll No | Student Name | Days Present | Days Absent | Leave | % |
+| ${t.sNo} | ${t.grNo} | ${t.rollNo} | ${t.studentName} | ${t.present} | ${t.absent} | ${t.leave} | ${t.percent} |
 |---|---|---|---|---|---|---|---|
 ${rows}
-**Summary:** Total Students: ${list.length || '______'} | Average Attendance: ______%` +
-    signBlockHM(f);
-  },
+**${summaryLbl}:** ${totalStudentsLbl}: ${list.length || '______'} | ${avgAttLbl}: ______%` +
+    signBlockHM(f, l);
+  }),
 
-  'Affidavit': (f) =>
-    `${BISMILLAH}\n\n# AFFIDAVIT / UNDERTAKING\n\nDate: ${today()}\n
-I, **${blank(f.personName, 25)}**${f.fatherName ? ', ' + sd(f.fatherName) : ''}${f.cnic ? ', CNIC No. **' + f.cnic + '**' : ''}, do hereby solemnly affirm and declare on oath that:
+  'Affidavit': (f, marks, students, lang) => renderLang(lang, l => {
+    const t = l10n(l);
+    let body;
+    if (l === 'urdu') body = `${BISMILLAH}\n\n# ${t.titles.affidavit}\n\n${t.dateLbl}: ${today()}\n
+میں، **${blank(f.personName, 25)}**${f.fatherName ? '، ' + sdOf(f.fatherName, t) : ''}${f.cnic ? '، شناختی کارڈ نمبر **' + f.cnic + '**' : ''}، بذریعہ حلف اعلان کرتا/کرتی ہوں کہ:
+
+1۔ میری جانب سے فراہم کردہ معلومات و دستاویزات${f.purpose ? ' بابت **' + f.purpose + '**' : ''} میرے علم و یقین کے مطابق درست اور صحیح ہیں۔
+2۔ ان میں کچھ بھی چھپایا یا غلط بیان نہیں کیا گیا۔
+3۔ مجھے مکمل علم ہے کہ اگر کسی بھی مرحلے پر کوئی معلومات جھوٹی یا جعلی پائی گئیں تو میں متعلقہ قوانین کے تحت قانونی کارروائی کا ذمہ دار ہوں گا/ہوں گی۔
+
+**حلف اٹھانے والا/والی**
+
+دستخط / انگوٹھا: ____________________
+نام: ${blank(f.personName, 25)}${f.cnic ? '\nشناختی کارڈ نمبر: ' + f.cnic : ''}
+${t.dateLbl}: ${today()}
+
+**تصدیق**
+
+_______________________
+تصدیق کنندہ افسر — ${t.signStamp}`;
+    else if (l === 'sindhi') body = `${BISMILLAH}\n\n# ${t.titles.affidavit}\n\n${t.dateLbl}: ${today()}\n
+مان، **${blank(f.personName, 25)}**${f.fatherName ? '، ' + sdOf(f.fatherName, t) : ''}${f.cnic ? '، قومي سڃاڻپ نمبر **' + f.cnic + '**' : ''}، حلف سان اعلان ڪريان ٿو/ٿي ته:
+
+1. مون پاران فراهم ڪيل معلومات ۽ دستاويزون${f.purpose ? ' بابت **' + f.purpose + '**' : ''} منهنجي علم ۽ يقين مطابق صحيح ۽ درست آهن.
+2. انهن ۾ ڪجهه به لڪايو يا غلط بيان نه ٿيو آهي.
+3. مون کي مڪمل علم آهي ته جيڪڏهن ڪنهن به مرحلي تي ڪا معلومات ڪوڙي يا جعلي لڌي وئي ته مان لاڳاپيل قانونن تحت قانوني ڪاروائي جو ذميوار ٿيندس/ٿينديس.
+
+**حلف کڻندڙ**
+
+صحيح / آڱر جو نشان: ____________________
+نالو: ${blank(f.personName, 25)}${f.cnic ? '\nقومي سڃاڻپ نمبر: ' + f.cnic : ''}
+${t.dateLbl}: ${today()}
+
+**تصديق**
+
+_______________________
+تصديق ڪندڙ آفيسر — ${t.signStamp}`;
+    else if (l === 'roman_urdu') body = `${BISMILLAH}\n\n# ${t.titles.affidavit}\n\n${t.dateLbl}: ${today()}\n
+Main, **${blank(f.personName, 25)}**${f.fatherName ? ', ' + sdOf(f.fatherName, t) : ''}${f.cnic ? ', Shanakhti Card Number **' + f.cnic + '**' : ''}, bazariya halaf elaan karta/karti hoon ke:
+
+1. Meri janib se faraham karda maloomat o dastawezat${f.purpose ? ' babat **' + f.purpose + '**' : ''} mere ilm o yaqeen ke mutabiq durust aur sahi hain.
+2. In mein kuch bhi chhupaya ya ghalat bayan nahi kiya gaya.
+3. Mujhe mukammal ilm hai ke agar kisi bhi marhale par koi maloomat jhoothi ya jaali payi gayi to main mutalliqa qawaneen ke tehat qanooni karwai ka zimmedar hoon ga/hoon gi.
+
+**Halaf Uthane Wala/Wali**
+
+Dastkhat / Angoothha: ____________________
+Naam: ${blank(f.personName, 25)}${f.cnic ? '\nShanakhti Card Number: ' + f.cnic : ''}
+${t.dateLbl}: ${today()}
+
+**Tasdeeq**
+
+_______________________
+Tasdeeq Kunnda Afsar — ${t.signStamp}`;
+    else body = `${BISMILLAH}\n\n# ${t.titles.affidavit}\n\n${t.dateLbl}: ${today()}\n
+I, **${blank(f.personName, 25)}**${f.fatherName ? ', ' + sdOf(f.fatherName, t) : ''}${f.cnic ? ', CNIC No. **' + f.cnic + '**' : ''}, do hereby solemnly affirm and declare on oath that:
 
 1. The information and documents provided by me${f.purpose ? ' regarding **' + f.purpose + '**' : ''} are true and correct to the best of my knowledge and belief.
 2. Nothing has been concealed or misstated therein.
@@ -1792,38 +2107,47 @@ I, **${blank(f.personName, 25)}**${f.fatherName ? ', ' + sd(f.fatherName) : ''}$
 
 Signature / Thumb Impression: ____________________
 Name: ${blank(f.personName, 25)}${f.cnic ? '\nCNIC: ' + f.cnic : ''}
-Date: ${today()}
+${t.dateLbl}: ${today()}
 
 **Attestation**
 
 _______________________
-Attesting Officer — Signature & Stamp`,
+Attesting Officer — ${t.signStamp}`;
+    return body;
+  }),
 
-  'Scholarship Form': (f) =>
-    headerBlock(f, 'SCHOLARSHIP / WAZIFA APPLICATION FORM') +
+  'Scholarship Form': (f, marks, students, lang) => renderLang(lang, l => {
+    const t = l10n(l);
+    let applyText, sigLbl;
+    if (l === 'urdu') { applyText = 'میں موجودہ تعلیمی سیشن کے لیے وظیفہ کی درخواست دیتا/دیتی ہوں۔ میں اعلان کرتا/کرتی ہوں کہ مندرجہ بالا معلومات سکول ریکارڈ کے مطابق درست ہیں۔'; sigLbl = 'طالب علم / والد کے دستخط'; }
+    else if (l === 'sindhi') { applyText = 'مان موجوده تعليمي سيشن لاءِ وظيفي جي درخواست ڏيان ٿو/ٿي. مان اعلان ڪريان ٿو/ٿي ته مٿي ڏنل معلومات اسڪول رڪارڊ مطابق صحيح آهن.'; sigLbl = 'شاگرد / پيءُ جي صحيح'; }
+    else if (l === 'roman_urdu') { applyText = 'Main mojooda taleemi session ke liye wazifa ki darkhwast deta/deti hoon. Main elaan karta/karti hoon ke mundarja bala maloomat school record ke mutabiq durust hain.'; sigLbl = 'Talib-e-ilm / Walid ke Dastkhat'; }
+    else { applyText = 'I hereby apply for the scholarship/wazifa for the current academic session. I declare that the above information is correct as per school record.'; sigLbl = 'Student / Father Signature'; }
+    return headerBlock(f, 'scholarship', l) +
 `
-| Field | Detail |
+| ${t.field} | ${t.detail} |
 |---|---|
-| Student Name | ${blank(f.studentName, 30)} |
-| Father's Name | ${blank(f.fatherName, 30)} |
-| G.R Number | ${blank(f.grNumber, 8)} |
-| Roll / Seat No | ${blank(f.rollNumber, 8)} |
-| Class | ${blank(f.className, 12)} |
-| Date of Birth | ${fmt(f.dob) || '____________'} |
-| Current Age | ${f.age || '____________'} |
+| ${t.studentName} | ${blank(f.studentName, 30)} |
+| ${t.fatherName} | ${blank(f.fatherName, 30)} |
+| ${t.grNo} | ${blank(f.grNumber, 8)} |
+| ${t.rollNo} | ${blank(f.rollNumber, 8)} |
+| ${t.className} | ${blank(f.className, 12)} |
+| ${t.dob} | ${fmt(f.dob) || '____________'} |
+| ${t.age} | ${f.age || '____________'} |
 
-I hereby apply for the scholarship/wazifa for the current academic session. I declare that the above information is correct as per school record.
+${applyText}
 
-Student / Father Signature: ____________________  Date: ____________` +
-    signBlockHM(f)
+${sigLbl}: ____________________  ${t.dateLbl}: ____________` +
+    signBlockHM(f, l);
+  })
 };
 
-function buildOfflineDocument(documentType, fields, marks, studentsList) {
+function buildOfflineDocument(documentType, fields, marks, studentsList, language) {
   const builder = OFFLINE_BUILDERS[documentType];
   if (!builder) {
     return `# ${documentType}\n\nDate: ${today()}\n\n${Object.entries(fields).filter(([k,v])=>v&&!k.startsWith('_')).map(([k,v])=>`${LABELS[k]||k}: ${v}`).join('\n')}\n\nGenerated by Teacher Toolkit`;
   }
-  return builder(fields, marks || [], studentsList || []);
+  return builder(fields, marks || [], studentsList || [], language || 'english');
 }
 
 /* ─── DOWNLOAD DOCX (with real table support) ────────────────────────────── */
