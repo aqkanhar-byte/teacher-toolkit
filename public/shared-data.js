@@ -11,9 +11,9 @@ const CLASS_SUBJECTS={
  'Class 3':['Sindhi','English','Mathematics','General Knowledge','Islamiat'],
  'Class 4':['Sindhi','Urdu','English','Mathematics','General Science','Social Studies','Islamiat'],
  'Class 5':['Sindhi','Urdu','English','Mathematics','General Science','Social Studies','Islamiat'],
- 'Class 6':['Sindhi','Urdu','English','Mathematics','General Science','Social Studies','Islamiat','Computer Education'],
- 'Class 7':['Sindhi','Urdu','English','Mathematics','General Science','Social Studies','Islamiat','Computer Education'],
- 'Class 8':['Sindhi','Urdu','English','Mathematics','General Science','Social Studies','Islamiat','Computer Education']
+ 'Class 6':['Sindhi','Urdu','English','Mathematics','General Science','Social Studies','Islamiat','Computer Education','Arabic'],
+ 'Class 7':['Sindhi','Urdu','English','Mathematics','General Science','Social Studies','Islamiat','Computer Education','Arabic'],
+ 'Class 8':['Sindhi','Urdu','English','Mathematics','General Science','Social Studies','Islamiat','Computer Education','Arabic']
 };
 
 const SEC_MAP={

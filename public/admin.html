@@ -607,6 +607,26 @@ function guessSubjectFromFolder(cls,folderName){
   hit=subs.find(s=>n.includes(s.toLowerCase())||s.toLowerCase().includes(n));
   return hit||'';
 }
+/* Admins sometimes dump several subjects into one catch-all "Other Subjects" (or a
+   locally-named) folder instead of a per-subject one — the folder name alone can't tell us
+   anything then, but the book's own title usually spells the subject out (including common
+   Sindh-curriculum Urdu/Sindhi names and a couple of recurring filename typos we've actually
+   seen: "Chemsitry", "Islmaiyat"). Only trusted if the guessed subject is valid for this class. */
+const TITLE_SUBJECT_HINTS=[
+  {re:/smajhi\s*abhiyas|samaji\s*abhiyas|mashrati\s*uloom|social\s*studies/i,subj:'Social Studies'},
+  {re:/religious\s*studies|islamiyat|islmaiyat|islamiat/i,subj:'Islamiat'},
+  {re:/chemistry|chemsitry/i,subj:'Chemistry'},
+  {re:/mutala.{0,6}pakistan|pakistan\s*studies/i,subj:'Pakistan Studies'},
+  {re:/\barabic\b/i,subj:'Arabic'},
+  {re:/\bphysics\b/i,subj:'Physics'},
+  {re:/\bbiology\b/i,subj:'Biology'}
+];
+function guessSubjectFromTitle(cls,text){
+  if(!cls||!text)return '';
+  const subs=allSubjectsFor(cls)||[];
+  const hit=TITLE_SUBJECT_HINTS.find(h=>h.re.test(text));
+  return (hit&&subs.includes(hit.subj))?hit.subj:'';
+}
 /* True only once a row's Class+Subject is trustworthy (folder-name matched confidently, AI
    confirmed it, or the admin manually picked it) — false means the dropdown is just sitting on
    whatever option happens to be first in the list, and Import All must NOT act on it silently. */
@@ -637,7 +657,7 @@ async function loadDriveFiles(){
         const parts=f.name.split('/');
         const guessClsRaw=guessClassFromFolder(parts[0]);
         const guessCls=guessClsRaw||CLASS_LIST[0];
-        const guessSubj=guessSubjectFromFolder(guessCls,parts[1])||'';
+        const guessSubj=guessSubjectFromFolder(guessCls,parts[1])||guessSubjectFromTitle(guessCls,f.name)||'';
         DRIVE_ROW_OK[i]=!!(guessClsRaw&&guessSubj);
         return '<tr id="dvRow_'+i+'" style="'+(DRIVE_ROW_OK[i]?'':'background:#fff7e6')+'"><td>'+esc(f.name)+'</td><td>'+esc(f.sizeMb)+'MB</td>'
           +'<td><select id="dvCls_'+i+'" onchange="onDriveClassChange('+i+')">'+bulkFixClassOptions(guessCls)+'</select></td>'
