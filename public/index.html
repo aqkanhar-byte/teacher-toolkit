@@ -615,14 +615,9 @@ button{cursor:pointer;border:none;background:none}
         <span class="mode-badge ai" id="modeBadge">AI Required</span>
         <label for="langSel" class="lang-lbl">🌐 زبان / Language</label>
         <select class="lang-sel" id="langSel">
-          <option value="english">English</option>
+          <option value="english" selected>English</option>
           <option value="urdu">اردو</option>
           <option value="sindhi">سنڌي</option>
-          <option value="roman_urdu">Roman Urdu</option>
-          <option value="bilingual_en_ur" selected>English + Urdu</option>
-          <option value="bilingual_en_sd">English + Sindhi</option>
-          <option value="trilingual">EN + UR + SD</option>
-          <option value="en_ur_roman">EN + UR + Roman</option>
         </select>
       </div>
     </div>
@@ -1383,7 +1378,7 @@ function renderProfile(){
   hero.innerHTML='<h1>'+esc(p.school||'Teacher Toolkit — Smart School Documents')+'</h1>'
    +(p.addr?'<div class="hero-addr">'+esc(p.addr)+'</div>':(p.school?'':'<div class="hero-addr">Sindh Education &amp; Literacy Department</div>'))
    +(p.hm?'<div class="hero-hm">Head Master: '+esc(p.hm)+(p.desig?' ('+esc(p.desig)+')':'')+(p.semis?' · SEMIS: '+esc(p.semis):'')+'</div>':'')
-   +'<div class="hero-chips"><span class="h-chip">29+ Document Types</span><span class="h-chip">ECCE – Class 12</span><span class="h-chip">8 Languages</span><span class="h-chip gold">Word · PDF · Excel Export</span><span class="h-chip">Student Database</span></div>'
+   +'<div class="hero-chips"><span class="h-chip">29+ Document Types</span><span class="h-chip">ECCE – Class 12</span><span class="h-chip">3 Languages</span><span class="h-chip gold">Word · PDF · Excel Export</span><span class="h-chip">Student Database</span></div>'
    +heroIllustration();
 }
 /* Decorative only (aria-hidden) — a small laptop-and-documents scene so the hero doesn't read
@@ -3054,7 +3049,7 @@ const TT_KB=[
  {id:'account',t:'Login, PIN & account',k:'login account register pin password forgot phone number sign signup logout',b:'• <b>Sign up</b> with your mobile number and a 4+ digit PIN (👤 button, top-right).<br>• Your documents and student list are saved to your account.<br>• <b>Forgot PIN?</b> Message us on WhatsApp (💳 chip → WhatsApp button) and we\'ll reset it.<br>• Logging in on a new phone signs you out of the old one — this keeps your account safe.'},
  {id:'verify',t:'Verify Quality (second AI check)',k:'verify quality check review score curriculum slo',b:'After generating an AI document, press <b>🔍 Verify Quality</b> on the result bar.<br>A second AI reviewer checks curriculum/SLO alignment, factual accuracy, language quality and completeness, then gives a score with specific issues and strengths.<br>💡 You can edit the document right in the result box, then verify again — verification is free.'},
  {id:'download',t:'Download, edit & WhatsApp share',k:'download word docx pdf print share whatsapp copy edit',b:'On the result bar:<br>• <b>Word (.docx)</b> — real tables, Urdu/Sindhi fonts, logo & photo embedded.<br>• <b>PDF / Print</b> — opens print-ready; choose "Save as PDF" in the print dialog.<br>• <b>📱 WhatsApp</b> — on mobile, shares the Word file directly into WhatsApp.<br>• ✏️ You can <b>click and edit the text</b> in the result box before downloading.'},
- {id:'languages',t:'Language options (8 modes)',k:'language urdu sindhi english roman bilingual translate zaban',b:'Use the language selector (top of the document form):<br>English · اردو · سنڌي · Roman Urdu · English + Urdu · English + Sindhi · Trilingual (EN + UR + SD) · EN + UR + Roman.<br>Some letters (Parent Notice, Official Letter, Leave Application) also have their own per-document language choice inside the form.'},
+ {id:'languages',t:'Language options',k:'language urdu sindhi english translate zaban',b:'Use the language selector (top of the document form):<br>English · اردو · سنڌي.<br>Some letters (Parent Notice, Official Letter, Leave Application) also have their own per-document language choice inside the form.'},
  {id:'analyzer',t:'Performance Analyzer (learning gaps)',k:'performance analyzer marks gap weak at-risk remedial analysis average rank kamzor',b:'Sidebar → <b>📊 Performance Analyzer</b> (Premium Tools):<br>1️⃣ Choose Class and Assessment — your students load from the Student Database.<br>2️⃣ Enter subject-wise marks once (they are saved on your device automatically).<br>3️⃣ Press <b>Analyze</b> — you instantly get class average, subject-wise gaps, ranking, and a list of students needing extra support. Analysis is <b>free</b>.<br>4️⃣ Download the <b>Printable Class Report</b> (free) or generate a full <b>AI Remedial Plan</b> (1 credit) with week-by-week improvement activities.'},
  {id:'parenthub',t:'Parent Communication (WhatsApp)',k:'parent communication whatsapp message absent ptm meeting reminder notify sms walidain',b:'Sidebar → <b>💬 Parent Communication</b> (Premium Tools):<br>1️⃣ Pick a message type — Absence Alert, Homework, PTM Invitation, Exam Reminder, Progress Summary, Appreciation, or Custom.<br>2️⃣ Choose the language: English, اردو or Roman Urdu.<br>3️⃣ Tick the parents (numbers come from your Student Database\'s Guardian Contact field).<br>4️⃣ Press <b>Send</b> — WhatsApp opens with a personalized message for each parent, one tap at a time. 100% free.'},
  {id:'homework',t:'Homework Sheet (differentiated)',k:'homework sheet assignment differentiated answer key daily home work',b:'Sidebar → <b>📒 Homework Sheet</b>:<br>• Choose Class, Subject, Unit and the <b>scope</b> (today\'s lesson, this week, revision, weekend or holiday pack).<br>• The sheet has <b>three levels</b>: ⭐ Support, ⭐⭐ Core, ⭐⭐⭐ Challenge — so every student gets suitable work.<br>• Turn on the <b>Answer Key</b> option to get a key on its own page.<br>💡 Attach the textbook (Book Bank or upload) so tasks come straight from the book.'},
@@ -3183,7 +3178,7 @@ const TOUR=[
  {t:'Welcome to Teacher Toolkit! 👋',b:'Assalam o Alaikum! This 30-second tour shows you how to create professional school documents in minutes. You can skip anytime.',sel:null},
  {t:'Choose a document',b:'The sidebar has 29+ document types — Lesson Plans, Exam Papers, Certificates, Result Cards and more. Documents marked "No AI" are instant and always free.',sel:()=>document.querySelector('.sb-item'),sidebar:true},
  {t:'Set up your School Profile',b:'Enter your school name, head master and logo once — every document will use them automatically. We\'ll open it for you right after this tour.',sel:()=>document.getElementById('sbProfile'),sidebar:true},
- {t:'Pick your language',b:'Every document can be generated in English, Urdu, Sindhi, Roman Urdu — or bilingual combinations. Just choose from this selector.',sel:()=>document.getElementById('langSel')},
+ {t:'Pick your language',b:'Every document can be generated in English, Urdu, or Sindhi. Just choose from this selector.',sel:()=>document.getElementById('langSel')},
  {t:'Generate & download',b:'Fill the simple form and press this button. Then download as Word (.docx), print as PDF, or share directly on WhatsApp.',sel:()=>document.getElementById('genBtn')},
  {t:'Need help anytime? 💬',b:'Tap this gold chat button — the Toolkit Assistant answers questions instantly, works offline, and never uses your credits. Happy teaching! 🎓',sel:()=>document.getElementById('astBtn')}
 ];
