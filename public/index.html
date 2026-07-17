@@ -683,25 +683,18 @@ button{cursor:pointer;border:none;background:none}
       <div class="dh-right"><span class="mode-badge ai">AI Required</span></div>
     </div>
     <div class="crq-card">
-      <div class="crq-lbl">Class &amp; Subject</div>
-      <div class="crq-grid2">
-        <select class="crq-sel" id="crqClass" aria-label="Class" onchange="crqClassChange()"></select>
-        <select class="crq-sel" id="crqSubject" aria-label="Subject"></select>
-      </div>
-      <div id="crqGroupRow" style="display:none;margin-top:10px">
-        <select class="crq-sel" id="crqGroup" aria-label="Group" onchange="crqClassChange(true)"></select>
-      </div>
-      <div class="crq-lbl">Unit / Lessons</div>
-      <input type="text" class="crq-inp" id="crqTopic" aria-label="Unit or lessons" placeholder="e.g. Unit 3, Lessons 3-7, Lessons 2,4,9 or Full Book">
-      <div class="crq-lbl">Book / Document Upload (Optional — AI will build the CRQ from it)</div>
+      <div class="crq-lbl">Book / Document Upload</div>
       <div class="upload-zone" style="background:rgba(255,255,255,.04);border-color:rgba(255,255,255,.2)" id="crqDrop" role="button" tabindex="0" aria-label="Upload book or document for CRQ" ondrop="crqDropFn(event)" ondragover="crqOver(event)" ondragleave="crqLeave(event)" onclick="document.getElementById('crqFile').click()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}">
         <div class="uz-ico">📄</div>
         <div class="uz-title" style="color:rgba(255,255,255,.6)">Book (PDF), B.Ed/M.Ed material, page or image — anything</div>
-        <div class="uz-sub" style="color:rgba(255,255,255,.3)">PDF: max 20MB (~100 pages) · Image: max 5MB</div>
+        <div class="uz-sub" style="color:rgba(255,255,255,.3)">PDF: max 20MB (~100 pages) · Image: max 5MB — Class &amp; Subject are read automatically from what you upload</div>
       </div>
       <div style="margin-top:8px;font-size:10.5px;font-weight:600;color:var(--gold-light);background:rgba(200,150,12,.1);border:1px solid rgba(200,150,12,.3);border-radius:8px;padding:7px 11px;line-height:1.5">💡 <b>For best results:</b> upload <b>a few pages</b> (one unit/chapter), not the whole book — files over 8MB use 2 credits instead of 1. Large file? <button onclick="openResizer()" style="margin-left:6px;background:var(--navy);color:#fff;font-size:10px;font-weight:800;padding:4px 11px;border-radius:99px;vertical-align:middle">🗜️ Open Resizer</button></div>
       <input type="file" id="crqFile" accept=".pdf,image/*" style="display:none" onchange="crqFileSel(event)">
       <div class="f-chip" id="crqChip" style="background:rgba(16,185,129,.12);border-color:rgba(16,185,129,.3);color:#10b981">✅ &nbsp;<span id="crqFName">-</span></div>
+      <div id="crqDetectInfo" style="display:none;margin-top:8px;font-size:11.5px;font-weight:700;color:#fff;background:rgba(76,46,158,.35);border:1.5px solid var(--gold);border-radius:8px;padding:9px 12px"></div>
+      <div class="crq-lbl">Unit / Lessons</div>
+      <input type="text" class="crq-inp" id="crqTopic" aria-label="Unit or lessons" placeholder="e.g. Unit 3, Lessons 3-7, Lessons 2,4,9 or Full Book">
       <div class="crq-lbl">Difficulty</div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <button class="diff-btn on-easy" id="d-easy" onclick="setDiff('easy')">Easy</button>
@@ -2330,23 +2323,37 @@ function calcAge(){
 }
 
 /* ═══════════ CRQ ═══════════ */
-function crqClassChange(keep){
-  const cls=val('crqClass');
-  document.getElementById('crqGroupRow').style.display=SEC_MAP[cls]?'block':'none';
-  if(SEC_MAP[cls])fillGroupSel('crqGroup',cls,keep);
-  const grp=val('crqGroup')||'';
-  const sub=document.getElementById('crqSubject');const cur=sub.value;
-  const list=subjectsFor(cls,grp);
-  sub.innerHTML=list.map(s=>'<option>'+s+'</option>').join('');
-  if(keep&&list.includes(cur))sub.value=cur;
-}
 function setDiff(d){S.diff=d;['easy','medium','hard'].forEach(x=>{document.getElementById('d-'+x).className='diff-btn'+(d===x?' on-'+x:'');});}
 function toggleAK(){S.ak=!S.ak;document.getElementById('akToggle').classList.toggle('on',S.ak);document.querySelector('.ak-row').setAttribute('aria-checked',String(S.ak));}
 function crqFileSel(e){if(e.target.files[0])setCrqFile(e.target.files[0]);}
 function crqDropFn(e){e.preventDefault();document.getElementById('crqDrop').classList.remove('over');if(e.dataTransfer.files[0])setCrqFile(e.dataTransfer.files[0]);}
 function crqOver(e){e.preventDefault();document.getElementById('crqDrop').classList.add('over');}
 function crqLeave(){document.getElementById('crqDrop').classList.remove('over');}
-async function setCrqFile(f){f=await prepareUpload(f);if(!f)return;S.crqFile=f;document.getElementById('crqFName').textContent=f.name+' ('+(f.size/1024).toFixed(1)+' KB)';document.getElementById('crqChip').style.display='block';}
+async function setCrqFile(f){
+  f=await prepareUpload(f);if(!f)return;
+  S.crqFile=f;S.crqDetected=null;
+  document.getElementById('crqFName').textContent=f.name+' ('+(f.size/1024).toFixed(1)+' KB)';
+  document.getElementById('crqChip').style.display='block';
+  autoDetectCrq(f);
+}
+/* No manual Class/Subject pickers on this page by design — the uploaded book itself tells us
+   what it is, the same way Auto-Detect already works elsewhere in the app. Detected values are
+   only used to look up official SLOs for curriculum-locking; the CRQ still generates fine from
+   Unit/Lessons alone if detection comes back empty or low-confidence. */
+async function autoDetectCrq(f){
+  const info=document.getElementById('crqDetectInfo');if(!info)return;
+  info.style.display='block';info.textContent='🔍 Reading your file to identify Class & Subject...';
+  try{
+    const sample=await extractFirstPageForDetection(f);
+    const fd=new FormData();fd.append('file',sample);
+    const r=await fetch('/detect-book',{method:'POST',body:fd});
+    const d=await r.json();
+    if(!d.success||(!d.className&&!d.subject)){info.textContent="⚠️ Couldn't identify Class/Subject from this file — CRQ will still generate from Unit/Lessons below.";return;}
+    S.crqDetected={className:d.className||'',subject:d.subject||''};
+    info.innerHTML='✨ Identified: <b>'+esc(d.className||'?')+'</b> · <b>'+esc(d.subject||'?')+'</b>'+(d.unitName&&!val('crqTopic')?' · <b>'+esc(d.unitName)+'</b>':'');
+    if(d.unitName&&!val('crqTopic'))document.getElementById('crqTopic').value=d.unitName;
+  }catch(e){info.style.display='none';}
+}
 async function genCRQ(){
   const t=val('crqTopic');
   if(!t){alert('Unit / Lessons is required — e.g. Unit 3 or Lessons 3-7!');return;}
@@ -2354,10 +2361,11 @@ async function genCRQ(){
   if(!bl.length){alert('Select at least one Bloom level!');return;}
   if(CFG&&CFG.paidMode&&!token()){openAuth('Please login to generate CRQ papers — new accounts get 1 FREE document 🎁');return;}
   const p=getProfile();
+  const detected=S.crqDetected||{};
   document.getElementById('crqBtn').disabled=true;showLoader('Generating CRQ Paper...');
   const fd=new FormData();
   fd.append('schoolName',p.school||'');fd.append('teacherName',p.hm||'');
-  fd.append('className',val('crqClass'));fd.append('subject',val('crqSubject'));
+  fd.append('className',detected.className||'');fd.append('subject',detected.subject||'');
   fd.append('unitName',t);fd.append('difficulty',S.diff);fd.append('bloomLevels',JSON.stringify(bl));
   fd.append('mcqCount',val('mcqCount'));fd.append('shortCount',val('shortCount'));fd.append('longCount',val('longCount'));
   fd.append('includeAnswerKey',String(S.ak));fd.append('language',lang());
@@ -2365,7 +2373,7 @@ async function genCRQ(){
   try{
     const d=await fetchGen('/generate-crq',{method:'POST',body:fd});
     document.getElementById('crqBtn').disabled=false;
-    if(d.success){S.doc='CRQ Paper';S.lastFields={className:val('crqClass')};showResult(d.content,'CRQ Paper — '+t);updateAuthUI();}
+    if(d.success){S.doc='CRQ Paper';S.lastFields={className:detected.className||''};showResult(d.content,'CRQ Paper — '+t);updateAuthUI();}
     else{hideLoader();handleGenError(d.error);}
   }catch(e){document.getElementById('crqBtn').disabled=false;hideLoader();alert('Error: '+e.message);}
 }
@@ -3226,9 +3234,8 @@ function applyShortcutParams() {
   renderQuickTiles();
   renderGreeting();
   renderProfile();
-  /* CRQ + Upload selects */
+  /* Upload selects */
   const cls=CLASS_LIST.map(c=>'<option'+(c==='Class 1'?' selected':'')+'>'+c+'</option>').join('');
-  document.getElementById('crqClass').innerHTML=cls;crqClassChange();
   document.getElementById('upClass').innerHTML=cls;
   document.getElementById('upDocType').innerHTML=['Lesson Plan','Worksheet','Exam Paper','Assessment Rubric'].map(d=>'<option>'+d+'</option>').join('');
   upClassChange();
