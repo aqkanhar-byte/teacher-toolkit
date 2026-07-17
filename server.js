@@ -1116,22 +1116,59 @@ RULES:
 
 /* ─── AUTO-DETECT — teacher uploads a book/page photo, AI figures out
    Class/Subject/Unit so they don't have to select it manually.
-   Free (no credits), rate-limited since it still costs a small API call. */
+   Free (no credits), rate-limited since it still costs a small API call.
+   Shared by /detect-book (teacher-facing, single page/photo) and
+   /admin/drive-detect (Book Bank Drive import, page 1 extracted client-side)
+   so both get the exact same classification logic. */
+async function detectClassSubject(filePath, originalName, route) {
+  const block = fileToBlock(filePath, originalName);
+  const response = await withRetry(() => client.messages.create({
+    model: MODEL, max_tokens: 300,
+    messages: [{ role: 'user', content: [block, { type: 'text', text: `Look at this textbook page / document. Identify the likely Class/Grade (pick the closest from: ECCE (Katchi), Class 1, Class 2, Class 3, Class 4, Class 5, Class 6, Class 7, Class 8, Class 9, Class 10, Class 11, Class 12), the Subject, and the Unit/Topic/Chapter name or number if visible on the page. This is for a Sindh, Pakistan government school textbook. Respond ONLY with JSON, no markdown fences: {"className":"<class>","subject":"<subject>","unitName":"<unit or topic name, empty string if not visible>","confidence":"high|medium|low"}` }] }]
+  }));
+  logUsage(route, response.usage);
+  let txt = response.content[0].text.replace(/```json|```/g, '').trim();
+  const j = JSON.parse(txt.slice(txt.indexOf('{'), txt.lastIndexOf('}') + 1));
+  return { className: j.className || '', subject: j.subject || '', unitName: j.unitName || '', confidence: j.confidence || 'low' };
+}
 app.post('/detect-book', upload.single('file'), async (req, res) => {
   if (!req.file) return res.json({ success: false, error: 'No file uploaded' });
   if (!rateLimit('detect:' + req.ip, 15, 10 * 60 * 1000)) { try { fs.unlinkSync(req.file.path); } catch (e) {} return tooMany(res); }
   try {
-    const block = fileToBlock(req.file.path, req.file.originalname);
-    const response = await withRetry(() => client.messages.create({
-      model: MODEL, max_tokens: 300,
-      messages: [{ role: 'user', content: [block, { type: 'text', text: `Look at this textbook page / document. Identify the likely Class/Grade (pick the closest from: ECCE (Katchi), Class 1, Class 2, Class 3, Class 4, Class 5, Class 6, Class 7, Class 8, Class 9, Class 10, Class 11, Class 12), the Subject, and the Unit/Topic/Chapter name or number if visible on the page. This is for a Sindh, Pakistan government school textbook. Respond ONLY with JSON, no markdown fences: {"className":"<class>","subject":"<subject>","unitName":"<unit or topic name, empty string if not visible>","confidence":"high|medium|low"}` }] }]
-    }));
-    logUsage('detect-book', response.usage);
-    let txt = response.content[0].text.replace(/```json|```/g, '').trim();
-    const j = JSON.parse(txt.slice(txt.indexOf('{'), txt.lastIndexOf('}') + 1));
-    res.json({ success: true, className: j.className || '', subject: j.subject || '', unitName: j.unitName || '', confidence: j.confidence || 'low' });
+    const result = await detectClassSubject(req.file.path, req.file.originalname, 'detect-book');
+    res.json({ success: true, ...result });
   } catch (e) {
     logError('detect-book', e);
+    res.json({ success: false, error: friendlyError(e.message) });
+  } finally {
+    try { fs.unlinkSync(req.file.path); } catch (e) {}
+  }
+});
+/* Streams a Drive file's raw bytes to the admin's browser so it can extract just page 1
+   client-side (pdf-lib, already loaded for the page-range preview) before sending anything to
+   the AI — avoids ever loading a 300MB+ book fully into this server's memory. */
+app.get('/admin/drive-file-stream', async (req, res) => {
+  if (!adminGate(req, res)) return;
+  const fileId = String(req.query.fileId || '').trim();
+  if (!fileId) return res.status(400).json({ success: false, error: 'fileId is required' });
+  try {
+    await googleDrive.streamFileTo(fileId, res);
+  } catch (e) {
+    logError('drive-file-stream', e, { fileId });
+    if (!res.headersSent) res.status(502).json({ success: false, error: 'Could not fetch this file from Google Drive.' });
+  }
+});
+/* Same detection as /detect-book, but admin-gated (no per-teacher rate limit needed) — the
+   admin panel calls this once per file, right after "List Files", with just that file's
+   extracted page 1. */
+app.post('/admin/drive-detect', upload.single('file'), async (req, res) => {
+  if (!adminGate(req, res)) { if (req.file) { try { fs.unlinkSync(req.file.path); } catch (e) {} } return; }
+  if (!req.file) return res.json({ success: false, error: 'No file uploaded' });
+  try {
+    const result = await detectClassSubject(req.file.path, req.file.originalname, 'admin-drive-detect');
+    res.json({ success: true, ...result });
+  } catch (e) {
+    logError('admin-drive-detect', e);
     res.json({ success: false, error: friendlyError(e.message) });
   } finally {
     try { fs.unlinkSync(req.file.path); } catch (e) {}

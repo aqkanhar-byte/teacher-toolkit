@@ -9,6 +9,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
 <script defer src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script defer src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
 <style>
 :root{--navy:#4C2E9E;--navy-dark:#2A1B5E;--gold:#C9962C;--gold-bg:#fef9e7;--g100:#f1f4f9;--g200:#e2e8f4;--g400:#8898b8;--g600:#4a5878;--g800:#1e2d4a;--green:#0F9D6E;--green-bg:#eafaf4;--red:#b91c1c;--r:10px}
 *{margin:0;padding:0;box-sizing:border-box}
@@ -613,8 +614,8 @@ async function loadDriveFiles(){
     if(!d.success){msg.innerHTML='<span class="err">'+esc(d.error||'Could not list folder — check the folder ID and that it\'s shared with the service account')+'</span>';return;}
     DRIVE_FILES=d.files||[];
     if(!DRIVE_FILES.length){msg.innerHTML='<span class="ok">Folder has no new files to import (already imported, or empty)</span>';return;}
-    msg.innerHTML='<span class="ok">✅ Found '+DRIVE_FILES.length+' file(s)</span> — pick Class/Subject/Title for each, then Import.';
-    list.innerHTML='<table><thead><tr><th>File</th><th>Size</th><th>Class</th><th>Subject</th><th>Title</th><th>Unit (optional)</th><th></th></tr></thead><tbody>'
+    msg.innerHTML='<span class="ok">✅ Found '+DRIVE_FILES.length+' file(s)</span> — AI is reading each one to set Class/Subject automatically (folder-name guess shown until then).';
+    list.innerHTML='<table><thead><tr><th>File</th><th>Size</th><th>Class</th><th>Subject</th><th>Title</th><th>Unit (optional)</th><th>AI</th><th></th></tr></thead><tbody>'
       +DRIVE_FILES.map((f,i)=>{
         const guessTitle=deriveTitleFromFilename(f.name.split('/').pop());
         const parts=f.name.split('/');
@@ -625,9 +626,63 @@ async function loadDriveFiles(){
           +'<td><select id="dvSubj_'+i+'">'+bulkFixSubjectOptions(guessCls,guessSubj)+'</select></td>'
           +'<td><input type="text" id="dvTitle_'+i+'" value="'+esc(guessTitle)+'" style="width:100%"></td>'
           +'<td><input type="text" id="dvUnit_'+i+'" placeholder="e.g. Chapter 5" style="width:100%"></td>'
+          +'<td id="dvAiStatus_'+i+'" style="font-size:10.5px;color:var(--g400)">⏳ queued</td>'
           +'<td><button id="dvBtn_'+i+'" style="padding:5px 12px;font-size:11px" onclick="importDriveFile('+i+')">Import</button></td></tr>';
       }).join('')+'</tbody></table>';
+    autoDetectAllDriveFiles();
   }catch(e){msg.innerHTML='<span class="err">'+esc(e.message)+'</span>';}
+}
+/* Reads each listed file's actual first page (not just its folder name) and lets the AI set
+   Class/Subject — same detection the teacher-facing Auto-Detect uses. Runs one file at a time
+   (not in parallel) so a big batch doesn't hammer bandwidth/the AI rate limit all at once. */
+async function autoDetectAllDriveFiles(){
+  for(let i=0;i<DRIVE_FILES.length;i++){
+    if(!document.getElementById('dvRow_'+i))continue; // row already imported/removed
+    await autoDetectDriveFile(i);
+  }
+}
+async function autoDetectDriveFile(i){
+  const f=DRIVE_FILES[i];
+  const status=document.getElementById('dvAiStatus_'+i);
+  if(!f||!status)return;
+  status.textContent='🤖 reading...';status.style.color='var(--g400)';
+  try{
+    const r=await fetch('/admin/drive-file-stream?fileId='+encodeURIComponent(f.id),{headers:hdr()});
+    if(!r.ok)throw new Error('Could not fetch from Drive');
+    const bytes=new Uint8Array(await r.arrayBuffer());
+    let pageBlob,pageName;
+    if(/\.pdf$/i.test(f.name)&&typeof PDFLib!=='undefined'){
+      const doc=await PDFLib.PDFDocument.load(bytes,{ignoreEncryption:true});
+      const sub=await PDFLib.PDFDocument.create();
+      const [page]=await sub.copyPages(doc,[0]);
+      sub.addPage(page);
+      pageBlob=new Blob([await sub.save()],{type:'application/pdf'});
+      pageName='page1.pdf';
+    }else{
+      pageBlob=new Blob([bytes]);
+      pageName=f.name.split('/').pop();
+    }
+    const fd=new FormData();fd.append('file',pageBlob,pageName);
+    const dr=await fetch('/admin/drive-detect',{method:'POST',headers:{'x-admin-key':key()},body:fd});
+    const dd=await dr.json();
+    if(!document.getElementById('dvRow_'+i))return; // imported/removed while this was running
+    if(!dd.success){status.textContent='⚠️ AI unavailable — using folder guess';status.style.color='var(--g400)';return;}
+    const matchedCls=matchClassName(dd.className);
+    if(matchedCls){
+      document.getElementById('dvCls_'+i).value=matchedCls;
+      onDriveClassChange(i);
+      const matchedSubj=matchSubjectName(matchedCls,dd.subject);
+      if(matchedSubj)document.getElementById('dvSubj_'+i).value=matchedSubj;
+      if(dd.unitName){const u=document.getElementById('dvUnit_'+i);if(u&&!u.value)u.value=dd.unitName;}
+      status.textContent='✅ '+matchedCls+(matchedSubj?' / '+matchedSubj:'')+(dd.confidence==='low'?' (low confidence)':'');
+      status.style.color=dd.confidence==='low'?'var(--gold)':'var(--green)';
+    }else{
+      status.textContent='⚠️ AI unsure ('+esc(dd.className||'?')+') — using folder guess';
+      status.style.color='var(--g400)';
+    }
+  }catch(e){
+    if(document.getElementById('dvAiStatus_'+i)){status.textContent='⚠️ Could not read — using folder guess';status.style.color='var(--g400)';}
+  }
 }
 function onDriveClassChange(i){
   const cls=document.getElementById('dvCls_'+i).value;
