@@ -596,7 +596,7 @@ function guessClassFromFolder(folderName){
   return direct||'';
 }
 const SUBJECT_ALIASES={'islamiyat':'Islamiat','science':'General Science','computer education':'Computer Science',
-  'computer ji taleem':'Computer Science','computer ki taleem':'Computer Science','mazhabi taleemat':'Islamiat'};
+  'computer science':'Computer Education','computer ji taleem':'Computer Science','computer ki taleem':'Computer Science','mazhabi taleemat':'Islamiat'};
 function guessSubjectFromFolder(cls,folderName){
   if(!cls||!folderName)return '';
   const subs=allSubjectsFor(cls)||[];
@@ -606,6 +606,14 @@ function guessSubjectFromFolder(cls,folderName){
   if(SUBJECT_ALIASES[n]&&subs.includes(SUBJECT_ALIASES[n]))return SUBJECT_ALIASES[n];
   hit=subs.find(s=>n.includes(s.toLowerCase())||s.toLowerCase().includes(n));
   return hit||'';
+}
+/* True only once a row's Class+Subject is trustworthy (folder-name matched confidently, AI
+   confirmed it, or the admin manually picked it) — false means the dropdown is just sitting on
+   whatever option happens to be first in the list, and Import All must NOT act on it silently. */
+let DRIVE_ROW_OK=[];
+function markRowReviewState(i){
+  const row=document.getElementById('dvRow_'+i);
+  if(row)row.style.background=DRIVE_ROW_OK[i]?'':'#fff7e6';
 }
 async function loadDriveFiles(){
   const folderInput=document.getElementById('drv_folder');
@@ -620,20 +628,23 @@ async function loadDriveFiles(){
     const d=await r.json();
     if(!d.success){msg.innerHTML='<span class="err">'+esc(d.error||'Could not list folder — check the folder ID and that it\'s shared with the service account')+'</span>';return;}
     DRIVE_FILES=d.files||[];
+    DRIVE_ROW_OK=[];
     if(!DRIVE_FILES.length){msg.innerHTML='<span class="ok">Folder has no new files to import (already imported, or empty)</span>';return;}
-    msg.innerHTML='<span class="ok">✅ Found '+DRIVE_FILES.length+' file(s)</span> — AI is reading each one to set Class/Subject automatically (folder-name guess shown until then).';
+    msg.innerHTML='<span class="ok">✅ Found '+DRIVE_FILES.length+' file(s)</span> — AI is reading each one to set Class/Subject automatically (folder-name guess shown until then). Amber rows need a manual check before import. <button id="driveImportAllBtn" onclick="importAllDriveFiles()" style="margin-left:8px">⚡ Import All</button>';
     list.innerHTML='<table><thead><tr><th>File</th><th>Size</th><th>Class</th><th>Subject</th><th>Title</th><th>Unit (optional)</th><th>AI</th><th></th></tr></thead><tbody>'
       +DRIVE_FILES.map((f,i)=>{
         const guessTitle=deriveTitleFromFilename(f.name.split('/').pop());
         const parts=f.name.split('/');
-        const guessCls=guessClassFromFolder(parts[0])||CLASS_LIST[0];
+        const guessClsRaw=guessClassFromFolder(parts[0]);
+        const guessCls=guessClsRaw||CLASS_LIST[0];
         const guessSubj=guessSubjectFromFolder(guessCls,parts[1])||'';
-        return '<tr id="dvRow_'+i+'"><td>'+esc(f.name)+'</td><td>'+esc(f.sizeMb)+'MB</td>'
+        DRIVE_ROW_OK[i]=!!(guessClsRaw&&guessSubj);
+        return '<tr id="dvRow_'+i+'" style="'+(DRIVE_ROW_OK[i]?'':'background:#fff7e6')+'"><td>'+esc(f.name)+'</td><td>'+esc(f.sizeMb)+'MB</td>'
           +'<td><select id="dvCls_'+i+'" onchange="onDriveClassChange('+i+')">'+bulkFixClassOptions(guessCls)+'</select></td>'
-          +'<td><select id="dvSubj_'+i+'">'+bulkFixSubjectOptions(guessCls,guessSubj)+'</select></td>'
+          +'<td><select id="dvSubj_'+i+'" onchange="onDriveSubjChange('+i+')">'+bulkFixSubjectOptions(guessCls,guessSubj)+'</select></td>'
           +'<td><input type="text" id="dvTitle_'+i+'" value="'+esc(guessTitle)+'" style="width:100%"></td>'
           +'<td><input type="text" id="dvUnit_'+i+'" placeholder="e.g. Chapter 5" style="width:100%"></td>'
-          +'<td id="dvAiStatus_'+i+'" style="font-size:10.5px;color:var(--g400)">⏳ queued</td>'
+          +'<td id="dvAiStatus_'+i+'" style="font-size:10.5px;color:var(--g400)">'+(DRIVE_ROW_OK[i]?'⏳ queued':'⚠️ check class/subject')+'</td>'
           +'<td><button id="dvBtn_'+i+'" style="padding:5px 12px;font-size:11px" onclick="importDriveFile('+i+')">Import</button></td></tr>';
       }).join('')+'</tbody></table>';
     autoDetectAllDriveFiles();
@@ -677,12 +688,16 @@ async function autoDetectDriveFile(i){
     const matchedCls=matchClassName(dd.className);
     if(matchedCls){
       document.getElementById('dvCls_'+i).value=matchedCls;
-      onDriveClassChange(i);
+      document.getElementById('dvSubj_'+i).innerHTML=bulkFixSubjectOptions(matchedCls,'');
       const matchedSubj=matchSubjectName(matchedCls,dd.subject);
       if(matchedSubj)document.getElementById('dvSubj_'+i).value=matchedSubj;
       if(dd.unitName){const u=document.getElementById('dvUnit_'+i);if(u&&!u.value)u.value=dd.unitName;}
-      status.textContent='✅ '+matchedCls+(matchedSubj?' / '+matchedSubj:'')+(dd.confidence==='low'?' (low confidence)':'');
-      status.style.color=dd.confidence==='low'?'var(--gold)':'var(--green)';
+      /* AI resolved a Class but not a matching Subject in our list — still not safe to trust
+         blindly (the dropdown just fell back to its first option), so don't clear the review flag. */
+      DRIVE_ROW_OK[i]=DRIVE_ROW_OK[i]||!!(matchedCls&&matchedSubj);
+      markRowReviewState(i);
+      status.textContent='✅ '+matchedCls+(matchedSubj?' / '+matchedSubj:' — subject not recognized, please pick one')+(dd.confidence==='low'?' (low confidence)':'');
+      status.style.color=(matchedSubj&&dd.confidence!=='low')?'var(--green)':'var(--gold)';
     }else{
       status.textContent='⚠️ AI unsure ('+esc(dd.className||'?')+') — using folder guess';
       status.style.color='var(--g400)';
@@ -694,10 +709,20 @@ async function autoDetectDriveFile(i){
 function onDriveClassChange(i){
   const cls=document.getElementById('dvCls_'+i).value;
   document.getElementById('dvSubj_'+i).innerHTML=bulkFixSubjectOptions(cls,'');
+  DRIVE_ROW_OK[i]=true; // admin explicitly touched this dropdown — trust their choice
+  markRowReviewState(i);
+  const st=document.getElementById('dvAiStatus_'+i);
+  if(st){st.textContent='✏️ manually set';st.style.color='var(--g600)';}
 }
-async function importDriveFile(i){
+function onDriveSubjChange(i){
+  DRIVE_ROW_OK[i]=true;
+  markRowReviewState(i);
+  const st=document.getElementById('dvAiStatus_'+i);
+  if(st){st.textContent='✏️ manually set';st.style.color='var(--g600)';}
+}
+async function importDriveFile(i,silent){
   const f=DRIVE_FILES[i];
-  if(!f)return;
+  if(!f)return false;
   const className=document.getElementById('dvCls_'+i).value;
   const subject=document.getElementById('dvSubj_'+i).value;
   const title=document.getElementById('dvTitle_'+i).value.trim()||f.name;
@@ -710,14 +735,40 @@ async function importDriveFile(i){
     if(d.success){
       row.innerHTML='<td colspan="7"><span class="ok">✅ '+esc(f.name)+' — imported as '+esc(className)+' / '+esc(subject)+'</span></td>';
       loadBooks();
+      return true;
     }else{
       btn.disabled=false;btn.textContent='Import';
-      alert('Import failed: '+(d.error||'unknown error'));
+      if(silent){const st=document.getElementById('dvAiStatus_'+i);if(st){st.textContent='❌ '+(d.error||'import failed');st.style.color='var(--red)';}}
+      else alert('Import failed: '+(d.error||'unknown error'));
+      return false;
     }
   }catch(e){
     btn.disabled=false;btn.textContent='Import';
-    alert('Import failed: '+e.message);
+    if(silent){const st=document.getElementById('dvAiStatus_'+i);if(st){st.textContent='❌ '+e.message;st.style.color='var(--red)';}}
+    else alert('Import failed: '+e.message);
+    return false;
   }
+}
+/* One click imports every listed file using whatever Class/Subject is currently in its dropdown
+   (folder-name guess, or the AI's answer if it already resolved) — no more clicking Import per
+   book once the admin has organized the Drive folder into Class/Subject subfolders themselves. */
+async function importAllDriveFiles(){
+  const msg=document.getElementById('driveMsg');
+  const allBtn=document.getElementById('driveImportAllBtn');
+  if(allBtn){allBtn.disabled=true;allBtn.textContent='Importing all...';}
+  let imported=0,failed=0,needsReview=0;
+  for(let i=0;i<DRIVE_FILES.length;i++){
+    if(!document.getElementById('dvBtn_'+i))continue; // already imported or row removed
+    if(!DRIVE_ROW_OK[i]){needsReview++;continue;} // amber row — Class/Subject unconfirmed, don't guess
+    const ok=await importDriveFile(i,true);
+    if(ok)imported++;else failed++;
+    if(allBtn)allBtn.textContent='Importing all... ('+(imported+failed+needsReview)+'/'+DRIVE_FILES.length+')';
+  }
+  if(allBtn){allBtn.disabled=false;allBtn.textContent='⚡ Import All';}
+  const parts=['<span class="ok">✅ '+imported+' imported</span>'];
+  if(needsReview)parts.push('<span class="err">⚠️ '+needsReview+' skipped — amber rows need a manual Class/Subject check, then Import individually</span>');
+  if(failed)parts.push('<span class="err">❌ '+failed+' failed</span>');
+  msg.innerHTML='Import All finished — '+parts.join(', ')+'. <button onclick="loadDriveFiles()">🔍 Refresh list</button>';
 }
 async function loadBooks(){
   try{
