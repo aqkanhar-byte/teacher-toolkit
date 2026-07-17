@@ -1009,17 +1009,29 @@ app.get('/version', (req, res) => res.json({ v: '3.4', features: ['generate-with
 const SITE_URL = 'https://www.teachertoolkitsindh.com';
 app.get('/sitemap.xml', async (req, res) => {
   const today = new Date().toISOString().slice(0, 10);
-  const urls = [{ loc: '/', changefreq: 'weekly', priority: '1.0' }, { loc: '/privacy.html', changefreq: 'monthly', priority: '0.3' }, { loc: '/library', changefreq: 'weekly', priority: '0.9' }];
+  const urls = [
+    { loc: '/', changefreq: 'weekly', priority: '1.0', lastmod: today },
+    { loc: '/privacy.html', changefreq: 'monthly', priority: '0.3', lastmod: today },
+    { loc: '/library', changefreq: 'weekly', priority: '0.9', lastmod: today }
+  ];
   if (sb) {
     /* Every public library book is its own indexable URL — this is what actually gets a search
        like "class 10 english book stbb" to land on a real page instead of nothing. Grows on its
        own as more books are imported; nothing to maintain here by hand. */
-    const { data: books } = await sb.from('tt_books').select('slug').not('slug', 'is', null);
-    (books || []).forEach(b => urls.push({ loc: '/library/' + b.slug, changefreq: 'monthly', priority: '0.7' }));
+    const { data: books } = await sb.from('tt_books').select('slug,class_name,created_at').not('slug', 'is', null);
+    const classesSeen = new Set();
+    (books || []).forEach(b => {
+      /* Real lastmod (when the book was actually imported), not always "today" for every URL —
+         a sitemap where every single entry claims to have changed today is a signal search
+         engines learn to ignore rather than one that gets pages crawled faster. */
+      const lastmod = (b.created_at || '').slice(0, 10) || today;
+      urls.push({ loc: '/library/' + b.slug, changefreq: 'monthly', priority: '0.7', lastmod });
+      if (!classesSeen.has(b.class_name)) { classesSeen.add(b.class_name); urls.push({ loc: '/library/class/' + classSlugOf(b.class_name), changefreq: 'weekly', priority: '0.8', lastmod: today }); }
+    });
   }
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${urls.map(u => `  <url><loc>${SITE_URL}${u.loc}</loc><lastmod>${today}</lastmod><changefreq>${u.changefreq}</changefreq><priority>${u.priority}</priority></url>`).join('\n')}
+${urls.map(u => `  <url><loc>${SITE_URL}${u.loc}</loc><lastmod>${u.lastmod}</lastmod><changefreq>${u.changefreq}</changefreq><priority>${u.priority}</priority></url>`).join('\n')}
 </urlset>`;
   res.setHeader('Content-Type', 'application/xml');
   res.send(xml);
@@ -1059,6 +1071,11 @@ function libraryPageShell(title, description, canonicalPath, bodyHtml, jsonLd) {
 <meta property="og:description" content="${escHtml(description)}">
 <meta property="og:type" content="website">
 <meta property="og:url" content="${SITE_URL}${canonicalPath}">
+<meta property="og:image" content="${SITE_URL}/icon-512.png">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="${escHtml(title)}">
+<meta name="twitter:description" content="${escHtml(description)}">
+<meta name="twitter:image" content="${SITE_URL}/icon-512.png">
 <link rel="icon" href="/icon-192.png" type="image/png">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
 ${jsonLd ? `<script type="application/ld+json">${JSON.stringify(jsonLd)}</script>` : ''}
@@ -1092,32 +1109,67 @@ ${bodyHtml}
 </html>`;
 }
 const CLASS_ORDER = ['ECCE (Katchi)', 'Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5', 'Class 6', 'Class 7', 'Class 8', 'Class 9', 'Class 10', 'Class 11', 'Class 12'];
-function classRank(name) {
-  const i = CLASS_ORDER.indexOf(name);
-  return i === -1 ? CLASS_ORDER.length : i;
+/* Class directory + per-class pages, not one giant page — each class gets its own focused,
+   fast-loading, keyword-targeted URL ("Class 10 STBB books") instead of every one of 100+ books
+   competing on a single mega-page. Classic pillar (/library) + cluster (/library/class/:x) +
+   leaf (/library/:slug) structure — the standard shape search engines reward for a library this size. */
+function classSlugOf(className) { return slugify(className); }
+function classNameFromSlug(slug) { return CLASS_ORDER.find(c => classSlugOf(c) === slug); }
+function breadcrumbLd(items) {
+  return { '@context': 'https://schema.org', '@type': 'BreadcrumbList',
+    itemListElement: items.map((it, i) => ({ '@type': 'ListItem', position: i + 1, name: it.name, item: SITE_URL + it.path })) };
 }
 app.get('/library', async (req, res) => {
   if (!sb) return res.status(503).send('Not configured');
-  const { data: books } = await sb.from('tt_books').select('slug,class_name,subject,title,unit_label,size_mb')
-    .not('slug', 'is', null);
-  // DB order() sorts class_name as a plain string ("Class 10" < "Class 2"), which is wrong
-  // pedagogical order — sort in JS by the real ECCE→Class 12 sequence instead.
-  const list = (books || []).slice().sort((a, b) => classRank(a.class_name) - classRank(b.class_name) || a.subject.localeCompare(b.subject));
-  const byClass = {};
-  list.forEach(b => { (byClass[b.class_name] = byClass[b.class_name] || []).push(b); });
-  const classesHtml = Object.keys(byClass).map(cls => {
-    const items = byClass[cls].map(b => `<a class="book-link" href="/library/${escHtml(b.slug)}"><b>${escHtml(b.title)}</b><span>${escHtml(b.subject)}${b.unit_label ? ' · ' + escHtml(b.unit_label) : ''} · ${escHtml(b.size_mb)}MB</span></a>`).join('');
-    return `<h2>${escHtml(cls)}</h2><div class="grid">${items}</div>`;
-  }).join('');
+  const { data: books } = await sb.from('tt_books').select('class_name').not('slug', 'is', null);
+  const counts = {};
+  (books || []).forEach(b => { counts[b.class_name] = (counts[b.class_name] || 0) + 1; });
+  const totalBooks = (books || []).length;
+  const activeClasses = CLASS_ORDER.filter(c => counts[c]);
+  const classesHtml = activeClasses.map(c =>
+    `<a class="book-link" href="/library/class/${classSlugOf(c)}"><b>${escHtml(c)}</b><span>${counts[c]} book${counts[c] === 1 ? '' : 's'}</span></a>`
+  ).join('');
+  const jsonLd = [
+    { '@context': 'https://schema.org', '@type': 'CollectionPage', name: 'Free STBB Textbook Downloads', url: SITE_URL + '/library',
+      hasPart: activeClasses.map(c => ({ '@type': 'WebPage', name: c, url: SITE_URL + '/library/class/' + classSlugOf(c) })) },
+    breadcrumbLd([{ name: 'Home', path: '/' }, { name: 'Free Textbook Library', path: '/library' }])
+  ];
   const body = `<h1>Free STBB Textbook Downloads — Sindh Textbook Board Books (PDF)</h1>
-<p>Official Sindh Textbook Board (STBB) textbooks, free to download as PDF — ${list.length} book${list.length === 1 ? '' : 's'} available across every class.</p>
-<input type="search" id="q" placeholder="Search by class or subject — e.g. Class 10 English" oninput="filterBooks()">
-${classesHtml || '<p>No books published yet — check back soon.</p>'}
-<script>function filterBooks(){var q=document.getElementById('q').value.toLowerCase();document.querySelectorAll('.book-link').forEach(function(a){a.style.display=a.textContent.toLowerCase().indexOf(q)>-1?'':'none';});document.querySelectorAll('h2').forEach(function(h){var sib=h.nextElementSibling;var any=Array.prototype.some.call(sib.querySelectorAll('.book-link'),function(a){return a.style.display!=='none';});h.style.display=any?'':'none';sib.style.display=any?'':'none';});}</script>`;
+<p>Official Sindh Textbook Board (STBB) textbooks, free to download as PDF — ${totalBooks} book${totalBooks === 1 ? '' : 's'} across ${activeClasses.length} classes, ECCE to Class 12. Pick a class to browse its books.</p>
+<div class="grid">${classesHtml || '<p>No books published yet — check back soon.</p>'}</div>`;
   res.send(libraryPageShell(
     'Free STBB Textbook PDF Downloads — All Classes | Teacher Toolkit',
-    'Download official Sindh Textbook Board (STBB) books for free — Class 1 to Class 12, English/Urdu/Sindhi medium, PDF format.',
-    '/library', body
+    `Download ${totalBooks} official Sindh Textbook Board (STBB) books for free — Class 1 to Class 12, English/Urdu/Sindhi medium, PDF format.`,
+    '/library', body, jsonLd
+  ));
+});
+app.get('/library/class/:classSlug', async (req, res) => {
+  if (!sb) return res.status(503).send('Not configured');
+  const className = classNameFromSlug(req.params.classSlug);
+  if (!className) return res.status(404).send('Class not found.');
+  const { data: books } = await sb.from('tt_books').select('slug,subject,title,unit_label,size_mb')
+    .eq('class_name', className).not('slug', 'is', null).order('subject');
+  const list = books || [];
+  const bySubject = {};
+  list.forEach(b => { (bySubject[b.subject] = bySubject[b.subject] || []).push(b); });
+  const subjects = Object.keys(bySubject).sort();
+  const subjectsHtml = subjects.map(subj => {
+    const items = bySubject[subj].map(b => `<a class="book-link" href="/library/${escHtml(b.slug)}"><b>${escHtml(b.title)}</b><span>${b.unit_label ? escHtml(b.unit_label) + ' · ' : ''}${escHtml(b.size_mb)}MB</span></a>`).join('');
+    return `<h2>${escHtml(subj)}</h2><div class="grid">${items}</div>`;
+  }).join('');
+  const jsonLd = [
+    { '@context': 'https://schema.org', '@type': 'ItemList', name: className + ' STBB Textbooks', numberOfItems: list.length,
+      itemListElement: list.map((b, i) => ({ '@type': 'ListItem', position: i + 1, url: SITE_URL + '/library/' + b.slug, name: b.title })) },
+    breadcrumbLd([{ name: 'Home', path: '/' }, { name: 'Free Textbook Library', path: '/library' }, { name: className, path: '/library/class/' + req.params.classSlug }])
+  ];
+  const body = `<p style="font-size:12px;margin-bottom:14px"><a href="/library">← All Classes</a></p>
+<h1>${escHtml(className)} — Free STBB Textbook PDF Downloads</h1>
+<p>${list.length} official Sindh Textbook Board (STBB) textbook${list.length === 1 ? '' : 's'} for ${escHtml(className)} — ${subjects.map(escHtml).join(', ') || 'no subjects yet'} — free to download as PDF.</p>
+${subjectsHtml || '<p>No books published yet for this class — check back soon.</p>'}`;
+  res.send(libraryPageShell(
+    `${className} STBB Textbooks — Free PDF Download | Teacher Toolkit`,
+    `Download free ${className} Sindh Textbook Board (STBB) PDF textbooks — ${subjects.join(', ') || 'all subjects'}.`,
+    '/library/class/' + req.params.classSlug, body, jsonLd
   ));
 });
 app.get('/library/:slug', async (req, res) => {
@@ -1126,14 +1178,16 @@ app.get('/library/:slug', async (req, res) => {
   if (!book) return res.status(404).send('Book not found.');
   const title = `${book.title} — ${book.class_name} ${book.subject} PDF Download | Sindh Textbook Board`;
   const description = `Download ${book.title} (${book.class_name}, ${book.subject}) free — official Sindh Textbook Board (STBB) textbook, PDF, ${book.size_mb}MB.`;
-  const jsonLd = {
-    '@context': 'https://schema.org', '@type': 'Book',
-    name: book.title, bookFormat: 'https://schema.org/EBook',
-    educationalLevel: book.class_name, about: book.subject,
-    publisher: { '@type': 'Organization', name: 'Sindh Textbook Board' },
-    url: SITE_URL + '/library/' + book.slug
-  };
-  const body = `<h1>${escHtml(book.title)}</h1>
+  const jsonLd = [
+    { '@context': 'https://schema.org', '@type': 'Book',
+      name: book.title, bookFormat: 'https://schema.org/EBook',
+      educationalLevel: book.class_name, about: book.subject,
+      publisher: { '@type': 'Organization', name: 'Sindh Textbook Board' },
+      url: SITE_URL + '/library/' + book.slug },
+    breadcrumbLd([{ name: 'Home', path: '/' }, { name: 'Free Textbook Library', path: '/library' }, { name: book.class_name, path: '/library/class/' + classSlugOf(book.class_name) }, { name: book.title, path: '/library/' + book.slug }])
+  ];
+  const body = `<p style="font-size:12px;margin-bottom:14px"><a href="/library">← All Classes</a> · <a href="/library/class/${classSlugOf(book.class_name)}">← ${escHtml(book.class_name)} Books</a></p>
+<h1>${escHtml(book.title)} — ${escHtml(book.class_name)} ${escHtml(book.subject)} (Free PDF Download)</h1>
 <div class="card">
 <p><b>Class:</b> ${escHtml(book.class_name)}<br><b>Subject:</b> ${escHtml(book.subject)}${book.unit_label ? '<br><b>Unit:</b> ' + escHtml(book.unit_label) : ''}<br><b>Size:</b> ${escHtml(book.size_mb)}MB<br><b>Publisher:</b> Sindh Textbook Board (STBB)</p>
 <a class="dl-btn" href="/library/${escHtml(book.slug)}/download">⬇ Download PDF Free</a>

@@ -7,6 +7,7 @@ Disallow: /books
 Disallow: /documents
 Disallow: /generate
 Disallow: /download-
+Disallow: /library/*/download
 Disallow: /webhooks/
 Disallow: /detect-book
 Disallow: /upload-generate
