@@ -575,6 +575,7 @@ async function loadDriveFiles(){
   const folderInput=document.getElementById('drv_folder');
   const folderId=extractDriveFolderId(folderInput.value);
   folderInput.value=folderId;
+  if(folderId)try{localStorage.setItem('tt_drive_folder_id',folderId);}catch(e){}
   const msg=document.getElementById('driveMsg'),list=document.getElementById('driveFileList');
   if(!folderId){msg.innerHTML='<span class="err">Paste the Drive folder ID first</span>';return;}
   msg.innerHTML='Listing files...';list.innerHTML='';
@@ -801,6 +802,10 @@ async function load(){
     renderUsers();
     fillCls();loadBooks();loadSlos();loadPackages();
     document.getElementById('driveSaEmail').textContent='teachertoolkitbooks@teachertoolkit-502612.iam.gserviceaccount.com';
+    try{
+      const savedFolder=localStorage.getItem('tt_drive_folder_id');
+      if(savedFolder){document.getElementById('drv_folder').value=savedFolder;loadDriveFiles();}
+    }catch(e){}
     return true;
   }catch(e){return false;}
 }
