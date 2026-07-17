@@ -1030,6 +1030,17 @@ button{cursor:pointer;border:none;background:none}
   </div>
 </div>
 
+<!-- BOOK FETCH LOADING POPUP -->
+<div class="overlay" id="bookFetchOverlay">
+  <div class="modal" style="max-width:300px">
+    <div class="modal-body" style="text-align:center;padding:34px 22px">
+      <div class="loader-ring" style="margin:0 auto 18px"></div>
+      <div class="loader-title" id="bookFetchTitle">📥 Book fetch ho rahi hai...</div>
+      <div class="loader-sub" id="bookFetchSub">Thoda wait karein — file download ho rahi hai</div>
+    </div>
+  </div>
+</div>
+
 <!-- PROFILE MODAL -->
 <div class="overlay" id="profileOverlay">
   <div class="modal">
@@ -1839,6 +1850,25 @@ async function doLoadBank(){
     sel.innerHTML='<option value="">— Book Bank could not load (check internet, then change class to retry) —</option>';
   }
 }
+/* A stalled connection (no error, no data, just silence) never rejects a plain fetch() on its
+   own — the book-fetch popup would stay open forever. Abort it ourselves after a generous
+   timeout so the teacher always ends up with either the book or a clear error. */
+async function fetchWithTimeout(url,opts,ms){
+  const ctrl=new AbortController();
+  const timer=setTimeout(()=>ctrl.abort(),ms);
+  try{return await fetch(url,{...(opts||{}),signal:ctrl.signal});}
+  finally{clearTimeout(timer);}
+}
+function showBookFetchLoader(title,sub){
+  const ov=document.getElementById('bookFetchOverlay');if(!ov)return;
+  const t=document.getElementById('bookFetchTitle'),s=document.getElementById('bookFetchSub');
+  if(t)t.textContent=title||'📥 Book fetch ho rahi hai...';
+  if(s)s.textContent=sub||'Thoda wait karein — file download ho rahi hai';
+  ov.classList.add('open');
+}
+function hideBookFetchLoader(){
+  const ov=document.getElementById('bookFetchOverlay');if(ov)ov.classList.remove('open');
+}
 async function onBankSel(){
   S.bookId=val('bankSel');
   if(!S.bookId){const pr=document.getElementById('pageRangeRow');if(pr)pr.style.display='none';return;}
@@ -1850,20 +1880,24 @@ async function onBankSel(){
   const row=document.getElementById('pageRangeRow');
   row.style.display='block';
   document.getElementById('pageRangeInfo').textContent='📥 Downloading book to read page count ('+sizeMb.toFixed(0)+'MB)...';
+  showBookFetchLoader('📥 Book fetch ho rahi hai...','"'+title+'" ('+sizeMb.toFixed(0)+'MB) — thoda wait karein');
   try{
-    const r=await fetch('/books/'+encodeURIComponent(S.bookId)+'/download-url',{headers:authHeaders()});
+    const r=await fetchWithTimeout('/books/'+encodeURIComponent(S.bookId)+'/download-url',{headers:authHeaders()},20000);
     const d=await r.json();
     if(!d.success)throw new Error(d.error||'Could not get book');
     /* Supabase's d.url is a self-contained signed URL (no auth needed); our own /drive-stream
        route for Drive-hosted books is login-gated like every other endpoint, so it needs the
        same auth header or it 401s. */
-    const fr=await fetch(d.url,{headers:d.url.startsWith('/')?authHeaders():{}});
+    const fr=await fetchWithTimeout(d.url,{headers:d.url.startsWith('/')?authHeaders():{}},90000);
     if(!fr.ok)throw new Error('Could not download book (HTTP '+fr.status+')');
     const bytes=new Uint8Array(await fr.arrayBuffer());
     await loadPdfForRange(bytes,title+'.pdf');
   }catch(e){
     row.style.display='none';
-    toast('❌ Could not load this book for page selection: '+e.message);
+    const msg=e.name==='AbortError'?'Taking too long — check your internet connection and try again.':e.message;
+    toast('❌ Could not load this book for page selection: '+msg);
+  }finally{
+    hideBookFetchLoader();
   }
 }
 
