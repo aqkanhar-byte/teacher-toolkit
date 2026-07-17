@@ -1091,11 +1091,18 @@ ${bodyHtml}
 </body>
 </html>`;
 }
+const CLASS_ORDER = ['ECCE (Katchi)', 'Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5', 'Class 6', 'Class 7', 'Class 8', 'Class 9', 'Class 10', 'Class 11', 'Class 12'];
+function classRank(name) {
+  const i = CLASS_ORDER.indexOf(name);
+  return i === -1 ? CLASS_ORDER.length : i;
+}
 app.get('/library', async (req, res) => {
   if (!sb) return res.status(503).send('Not configured');
   const { data: books } = await sb.from('tt_books').select('slug,class_name,subject,title,unit_label,size_mb')
-    .not('slug', 'is', null).order('class_name').order('subject');
-  const list = books || [];
+    .not('slug', 'is', null);
+  // DB order() sorts class_name as a plain string ("Class 10" < "Class 2"), which is wrong
+  // pedagogical order — sort in JS by the real ECCE→Class 12 sequence instead.
+  const list = (books || []).slice().sort((a, b) => classRank(a.class_name) - classRank(b.class_name) || a.subject.localeCompare(b.subject));
   const byClass = {};
   list.forEach(b => { (byClass[b.class_name] = byClass[b.class_name] || []).push(b); });
   const classesHtml = Object.keys(byClass).map(cls => {
