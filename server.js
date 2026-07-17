@@ -346,6 +346,14 @@ function adminGate(req, res) {
   if (!sb) { res.json({ success: false, error: 'Database is not configured on the server.' }); return false; }
   return true;
 }
+/* Fire-and-forget audit trail for sensitive admin actions (money, PINs, deletions) — a single
+   shared admin password can't attribute an action to a specific person, but this still answers
+   "what happened, to whom, when, from where" after the fact, which matters more for catching a
+   mistake. Never awaited/blocking: an audit-log failure must not stop the actual admin action. */
+function logAdminAction(action, req, targetPhone, detail) {
+  if (!sb) return;
+  sb.from('tt_admin_actions').insert({ action, target_phone: targetPhone || null, detail: detail || null, ip: req.ip }).then(() => {}, () => {});
+}
 async function statsResetAt() {
   if (!sb) return null;
   const { data } = await sb.from('tt_settings').select('value').eq('key', 'stats_reset_at').maybeSingle();
@@ -396,6 +404,11 @@ app.get('/admin/webhook-log', async (req, res) => {
   const { data } = await sb.from('tt_webhook_events').select('*').order('created_at', { ascending: false }).limit(200);
   res.json({ success: true, events: data || [] });
 });
+app.get('/admin/audit-log', async (req, res) => {
+  if (!adminGate(req, res)) return;
+  const { data } = await sb.from('tt_admin_actions').select('*').order('created_at', { ascending: false }).limit(200);
+  res.json({ success: true, actions: data || [] });
+});
 app.post('/admin/reset-pin', async (req, res) => {
   if (!adminGate(req, res)) return;
   const phone = cleanPhone(req.body.phone);
@@ -405,6 +418,7 @@ app.post('/admin/reset-pin', async (req, res) => {
   const { data: user } = await sb.from('tt_users').select('id,name').eq('phone', phone).maybeSingle();
   if (!user) return res.json({ success: false, error: 'This number is not registered: ' + phone });
   await sb.from('tt_users').update({ pin_hash: hashPin(newPin), token: crypto.randomUUID() }).eq('id', user.id);
+  logAdminAction('reset-pin', req, phone, { name: user.name });
   res.json({ success: true, name: user.name });
 });
 app.post('/admin/add-subscription', async (req, res) => {
@@ -424,6 +438,7 @@ app.post('/admin/add-subscription', async (req, res) => {
   if (duplicate) return res.json({ success: false, error: 'This order/reference was already processed — no changes made (idempotency protection).' });
   const expires = new Date(Date.now() + days * 86400000).toISOString();
   await sb.from('tt_users').update({ plan: 'Monthly Pro', plan_quota: quota, plan_used: 0, plan_expires: expires, subscription_status: 'active', billing_cycle: days >= 300 ? 'yearly' : 'monthly' }).eq('id', user.id);
+  logAdminAction('add-subscription', req, phone, { days, quota, amount_rs: amount, orderId });
   res.json({ success: true, name: user.name, expires });
 });
 /* Cancels a teacher's Monthly Pro subscription — clears plan/quota/expiry so they fall back to
@@ -440,6 +455,7 @@ app.post('/admin/cancel-subscription', async (req, res) => {
   /* plan_quota is NOT NULL in the live schema — 0 means "no quota", same effect as null would have */
   const { error } = await sb.from('tt_users').update({ plan: null, plan_quota: 0, plan_used: 0, plan_expires: null, subscription_status: 'cancelled' }).eq('id', user.id);
   if (error) { logError('cancel-subscription', error, { userId: user.id }); return res.json({ success: false, error: 'Could not cancel: ' + error.message }); }
+  logAdminAction('cancel-subscription', req, phone, { name: user.name, previousPlan: user.plan });
   res.json({ success: true, name: user.name });
 });
 app.post('/admin/add-credits', async (req, res) => {
@@ -457,6 +473,7 @@ app.post('/admin/add-credits', async (req, res) => {
   });
   if (duplicate) return res.json({ success: false, error: 'This order/reference was already processed — no changes made (idempotency protection).' });
   await sb.from('tt_users').update({ credits: user.credits + credits }).eq('id', user.id);
+  logAdminAction('add-credits', req, phone, { credits, amount_rs: amount, orderId, newBalance: user.credits + credits });
   res.json({ success: true, name: user.name, newBalance: user.credits + credits });
 });
 /* Undo/correct an accidental Add Credits — subtracts, clamped at 0, logged as a negative transaction */
@@ -470,6 +487,7 @@ app.post('/admin/remove-credits', async (req, res) => {
   const newBalance = Math.max(0, user.credits - credits);
   await sb.from('tt_users').update({ credits: newBalance }).eq('id', user.id);
   await sb.from('tt_transactions').insert({ user_id: user.id, credits: -(user.credits - newBalance), amount_rs: 0, note: req.body.note || 'Manual correction' });
+  logAdminAction('remove-credits', req, phone, { credits, newBalance });
   res.json({ success: true, name: user.name, newBalance });
 });
 
@@ -714,6 +732,7 @@ app.post('/admin/delete-book', async (req, res) => {
        to remove — the file itself stays untouched in the admin's Drive folder. */
     if (book.storage_provider !== 'drive') { try { await sb.storage.from('books').remove([book.storage_path]); } catch(e) {} }
     await sb.from('tt_books').delete().eq('id', book.id);
+    logAdminAction('delete-book', req, null, { title: book.title, class_name: book.class_name, subject: book.subject });
   }
   res.json({ success: true });
 });
@@ -987,7 +1006,7 @@ app.get('/version', (req, res) => res.json({ v: '3.4', features: ['generate-with
 const SITE_URL = 'https://www.teachertoolkitsindh.com';
 app.get('/sitemap.xml', (req, res) => {
   const today = new Date().toISOString().slice(0, 10);
-  const urls = [{ loc: '/', changefreq: 'weekly', priority: '1.0' }];
+  const urls = [{ loc: '/', changefreq: 'weekly', priority: '1.0' }, { loc: '/privacy.html', changefreq: 'monthly', priority: '0.3' }];
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 ${urls.map(u => `  <url><loc>${SITE_URL}${u.loc}</loc><lastmod>${today}</lastmod><changefreq>${u.changefreq}</changefreq><priority>${u.priority}</priority></url>`).join('\n')}

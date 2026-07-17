@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Privacy Policy — Teacher Toolkit</title>
+<meta name="description" content="How Teacher Toolkit collects, uses, and protects teacher and student data.">
+<link rel="icon" href="/icon-192.png" type="image/png">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--navy:#4C2E9E;--navy-dark:#2A1B5E;--gold:#C9962C;--gold-bg:#fef9e7;--white:#ffffff;--bg:#f4f6fb;
+--g100:#f1f4f9;--g200:#e2e8f4;--g400:#8898b8;--g600:#4a5878;--g800:#1e2d4a;--r:10px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(--g800);line-height:1.7;font-size:15px}
+.top{background:var(--navy-dark);color:#fff;padding:18px 20px;font-weight:800;font-size:15px;border-bottom:3px solid var(--gold)}
+.top a{color:#fff;text-decoration:none}
+.wrap{max-width:760px;margin:0 auto;padding:40px 20px 80px}
+h1{color:var(--navy);font-size:26px;margin-bottom:6px}
+.updated{color:var(--g400);font-size:12.5px;margin-bottom:28px}
+h2{color:var(--navy);font-size:17px;margin:32px 0 10px}
+p,li{color:var(--g600);font-size:14.5px;margin-bottom:10px}
+ul{padding-left:20px;margin-bottom:14px}
+.card{background:var(--white);border:1px solid var(--g200);border-radius:var(--r);padding:16px 18px;margin:16px 0}
+.card b{color:var(--g800)}
+table{width:100%;border-collapse:collapse;margin:12px 0 20px;font-size:13.5px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--g200);vertical-align:top}
+th{color:var(--g400);font-weight:700;text-transform:uppercase;font-size:11px;letter-spacing:.4px}
+.contact{background:var(--gold-bg);border:1px solid rgba(200,150,12,.25);border-radius:var(--r);padding:16px 18px;margin-top:30px}
+</style>
+</head>
+<body>
+<div class="top"><a href="/">🎒 Teacher Toolkit — Sindh Education Department</a></div>
+<div class="wrap">
+  <h1>Privacy Policy</h1>
+  <div class="updated">Last updated: July 2026</div>
+
+  <p>Teacher Toolkit is a document-generation tool built for Government of Sindh school teachers. This page explains, in plain language, what information we collect, why, and how it's protected.</p>
+
+  <h2>What we collect</h2>
+  <table>
+    <tr><th>Category</th><th>What</th><th>Why</th></tr>
+    <tr><td>Account</td><td>Mobile number, name, school name, a PIN (stored as a salted hash, never in readable form)</td><td>To create and secure your login</td></tr>
+    <tr><td>School profile</td><td>School name, address, head master/teacher name, designation, SEMIS code, school logo (optional)</td><td>Auto-filled onto every document you generate</td></tr>
+    <tr><td>Student Database (optional)</td><td>Student name, father's name, G.R/roll number, date of birth, address, guardian contact — entered by you, or imported from a spreadsheet you upload</td><td>To auto-fill result cards, certificates, and other student documents you choose to generate</td></tr>
+    <tr><td>Generated documents</td><td>The text content of documents you generate and choose to save under "My Documents"</td><td>So you can find and reuse them later</td></tr>
+    <tr><td>Uploaded files</td><td>Any book, syllabus, or photo you upload for the AI to read</td><td>Processed to generate your requested document, then deleted from our server</td></tr>
+    <tr><td>Payments</td><td>A screenshot you send us directly on WhatsApp, plus a manual note of the amount and credits added</td><td>Payments are currently confirmed manually — we don't store card or banking details</td></tr>
+  </table>
+
+  <h2>Where your data lives</h2>
+  <p>Account and document data is stored in a managed Postgres database (Supabase). Curated official textbooks in the Book Bank are stored in Google Drive — this is a shared library, not a place your personal data is ever written to. The app itself runs on Render. When you use an AI-powered document type, the relevant text/file is sent to Anthropic (the company behind Claude, the AI model we use) to generate your document, and is not used by us for anything beyond producing that one response.</p>
+
+  <h2>Student data — an important note</h2>
+  <p>Student records in the Student Database are entered by the teacher, for the purpose of preparing official school documents (result cards, certificates, attendance sheets, etc.). We don't collect this data directly from students, and it's only ever used the way a paper school register would be used — to produce the documents you ask for.</p>
+
+  <h2>How long we keep it</h2>
+  <p>We keep your account and document data for as long as your account is active. If you'd like your account and associated data deleted, message us on WhatsApp (number below) and we'll remove it — this is currently a manual process, handled directly by request rather than a self-serve delete button.</p>
+
+  <h2>What we don't do</h2>
+  <div class="card">
+    <ul>
+      <li>We don't sell or rent your data to anyone.</li>
+      <li>We don't show ads or share your data with advertisers.</li>
+      <li>We never ask for or store your card, bank, or Easypaisa/JazzCash account details — payments are confirmed from a screenshot you choose to send us.</li>
+    </ul>
+  </div>
+
+  <h2>Security</h2>
+  <p>PINs are hashed and salted, never stored as plain text. Admin access to the management panel is password-protected and rate-limited against repeated guessing. All traffic to the app is encrypted (HTTPS).</p>
+
+  <div class="contact">
+    <b>Questions or a deletion request?</b><br>
+    Message us on WhatsApp using the support number shown in the app, or reach out via the Refer &amp; Earn / support links inside Teacher Toolkit.
+  </div>
+</div>
+</body>
+</html>

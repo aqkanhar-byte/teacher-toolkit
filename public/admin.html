@@ -100,6 +100,13 @@ td{padding:8px 10px;border-bottom:1px solid var(--g100)}
   </div>
 
   <div class="card">
+    <h3>🕵️ Admin Action Log (every sensitive admin action — credits, subscriptions, PIN resets, deletions)</h3>
+    <div style="font-size:11px;color:var(--g600);margin-bottom:8px">One shared admin password can't say <i>who</i> did something, but this always says <i>what</i> happened, to which teacher, and when — the trail to check after a mistake or a dispute.</div>
+    <button onclick="loadAuditLog()" style="background:var(--navy);font-size:11px;padding:8px 14px">↻ Refresh</button>
+    <div style="overflow-x:auto;margin-top:10px"><table><thead><tr><th>Action</th><th>Teacher</th><th>Detail</th><th>IP</th><th>When</th></tr></thead><tbody id="auditRows"><tr><td colspan="5" style="color:var(--g400)">Not loaded yet</td></tr></tbody></table></div>
+  </div>
+
+  <div class="card">
     <h3>📚 Book Bank — Upload curated STBB books (teachers select these, no upload needed)</h3>
     <div style="font-size:11px;color:var(--g600);margin-bottom:8px">Class aur Subject <b>dropdown se hi</b> chunein — teacher app mein book tabhi dikhegi jab class + subject bilkul match karein.</div>
     <div class="row">
@@ -864,6 +871,16 @@ async function loadWebhookLog(){
     if(!d.success){tbody.innerHTML='<tr><td colspan="5" class="err">Could not load</td></tr>';return;}
     if(!d.events.length){tbody.innerHTML='<tr><td colspan="5" style="color:var(--g400)">No webhook events yet — expected until a payment gateway is connected.</td></tr>';return;}
     tbody.innerHTML=d.events.map(e=>'<tr><td><b>'+esc(e.gateway)+'</b></td><td>'+esc(e.event_type||'—')+'</td><td>'+(e.signature_valid?'<span class="ok">✓ valid</span>':'<span class="err">✗ invalid</span>')+'</td><td>'+(e.processed?'✅':(e.error?'❌ '+esc(e.error):'⏳'))+'</td><td>'+new Date(e.created_at).toLocaleString()+'</td></tr>').join('');
+  }catch(e){tbody.innerHTML='<tr><td colspan="5" class="err">'+esc(e.message)+'</td></tr>';}
+}
+async function loadAuditLog(){
+  const tbody=document.getElementById('auditRows');
+  tbody.innerHTML='<tr><td colspan="5" style="color:var(--g400)">⏳ Loading...</td></tr>';
+  try{
+    const r=await fetch('/admin/audit-log',{headers:hdr()});const d=await r.json();
+    if(!d.success){tbody.innerHTML='<tr><td colspan="5" class="err">Could not load</td></tr>';return;}
+    if(!d.actions.length){tbody.innerHTML='<tr><td colspan="5" style="color:var(--g400)">No admin actions logged yet.</td></tr>';return;}
+    tbody.innerHTML=d.actions.map(a=>'<tr><td><b>'+esc(a.action)+'</b></td><td>'+esc(a.target_phone||'—')+'</td><td style="font-size:11px;color:var(--g600)">'+esc(a.detail?JSON.stringify(a.detail):'—')+'</td><td style="font-size:11px;color:var(--g400)">'+esc(a.ip||'—')+'</td><td>'+new Date(a.created_at).toLocaleString()+'</td></tr>').join('');
   }catch(e){tbody.innerHTML='<tr><td colspan="5" class="err">'+esc(e.message)+'</td></tr>';}
 }
 async function login(){

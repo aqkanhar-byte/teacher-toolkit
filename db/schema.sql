@@ -131,3 +131,20 @@ CREATE TABLE IF NOT EXISTS tt_webhook_events (
   created_at timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_tt_webhook_events_gateway ON tt_webhook_events(gateway, created_at);
+
+-- ═══════════════ tt_admin_actions — audit trail for every sensitive admin action ═══════════════
+-- The admin panel currently authenticates with a single shared password (no per-admin accounts
+-- yet), so this can't attribute an action to a specific person — but it still answers "what
+-- happened, to which teacher, when, from where" after the fact, which is the part that matters
+-- most for catching a mistake or an abuse of the panel. Extending this to named admins later is
+-- just adding an admin_name value at the call site — the table shape doesn't need to change.
+CREATE TABLE IF NOT EXISTS tt_admin_actions (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  action text NOT NULL, -- e.g. 'add-credits', 'remove-credits', 'add-subscription', 'cancel-subscription', 'reset-pin', 'delete-book'
+  target_phone text, -- the affected teacher, when applicable
+  detail jsonb, -- action-specific context (amounts, book id, etc.)
+  ip text,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_tt_admin_actions_created ON tt_admin_actions(created_at);
+CREATE INDEX IF NOT EXISTS idx_tt_admin_actions_phone ON tt_admin_actions(target_phone);
