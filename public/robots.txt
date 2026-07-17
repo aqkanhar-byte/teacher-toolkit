@@ -1,5 +1,20 @@
 User-agent: *
 Allow: /
 Disallow: /admin.html
+Disallow: /admin/
+Disallow: /auth/
+Disallow: /books
+Disallow: /documents
+Disallow: /generate
+Disallow: /download-
+Disallow: /webhooks/
+Disallow: /detect-book
+Disallow: /upload-generate
+Disallow: /assistant-chat
+Disallow: /verify
+Disallow: /students-sync
+Disallow: /wallet
+Disallow: /stats
+Disallow: /config
 
 Sitemap: https://www.teachertoolkitsindh.com/sitemap.xml
