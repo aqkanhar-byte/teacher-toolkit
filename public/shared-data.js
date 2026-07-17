@@ -5,9 +5,9 @@
 const CLASS_LIST=['ECCE (Katchi)','Class 1','Class 2','Class 3','Class 4','Class 5','Class 6','Class 7','Class 8','Class 9','Class 10','Class 11','Class 12'];
 
 const CLASS_SUBJECTS={
- 'ECCE (Katchi)':['Pre-Sindhi','Pre-English','Pre-Math','General Awareness','Rhymes & Activities'],
- 'Class 1':['Sindhi','English','Mathematics','Deeniyat / Nazra'],
- 'Class 2':['Sindhi','English','Mathematics','Deeniyat / Nazra'],
+ 'ECCE (Katchi)':['Pre-Sindhi','Pre-English','Pre-Math','Urdu','General Awareness','Rhymes & Activities'],
+ 'Class 1':['Sindhi','Urdu','English','Mathematics','General Knowledge','Deeniyat / Nazra'],
+ 'Class 2':['Sindhi','English','Mathematics','General Knowledge','Deeniyat / Nazra'],
  'Class 3':['Sindhi','English','Mathematics','General Knowledge','Islamiat'],
  'Class 4':['Sindhi','Urdu','English','Mathematics','General Science','Social Studies','Islamiat'],
  'Class 5':['Sindhi','Urdu','English','Mathematics','General Science','Social Studies','Islamiat'],
