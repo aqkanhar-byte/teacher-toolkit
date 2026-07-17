@@ -634,7 +634,8 @@ app.post('/admin/upload-book', uploadBook.single('file'), async (req, res) => {
     const buf = fs.readFileSync(req.file.path);
     const { error: upErr } = await sb.storage.from('books').upload(storagePath, buf, { contentType: ext === '.pdf' ? 'application/pdf' : 'image/jpeg', upsert: false });
     if (upErr) throw new Error('Storage upload failed: ' + upErr.message);
-    const { data, error: dbErr } = await sb.from('tt_books').insert({ class_name: className, subject, title, unit_label: unitLabel, storage_path: storagePath, size_mb: +(req.file.size / 1048576).toFixed(2) }).select().maybeSingle();
+    const slug = await makeUniqueSlug(className, subject, title);
+    const { data, error: dbErr } = await sb.from('tt_books').insert({ class_name: className, subject, title, unit_label: unitLabel, storage_path: storagePath, size_mb: +(req.file.size / 1048576).toFixed(2), slug }).select().maybeSingle();
     if (dbErr) {
       /* DB row nahi bana to storage ki file bhi hatao — warna orphan file reh jati hai aur admin ko jhoota "Uploaded" milta hai */
       try { await sb.storage.from('books').remove([storagePath]); } catch(e) {}
@@ -677,7 +678,8 @@ app.post('/admin/book-confirm', async (req, res) => {
   const storagePath = String(req.body.storagePath || '').trim();
   const sizeMb = +req.body.sizeMb || 0;
   if (!className || !subject || !title || !storagePath) return res.json({ success: false, error: 'Missing required fields' });
-  const { data, error } = await sb.from('tt_books').insert({ class_name: className, subject, title, unit_label: unitLabel, storage_path: storagePath, size_mb: sizeMb }).select().maybeSingle();
+  const slug = await makeUniqueSlug(className, subject, title);
+  const { data, error } = await sb.from('tt_books').insert({ class_name: className, subject, title, unit_label: unitLabel, storage_path: storagePath, size_mb: sizeMb, slug }).select().maybeSingle();
   if (error) {
     try { await sb.storage.from('books').remove([storagePath]); } catch (e) {}
     return res.json({ success: false, error: error.message });
@@ -712,10 +714,11 @@ app.post('/admin/drive-import', async (req, res) => {
   if (!fileId || !className || !subject || !title) return res.json({ success: false, error: 'Missing required fields' });
   try {
     const meta = await googleDrive.getFileMeta(fileId);
+    const slug = await makeUniqueSlug(className, subject, title);
     const { data, error } = await sb.from('tt_books').insert({
       class_name: className, subject, title, unit_label: unitLabel,
       storage_path: fileId, storage_provider: 'drive',
-      size_mb: meta.size ? +(meta.size / 1048576).toFixed(2) : null
+      size_mb: meta.size ? +(meta.size / 1048576).toFixed(2) : null, slug
     }).select().maybeSingle();
     if (error) throw new Error(error.message);
     res.json({ success: true, book: data });
@@ -1004,15 +1007,151 @@ app.get('/version', (req, res) => res.json({ v: '3.4', features: ['generate-with
    structured data) must match this exactly, or we're telling Google two different "correct"
    addresses for the same page — a self-contradicting signal that can suppress indexing. */
 const SITE_URL = 'https://www.teachertoolkitsindh.com';
-app.get('/sitemap.xml', (req, res) => {
+app.get('/sitemap.xml', async (req, res) => {
   const today = new Date().toISOString().slice(0, 10);
-  const urls = [{ loc: '/', changefreq: 'weekly', priority: '1.0' }, { loc: '/privacy.html', changefreq: 'monthly', priority: '0.3' }];
+  const urls = [{ loc: '/', changefreq: 'weekly', priority: '1.0' }, { loc: '/privacy.html', changefreq: 'monthly', priority: '0.3' }, { loc: '/library', changefreq: 'weekly', priority: '0.9' }];
+  if (sb) {
+    /* Every public library book is its own indexable URL — this is what actually gets a search
+       like "class 10 english book stbb" to land on a real page instead of nothing. Grows on its
+       own as more books are imported; nothing to maintain here by hand. */
+    const { data: books } = await sb.from('tt_books').select('slug').not('slug', 'is', null);
+    (books || []).forEach(b => urls.push({ loc: '/library/' + b.slug, changefreq: 'monthly', priority: '0.7' }));
+  }
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 ${urls.map(u => `  <url><loc>${SITE_URL}${u.loc}</loc><lastmod>${today}</lastmod><changefreq>${u.changefreq}</changefreq><priority>${u.priority}</priority></url>`).join('\n')}
 </urlset>`;
   res.setHeader('Content-Type', 'application/xml');
   res.send(xml);
+});
+
+/* ═══════════════ PUBLIC BOOK LIBRARY — SEO-indexable download portal ═══════════════
+   Separate from the teacher-facing Book Bank (which stays login-gated inside the app for AI
+   generation) — this is a public discovery surface: every STBB book gets its own crawlable page
+   with a real title, description, and download link, so a search like "class 10 english book
+   stbb pdf" can land directly on this site instead of the app being invisible to that search
+   entirely. No login required to browse or download here, by design. */
+function slugify(s) {
+  return String(s || '').toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+}
+async function makeUniqueSlug(className, subject, title) {
+  const base = slugify(className + ' ' + subject + ' ' + title) || 'book';
+  let slug = base, n = 1;
+  for (;;) {
+    const { data } = await sb.from('tt_books').select('id').eq('slug', slug).maybeSingle();
+    if (!data) return slug;
+    n++; slug = base + '-' + n;
+  }
+}
+function escHtml(s) {
+  return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+function libraryPageShell(title, description, canonicalPath, bodyHtml, jsonLd) {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${escHtml(title)}</title>
+<meta name="description" content="${escHtml(description)}">
+<link rel="canonical" href="${SITE_URL}${canonicalPath}">
+<meta property="og:title" content="${escHtml(title)}">
+<meta property="og:description" content="${escHtml(description)}">
+<meta property="og:type" content="website">
+<meta property="og:url" content="${SITE_URL}${canonicalPath}">
+<link rel="icon" href="/icon-192.png" type="image/png">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+${jsonLd ? `<script type="application/ld+json">${JSON.stringify(jsonLd)}</script>` : ''}
+<style>
+:root{--navy:#4C2E9E;--navy-dark:#2A1B5E;--gold:#C9962C;--white:#fff;--bg:#f4f6fb;
+--g100:#f1f4f9;--g200:#e2e8f4;--g400:#8898b8;--g600:#4a5878;--g800:#1e2d4a;--green:#0F9D6E;--r:10px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(--g800);line-height:1.65}
+.top{background:var(--navy-dark);color:#fff;padding:16px 20px;font-weight:800;border-bottom:3px solid var(--gold)}
+.top a{color:#fff;text-decoration:none}
+.wrap{max-width:900px;margin:0 auto;padding:32px 20px 80px}
+a{color:var(--navy)}
+h1{color:var(--navy);font-size:24px;margin-bottom:10px}
+h2{color:var(--navy);font-size:16px;margin:26px 0 10px}
+.card{background:var(--white);border:1px solid var(--g200);border-radius:var(--r);padding:16px 18px;margin-bottom:12px}
+.dl-btn{display:inline-block;background:var(--green);color:#fff;font-weight:800;padding:12px 22px;border-radius:var(--r);text-decoration:none;margin-top:12px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}
+.book-link{display:block;background:var(--white);border:1px solid var(--g200);border-radius:8px;padding:12px 14px;text-decoration:none;color:var(--g800)}
+.book-link:hover{border-color:var(--navy)}
+.book-link b{color:var(--navy);display:block;font-size:13.5px}
+.book-link span{color:var(--g400);font-size:11.5px}
+input[type=search]{width:100%;padding:12px 14px;border:1.5px solid var(--g200);border-radius:var(--r);font-size:14px;margin-bottom:20px}
+</style>
+</head>
+<body>
+<div class="top"><a href="/">🎒 Teacher Toolkit — Sindh Education Department</a></div>
+<div class="wrap">
+${bodyHtml}
+</div>
+</body>
+</html>`;
+}
+app.get('/library', async (req, res) => {
+  if (!sb) return res.status(503).send('Not configured');
+  const { data: books } = await sb.from('tt_books').select('slug,class_name,subject,title,unit_label,size_mb')
+    .not('slug', 'is', null).order('class_name').order('subject');
+  const list = books || [];
+  const byClass = {};
+  list.forEach(b => { (byClass[b.class_name] = byClass[b.class_name] || []).push(b); });
+  const classesHtml = Object.keys(byClass).map(cls => {
+    const items = byClass[cls].map(b => `<a class="book-link" href="/library/${escHtml(b.slug)}"><b>${escHtml(b.title)}</b><span>${escHtml(b.subject)}${b.unit_label ? ' · ' + escHtml(b.unit_label) : ''} · ${escHtml(b.size_mb)}MB</span></a>`).join('');
+    return `<h2>${escHtml(cls)}</h2><div class="grid">${items}</div>`;
+  }).join('');
+  const body = `<h1>Free STBB Textbook Downloads — Sindh Textbook Board Books (PDF)</h1>
+<p>Official Sindh Textbook Board (STBB) textbooks, free to download as PDF — ${list.length} book${list.length === 1 ? '' : 's'} available across every class.</p>
+<input type="search" id="q" placeholder="Search by class or subject — e.g. Class 10 English" oninput="filterBooks()">
+${classesHtml || '<p>No books published yet — check back soon.</p>'}
+<script>function filterBooks(){var q=document.getElementById('q').value.toLowerCase();document.querySelectorAll('.book-link').forEach(function(a){a.style.display=a.textContent.toLowerCase().indexOf(q)>-1?'':'none';});document.querySelectorAll('h2').forEach(function(h){var sib=h.nextElementSibling;var any=Array.prototype.some.call(sib.querySelectorAll('.book-link'),function(a){return a.style.display!=='none';});h.style.display=any?'':'none';sib.style.display=any?'':'none';});}</script>`;
+  res.send(libraryPageShell(
+    'Free STBB Textbook PDF Downloads — All Classes | Teacher Toolkit',
+    'Download official Sindh Textbook Board (STBB) books for free — Class 1 to Class 12, English/Urdu/Sindhi medium, PDF format.',
+    '/library', body
+  ));
+});
+app.get('/library/:slug', async (req, res) => {
+  if (!sb) return res.status(503).send('Not configured');
+  const { data: book } = await sb.from('tt_books').select('*').eq('slug', req.params.slug).maybeSingle();
+  if (!book) return res.status(404).send('Book not found.');
+  const title = `${book.title} — ${book.class_name} ${book.subject} PDF Download | Sindh Textbook Board`;
+  const description = `Download ${book.title} (${book.class_name}, ${book.subject}) free — official Sindh Textbook Board (STBB) textbook, PDF, ${book.size_mb}MB.`;
+  const jsonLd = {
+    '@context': 'https://schema.org', '@type': 'Book',
+    name: book.title, bookFormat: 'https://schema.org/EBook',
+    educationalLevel: book.class_name, about: book.subject,
+    publisher: { '@type': 'Organization', name: 'Sindh Textbook Board' },
+    url: SITE_URL + '/library/' + book.slug
+  };
+  const body = `<h1>${escHtml(book.title)}</h1>
+<div class="card">
+<p><b>Class:</b> ${escHtml(book.class_name)}<br><b>Subject:</b> ${escHtml(book.subject)}${book.unit_label ? '<br><b>Unit:</b> ' + escHtml(book.unit_label) : ''}<br><b>Size:</b> ${escHtml(book.size_mb)}MB<br><b>Publisher:</b> Sindh Textbook Board (STBB)</p>
+<a class="dl-btn" href="/library/${escHtml(book.slug)}/download">⬇ Download PDF Free</a>
+</div>
+<p>This is an official Sindh Textbook Board (STBB) curriculum textbook, free for students and teachers. Need a lesson plan, worksheet, or exam paper built from this exact book? <a href="/">Try Teacher Toolkit</a> — built for Sindh government school teachers.</p>
+<p><a href="/library">← Browse all STBB books</a></p>`;
+  res.send(libraryPageShell(title, description, '/library/' + book.slug, body, jsonLd));
+});
+app.get('/library/:slug/download', async (req, res) => {
+  if (!sb) return res.status(503).end();
+  if (!rateLimit('libdl:' + req.ip, 30, 10 * 60 * 1000)) return tooMany(res);
+  const { data: book } = await sb.from('tt_books').select('*').eq('slug', req.params.slug).maybeSingle();
+  if (!book) return res.status(404).send('Book not found.');
+  try {
+    if (book.storage_provider === 'drive') {
+      res.setHeader('Content-Disposition', `attachment; filename="${safeFileName(book.title, 'book')}.pdf"`);
+      return await googleDrive.streamFileTo(book.storage_path, res);
+    }
+    const { data, error } = await sb.storage.from('books').createSignedUrl(book.storage_path, 300);
+    if (error) throw new Error(error.message);
+    return res.redirect(data.signedUrl);
+  } catch (e) {
+    logError('library-download', e, { slug: req.params.slug });
+    if (!res.headersSent) res.status(502).send('Could not fetch this book right now — please try again shortly.');
+  }
 });
 
 /* ─── Streaming: AI jo likhta jaye foran bhejo — Render ki 100s timeout kabhi nahi lagegi ─── */

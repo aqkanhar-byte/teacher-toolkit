@@ -73,6 +73,10 @@ CREATE INDEX IF NOT EXISTS idx_tt_books_class_subject ON tt_books(class_name, su
 -- admin import books from a Google Drive folder instead. storage_path holds either the Supabase
 -- storage path (provider='supabase', default) or the Drive file ID (provider='drive').
 ALTER TABLE tt_books ADD COLUMN IF NOT EXISTS storage_provider text NOT NULL DEFAULT 'supabase';
+-- Public SEO library (/library/:slug) — every book gets a stable, human-readable URL slug so it
+-- can be individually indexed by Google, separate from the login-gated in-app Book Bank selector.
+ALTER TABLE tt_books ADD COLUMN IF NOT EXISTS slug text;
+CREATE UNIQUE INDEX IF NOT EXISTS uq_tt_books_slug ON tt_books(slug) WHERE slug IS NOT NULL;
 
 -- ═══════════════ tt_slos — official curriculum Student Learning Outcomes ═══════════════
 CREATE TABLE IF NOT EXISTS tt_slos (
