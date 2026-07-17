@@ -1021,7 +1021,11 @@ button{cursor:pointer;border:none;background:none}
   <div class="modal" style="max-width:min(94vw,760px)">
     <div class="modal-head">📄 Page Preview <button class="modal-close" onclick="closePagePreviewZoom()" aria-label="Close">✕</button></div>
     <div class="modal-body" style="text-align:center;padding:14px">
-      <div style="display:flex;justify-content:center;gap:8px;margin-bottom:10px">
+      <div style="display:flex;justify-content:center;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+        <button class="mini-btn" onclick="navZoomPage(-1)" aria-label="Previous page">⬅️ Prev</button>
+        <span id="zoomPageLabel" style="font-size:12px;font-weight:800;color:var(--g600);min-width:90px">Page 1</span>
+        <button class="mini-btn" onclick="navZoomPage(1)" aria-label="Next page">Next ➡️</button>
+        <span style="width:1px;height:20px;background:var(--g200);margin:0 4px"></span>
         <button class="mini-btn" onclick="zoomPagePreview(-0.4)" aria-label="Zoom out">➖</button>
         <button class="mini-btn" onclick="zoomPagePreview(0.4)" aria-label="Zoom in">➕</button>
       </div>
@@ -2120,17 +2124,19 @@ async function renderPagePreview(pageNum){
     await page.render({canvasContext:canvas.getContext('2d'),viewport}).promise;
   }catch(e){}
 }
-let ZOOM_SCALE=2.2,zoomPreviewGen=0;
+let ZOOM_SCALE=2.2,zoomPreviewGen=0,ZOOM_CURRENT_PAGE=1;
 async function renderZoomPreview(){
   const canvas=document.getElementById('zoomPreviewCanvas');if(!canvas||!BOOK_PDF_BYTES||typeof pdfjsLib==='undefined')return;
-  const from=Math.max(1,+val('docPageFrom')||1);
+  const pageNum=Math.max(1,Math.min(ZOOM_CURRENT_PAGE,BOOK_PDF_PAGES||ZOOM_CURRENT_PAGE));
   const myGen=++zoomPreviewGen;
+  const label=document.getElementById('zoomPageLabel');
+  if(label)label.textContent='Page '+pageNum+(BOOK_PDF_PAGES?' of '+BOOK_PDF_PAGES:'');
   try{
     pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
     const pdf=await pdfjsLib.getDocument({data:BOOK_PDF_BYTES.slice()}).promise;
-    const page=await pdf.getPage(Math.min(from,pdf.numPages));
+    const page=await pdf.getPage(Math.min(pageNum,pdf.numPages));
     const viewport=page.getViewport({scale:ZOOM_SCALE});
-    if(myGen!==zoomPreviewGen)return; // a newer zoom request (e.g. +/- clicked again) superseded this one
+    if(myGen!==zoomPreviewGen)return; // a newer zoom request (page nav or +/-) superseded this one
     canvas.width=viewport.width;canvas.height=viewport.height;
     await page.render({canvasContext:canvas.getContext('2d'),viewport}).promise;
   }catch(e){}
@@ -2138,12 +2144,18 @@ async function renderZoomPreview(){
 function openPagePreviewZoom(){
   if(!BOOK_PDF_BYTES)return;
   ZOOM_SCALE=2.2;
+  ZOOM_CURRENT_PAGE=Math.max(1,+val('docPageFrom')||1);
   document.getElementById('zoomPreviewOverlay').classList.add('open');
   renderZoomPreview();
 }
 function closePagePreviewZoom(){document.getElementById('zoomPreviewOverlay').classList.remove('open');}
 function zoomPagePreview(delta){
   ZOOM_SCALE=Math.max(0.6,Math.min(5,ZOOM_SCALE+delta));
+  renderZoomPreview();
+}
+function navZoomPage(delta){
+  const max=BOOK_PDF_PAGES||ZOOM_CURRENT_PAGE+1;
+  ZOOM_CURRENT_PAGE=Math.max(1,Math.min(max,ZOOM_CURRENT_PAGE+delta));
   renderZoomPreview();
 }
 let pageRangeDebounce=null;
