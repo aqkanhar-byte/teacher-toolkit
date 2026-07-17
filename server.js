@@ -1616,7 +1616,7 @@ const L10N = {
     className: '\u062F\u0631\u062C\u0648', dob: '\u0684\u0645\u06BB \u062C\u064A \u062A\u0627\u0631\u064A\u062E', age: '\u0645\u0648\u062C\u0648\u062F\u0647 \u0639\u0645\u0631', address: '\u067E\u062A\u0648', guardianContact: '\u0633\u0631\u067E\u0631\u0633\u062A \u062C\u0648 \u0631\u0627\u0628\u0637\u0648',
     session: '\u062A\u0639\u0644\u064A\u0645\u064A \u0633\u064A\u0634\u0646', exam: '\u0627\u0645\u062A\u062D\u0627\u0646', resultDate: '\u0646\u062A\u064A\u062C\u064A \u062C\u064A \u062A\u0627\u0631\u064A\u062E', admissionClass: '\u062F\u0627\u062E\u0644\u064A \u062C\u0648 \u062F\u0631\u062C\u0648',
     leavingClass: '\u0687\u068F\u06BB \u0648\u0642\u062A \u062F\u0631\u062C\u0648', leavingDate: '\u0687\u068F\u06BB \u062C\u064A \u062A\u0627\u0631\u064A\u062E', reason: '\u0687\u068F\u06BB \u062C\u0648 \u0633\u0628\u0628',
-    conduct: '\u0627\u062E\u0644\u0627\u0642', progress: '\u062A\u0639\u0644\u064A\u0645\u064A \u06AA\u0627\u0631\u06AA\u0631\u062F\u06AF\u064A', dues: '\u0628\u0642\u0627\u064A\u0627', designation: '\u0639\u0647\u062F\u0648', bps: '\u0628\u064A \u067E\u064A \u0627\u064A\u0633 / \u06AF\u0631\u064A\u068A',
+    conduct: '\u0686\u0627\u0644', progress: '\u062A\u0639\u0644\u064A\u0645\u064A \u06AA\u0627\u0631\u06AA\u0631\u062F\u06AF\u064A', dues: '\u0628\u0642\u0627\u064A\u0627', designation: '\u0639\u0647\u062F\u0648', bps: '\u0628\u064A \u067E\u064A \u0627\u064A\u0633 / \u06AF\u0631\u064A\u068A',
     salary: '\u0645\u0647\u064A\u0646\u064A \u062C\u064A \u067E\u06AF\u0647\u0627\u0631', costCentre: '\u06AA\u0627\u0633\u067D \u0633\u064A\u0646\u067D\u0631 / \u068A\u064A \u068A\u064A \u0627\u0648 \u06AA\u0648\u068A', cnic: '\u0642\u0648\u0645\u064A \u0633\u0683\u0627\u06BB\u067E \u0646\u0645\u0628\u0631',
     fatherCnic: '\u067E\u064A\u0621\u064F \u062C\u0648 \u0642\u0648\u0645\u064A \u0633\u0683\u0627\u06BB\u067E \u0646\u0645\u0628\u0631', workingDays: '\u06AA\u0644 \u062D\u0627\u0636\u0631\u064A \u062C\u0627 \u068F\u064A\u0646\u0647\u0646', field: '\u062E\u0627\u0646\u0648', detail: '\u062A\u0641\u0635\u064A\u0644',
     subject: '\u0645\u0636\u0645\u0648\u0646', totalMarks: '\u06AA\u0644 \u0646\u0645\u0628\u0631', obtainedMarks: '\u062D\u0627\u0635\u0644 \u06AA\u064A\u0644 \u0646\u0645\u0628\u0631', grade: '\u06AF\u0631\u064A\u068A', total: '\u06AA\u0644',
@@ -1742,7 +1742,7 @@ This certificate is issued on the request of the student/guardian${f.purpose ? `
     const satisfactory = l === 'urdu' ? 'تسلی بخش' : l === 'sindhi' ? 'تسلي بخش' : l === 'roman_urdu' ? 'Tasalli Bakhsh' : 'Satisfactory';
     const nilDefault = l === 'urdu' ? 'نہیں' : l === 'sindhi' ? 'ڪونهي' : l === 'roman_urdu' ? 'Nil' : 'Nil';
     const closing = l === 'urdu' ? 'تصدیق کی جاتی ہے کہ مندرجہ بالا معلومات سکول کے جنرل رجسٹر کے مطابق ہیں۔'
-      : l === 'sindhi' ? 'تصديق ڪئي وڃي ٿي ته مٿي ڏنل معلومات اسڪول جي جنرل رجسٹر مطابق آهن.'
+      : l === 'sindhi' ? 'سرٽيفڪيٽ ٿو ڏجي ٿو ته مٿيون تفصيل شاگرد جو اسڪول جي جنرل رجسٽر مطابق آهي.'
       : l === 'roman_urdu' ? 'Tasdeeq ki jati hai ke mundarja bala maloomat school ke General Register ke mutabiq hain.'
       : 'Certified that the above information is in accordance with the school General Register.';
     return headerBlock(f, 'transfer', l) +
