@@ -1896,7 +1896,10 @@ async function onBankSel(){
   const opt=document.querySelector('#bankSel option[value="'+CSS.escape(S.bookId)+'"]');
   const sizeMb=opt?parseFloat(opt.dataset.size)||0:0;
   const title=opt?opt.dataset.title||'book':'book';
-  if(sizeMb<=20)return; /* small book — server attaches it directly as before, no range-picking needed */
+  /* Always show the preview + page-range picker for Book Bank books, not just ones over the AI's
+     ~20MB read limit — a "small" book can still be 150 pages covering the whole year, and a
+     teacher building one lesson/unit wants to preview and pick exactly those pages every time,
+     not just when file size forces it. */
   const row=document.getElementById('pageRangeRow');
   row.style.display='block';
   document.getElementById('pageRangeInfo').textContent='📥 Downloading book to read page count ('+sizeMb.toFixed(0)+'MB)...';
