@@ -42,11 +42,16 @@ app.use(require('cors')({
 app.use(express.json({ limit: '25mb', verify: (req, res, buf) => { req.rawBody = buf; } }));
 app.use(express.urlencoded({ limit: '25mb', extended: true }));
 /* ── HTTPS enforcement (Render handles www↔apex redirect at infra level) ── */
+const ALLOWED_HOSTS = ['teachertoolkitsindh.com', 'www.teachertoolkitsindh.com'];
 app.use((req, res, next) => {
   const host = req.headers.host || '';
   if (/^(localhost|127\.0\.0\.1)(:\d+)?$/.test(host)) return next();
   const proto = ((req.headers['x-forwarded-proto'] || req.protocol) + '').split(',')[0].trim();
-  if (proto !== 'https') return res.redirect(301, `https://${host}${req.originalUrl}`);
+  /* Host header is client-controlled — never reflect an unrecognized one straight into a
+     redirect Location (host-header injection / open redirect). Fall back to the real
+     canonical host if the incoming Host isn't one we actually serve. */
+  const safeHost = ALLOWED_HOSTS.includes(host) ? host : ALLOWED_HOSTS[1];
+  if (proto !== 'https') return res.redirect(301, `https://${safeHost}${req.originalUrl}`);
   next();
 });
 /* Baseline security headers — CSP intentionally omitted for now: the app relies on inline
@@ -226,14 +231,31 @@ async function saveDoc(user, docType, title, content) {
   catch (e) { logError('saveDoc', e, { userId: user.id }); }
   maybeRewardReferral(user).catch(e => logError('maybeRewardReferral', e, { userId: user.id }));
 }
+async function bumpCreditsWithRetry(userId, delta) {
+  for (let i = 0; i < 3; i++) {
+    const { data: u } = await sb.from('tt_users').select('id,credits').eq('id', userId).maybeSingle();
+    if (!u) return false;
+    const { data: updated } = await sb.from('tt_users').update({ credits: u.credits + delta }).eq('id', u.id).eq('credits', u.credits).select().maybeSingle();
+    if (updated) return true;
+  }
+  return false;
+}
 async function maybeRewardReferral(user) {
   if (!sb || !user || !user.referred_by || user.referral_rewarded) return;
   const { count } = await sb.from('tt_documents').select('id', { count: 'exact', head: true }).eq('user_id', user.id);
   if (count !== 1) return; /* only fire on the very first document */
-  const { data: referrer } = await sb.from('tt_users').select('id,credits').eq('phone', user.referred_by).maybeSingle();
+  /* The count===1 check above is a plain read-then-check race on its own — under concurrent
+     requests (e.g. two tabs, or a flaky retry) both could see count===1 before either write
+     lands. This conditional UPDATE (referral_rewarded must still be false) is the actual
+     only-succeeds-once gate that prevents a double payout. */
+  const { data: claimed } = await sb.from('tt_users')
+    .update({ referral_rewarded: true }).eq('id', user.id).eq('referral_rewarded', false)
+    .select().maybeSingle();
+  if (!claimed) return; /* another concurrent request already claimed this reward */
+  const { data: referrer } = await sb.from('tt_users').select('id').eq('phone', user.referred_by).maybeSingle();
   if (!referrer) return;
-  await sb.from('tt_users').update({ credits: referrer.credits + REFERRAL_CREDITS }).eq('id', referrer.id);
-  await sb.from('tt_users').update({ credits: user.credits + REFERRAL_CREDITS, referral_rewarded: true }).eq('id', user.id);
+  await bumpCreditsWithRetry(referrer.id, REFERRAL_CREDITS);
+  await bumpCreditsWithRetry(user.id, REFERRAL_CREDITS);
   await sb.from('tt_transactions').insert([
     { user_id: referrer.id, credits: REFERRAL_CREDITS, amount_rs: 0, note: 'Referral bonus (invited a teacher)' },
     { user_id: user.id, credits: REFERRAL_CREDITS, amount_rs: 0, note: 'Referral bonus (signed up via invite)' }
@@ -270,11 +292,16 @@ app.post('/auth/register', async (req, res) => {
 app.post('/auth/login', async (req, res) => {
   if (!sb) return res.json({ success: false, error: 'Database is not configured on the server.' });
   const phone = cleanPhone(req.body.phone);
-  /* PIN brute-force protection: 15 failed tries per IP+phone per 15 min */
+  /* PIN brute-force protection: two independent limits. IP+phone catches one attacker
+     hammering from one place; phone-only (IP-independent) is the real backstop against
+     rotating through IPs/proxies to dodge the first one — phone numbers aren't secret,
+     they're the login identifier itself (and shared over WhatsApp as the referral code),
+     so a per-IP-only limit alone doesn't actually bound total attempts against one account. */
   const rk = 'login:' + req.ip + ':' + phone;
-  if (rlBlocked(rk, 15, 15 * 60 * 1000)) return tooMany(res);
+  const rkPhone = 'loginphone:' + phone;
+  if (rlBlocked(rk, 15, 15 * 60 * 1000) || rlBlocked(rkPhone, 20, 15 * 60 * 1000)) return tooMany(res);
   const { data: user } = await sb.from('tt_users').select('*').eq('phone', phone).maybeSingle();
-  if (!user || !checkPin(req.body.pin, user.pin_hash)) { rlHit(rk, 15 * 60 * 1000); return res.json({ success: false, error: 'Wrong phone number or PIN.' }); }
+  if (!user || !checkPin(req.body.pin, user.pin_hash)) { rlHit(rk, 15 * 60 * 1000); rlHit(rkPhone, 15 * 60 * 1000); return res.json({ success: false, error: 'Wrong phone number or PIN.' }); }
   const token = crypto.randomUUID();
   const token_expires_at = new Date(Date.now() + TOKEN_TTL_MS).toISOString();
   await sb.from('tt_users').update({ token, token_expires_at }).eq('id', user.id);
@@ -325,6 +352,7 @@ app.get('/students-sync', async (req, res) => {
 app.post('/students-sync', async (req, res) => {
   const user = await userFromReq(req);
   if (!user) return res.json({ success: false, error: 'LOGIN_REQUIRED' });
+  if (!rateLimit('sync:' + user.id, 30, 10 * 60 * 1000)) return tooMany(res); /* can write up to 2000 rows per call */
   const students = Array.isArray(req.body.students) ? req.body.students.slice(0, 2000) : [];
   await sb.from('tt_students').upsert({ user_id: user.id, data: students, updated_at: new Date().toISOString() });
   res.json({ success: true, count: students.length });

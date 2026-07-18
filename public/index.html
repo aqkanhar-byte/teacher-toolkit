@@ -137,14 +137,14 @@ button{cursor:pointer;border:none;background:none}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.001ms!important;transition-duration:.001ms!important}}
 
 /* ─── TOAST NOTIFICATIONS (replaces jarring native alert()) ─── */
-.toast-wrap{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:600;display:flex;flex-direction:column;gap:8px;align-items:center;width:min(92vw,420px);pointer-events:none}
+.toast-wrap{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:600;display:flex;flex-direction:column;gap:8px;align-items:center;width:min(92vw,420px);pointer-events:none}
 .toast{pointer-events:auto;width:100%;background:var(--navy-dark);color:#fff;border-radius:12px;padding:12px 16px;font-size:12.5px;font-weight:600;line-height:1.55;box-shadow:var(--sh-lg);border-left:4px solid var(--gold);display:flex;gap:10px;align-items:flex-start;white-space:pre-wrap;animation:toastIn .22s var(--ease) both}
 .toast.ok{border-left-color:var(--green)}
 .toast.err{border-left-color:#f87171}
 .toast.leaving{animation:toastOut .18s var(--ease) both}
 @keyframes toastIn{from{opacity:0;transform:translateY(10px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
 @keyframes toastOut{to{opacity:0;transform:translateY(6px) scale(.97)}}
-@media(max-width:480px){.toast-wrap{bottom:88px}}
+@media(max-width:480px){.toast-wrap{bottom:calc(88px + env(safe-area-inset-bottom))}}
 
 /* ─── THEME TOGGLE ─── */
 .theme-btn{width:32px;height:32px;border-radius:99px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0}
@@ -152,15 +152,27 @@ button{cursor:pointer;border:none;background:none}
 .theme-btn svg{width:16px;height:16px}
 
 /* ─── TOPBAR ─── */
-.topbar{position:fixed;top:0;left:0;right:0;z-index:200;height:56px;background:var(--navy-dark);border-bottom:3px solid var(--gold);display:flex;align-items:center;justify-content:space-between;padding:0 16px}
+/* height/padding-top grow by the iPhone notch/Dynamic-Island inset (env() resolves to 0 on
+   everything else, so this is a no-op elsewhere) — the app opts into
+   apple-mobile-web-app-status-bar-style=black-translucent, which draws page content under the
+   iOS status bar in standalone/installed mode, so without this the navy header (and the
+   brand name in it) renders partly hidden behind the clock/battery icons. */
+.topbar{position:fixed;top:0;left:0;right:0;z-index:200;height:calc(56px + env(safe-area-inset-top));padding:env(safe-area-inset-top) max(16px,env(safe-area-inset-right)) 0 max(16px,env(safe-area-inset-left));background:var(--navy-dark);border-bottom:3px solid var(--gold);display:flex;align-items:center;justify-content:space-between;box-sizing:border-box}
 .tb-left{display:flex;align-items:center;gap:10px}
-.menu-btn{display:none;width:36px;height:36px;border-radius:8px;background:rgba(255,255,255,.08);color:#fff;font-size:18px;align-items:center;justify-content:center}
+.menu-btn{display:none;width:44px;height:44px;border-radius:8px;background:rgba(255,255,255,.08);color:#fff;font-size:18px;align-items:center;justify-content:center}
 .brand-logo{width:34px;height:34px;border-radius:8px;background:linear-gradient(135deg,var(--gold),var(--gold-light));display:flex;align-items:center;justify-content:center;font-weight:800;color:var(--navy-dark);font-size:16px;letter-spacing:-1px}
 .brand-txt{line-height:1.2}
 .brand-name{font-family:var(--font-display);font-size:15px;font-weight:800;color:#fff}
 .brand-name span{color:var(--gold-light)}
 .brand-sub{font-size:9.5px;color:rgba(255,255,255,.45);font-weight:600}
-.tb-right{display:flex;align-items:center;gap:8px}
+/* min-width:0 lets a flex child actually shrink below its content's natural width instead of
+   overflowing the topbar — without it, on a narrow phone the credits/Refer&Earn/profile pills
+   were pushed clean off the right edge with no way to reach them (confirmed at 390px, iPhone's
+   standard CSS width: the profile badge sat ~23px past the viewport edge). overflow-x lets it
+   scroll within its own bounds as a fallback if it's still tight after the mobile-only
+   compacting below, rather than clipping content outright. */
+.tb-right{display:flex;align-items:center;gap:8px;min-width:0;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.tb-right::-webkit-scrollbar{display:none}
 .dev-badge{font-size:10px;font-weight:700;color:var(--g400);padding:4px 11px;border-radius:99px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05)}
 .dev-badge em{color:var(--gold-light);font-style:normal}
 .user-chip{display:flex;align-items:center;gap:8px;padding:3px 10px 3px 3px;border-radius:99px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05)}
@@ -179,8 +191,8 @@ button{cursor:pointer;border:none;background:none}
 @media(min-width:861px){.tb-greet,.tb-search{display:flex}}
 
 /* ─── LAYOUT ─── */
-.layout{display:flex;padding-top:56px;min-height:100vh}
-.sidebar{width:252px;flex-shrink:0;background:var(--white);border-right:1px solid var(--g200);height:calc(100vh - 56px);position:sticky;top:56px;overflow-y:auto;padding:14px 12px 30px}
+.layout{display:flex;padding-top:calc(56px + env(safe-area-inset-top));min-height:100vh;min-height:100dvh}
+.sidebar{width:252px;flex-shrink:0;background:var(--white);border-right:1px solid var(--g200);height:calc(100vh - 56px - env(safe-area-inset-top));height:calc(100dvh - 56px - env(safe-area-inset-top));position:sticky;top:calc(56px + env(safe-area-inset-top));overflow-y:auto;padding:14px 12px 30px}
 .main{flex:1;min-width:0;padding:20px 22px 90px;max-width:900px;margin:0 auto}
 
 /* Sidebar profile */
@@ -460,6 +472,15 @@ button{cursor:pointer;border:none;background:none}
   .ai-badge{display:none}
   /* sirf Student Database list ka "Father" column mobile par chhupao — baqi tables par asar nahi */
   #dbList .db-table th:nth-child(2),#dbList .db-table td:nth-child(2){display:none}
+  /* iOS Safari auto-zooms the whole page on focus into any field with computed font-size
+     below 16px — nearly every input/select/textarea in this app is 11-13px for density on
+     desktop, which is exactly the trigger. Force 16px only below the tablet breakpoint so
+     desktop density is untouched. */
+  input,select,textarea{font-size:16px!important}
+  /* Same overflow fix as .tb-right's base rule, plus tighter padding so the full pill set
+     (credits/Refer & Earn/profile) fits without needing to scroll on most phones. */
+  .dev-badge{padding:4px 8px;font-size:9px}
+  .user-chip{padding:2px 8px 2px 2px;gap:6px}
 }
 
 /* ─── PREMIUM TOOLS (Analyzer + Parent Hub) ─── */
@@ -484,9 +505,9 @@ button{cursor:pointer;border:none;background:none}
 .ph-preview{background:var(--green-bg);border:1px solid rgba(10,124,92,.3);border-radius:var(--r);padding:12px 14px;font-size:12px;line-height:1.8;white-space:pre-wrap;color:var(--g800)}
 
 /* ─── TOOLKIT ASSISTANT (offline help — floating chat) ─── */
-.ast-fab{position:fixed;bottom:20px;right:20px;z-index:400;width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,var(--navy-dark),var(--navy));border:2px solid var(--gold);box-shadow:0 6px 20px rgba(15,26,46,.35);color:#fff;font-size:23px;display:flex;align-items:center;justify-content:center;transition:transform .2s;cursor:pointer}
+.ast-fab{position:fixed;bottom:calc(20px + env(safe-area-inset-bottom));right:calc(20px + env(safe-area-inset-right));z-index:400;width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,var(--navy-dark),var(--navy));border:2px solid var(--gold);box-shadow:0 6px 20px rgba(15,26,46,.35);color:#fff;font-size:23px;display:flex;align-items:center;justify-content:center;transition:transform .2s;cursor:pointer}
 .ast-fab:hover{transform:scale(1.08)}
-.ast-panel{display:none;position:fixed;bottom:88px;right:20px;z-index:400;width:372px;max-width:calc(100vw - 24px);height:540px;max-height:calc(100vh - 120px);background:var(--white);border-radius:16px;border:1px solid var(--g200);box-shadow:0 20px 50px rgba(15,26,46,.3);flex-direction:column;overflow:hidden;animation:astUp .22s ease}
+.ast-panel{display:none;position:fixed;bottom:calc(88px + env(safe-area-inset-bottom));right:calc(20px + env(safe-area-inset-right));z-index:400;width:372px;max-width:calc(100vw - 24px);height:540px;max-height:calc(100vh - 120px);max-height:calc(100dvh - 120px);background:var(--white);border-radius:16px;border:1px solid var(--g200);box-shadow:0 20px 50px rgba(15,26,46,.3);flex-direction:column;overflow:hidden;animation:astUp .22s ease}
 .ast-panel.open{display:flex}
 @keyframes astUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
 .ast-head{background:linear-gradient(135deg,var(--navy-dark),var(--navy));padding:13px 16px;display:flex;align-items:center;gap:10px;border-bottom:3px solid var(--gold)}
@@ -508,12 +529,12 @@ button{cursor:pointer;border:none;background:none}
 .ast-inp{flex:1;padding:10px 13px;border:1.5px solid var(--g200);border-radius:99px;font-size:12.5px;background:var(--g100);outline:none}
 .ast-inp:focus{border-color:var(--navy);background:var(--white)}
 .ast-send{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,var(--gold),var(--gold-light));color:var(--navy-dark);font-size:15px;font-weight:800;flex-shrink:0}
-@media(max-width:480px){.ast-panel{right:12px;bottom:82px}.ast-fab{bottom:16px;right:14px}}
+@media(max-width:480px){.ast-panel{right:calc(12px + env(safe-area-inset-right));bottom:calc(82px + env(safe-area-inset-bottom))}.ast-fab{bottom:calc(16px + env(safe-area-inset-bottom));right:calc(14px + env(safe-area-inset-right))}}
 
 /* ─── GUIDED TOUR (first-time onboarding) ─── */
 .tour-overlay{display:none;position:fixed;inset:0;background:rgba(15,26,46,.62);z-index:500}
 .tour-overlay.open{display:block}
-.tour-card{position:fixed;left:50%;transform:translateX(-50%);bottom:26px;z-index:503;width:min(430px,calc(100vw - 28px));background:var(--white);border-radius:16px;border:1px solid var(--g200);box-shadow:0 20px 50px rgba(15,26,46,.4);padding:18px;border-top:4px solid var(--gold)}
+.tour-card{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(26px + env(safe-area-inset-bottom));z-index:503;width:min(430px,calc(100vw - 28px));background:var(--white);border-radius:16px;border:1px solid var(--g200);box-shadow:0 20px 50px rgba(15,26,46,.4);padding:18px;border-top:4px solid var(--gold)}
 .tour-step{font-size:10px;font-weight:800;color:var(--gold);text-transform:uppercase;letter-spacing:.8px}
 .tour-title{font-size:15px;font-weight:800;color:var(--heading);margin-top:4px}
 .tour-body{font-size:12.5px;color:var(--g600);line-height:1.65;margin-top:6px}
@@ -1332,6 +1353,10 @@ function toggleSidebar(force){
   const sb=document.getElementById('sidebar'),ov=document.getElementById('sbOverlay');
   const open=force!==undefined?force:!sb.classList.contains('open');
   sb.classList.toggle('open',open);ov.classList.toggle('open',open);
+  // Without this, iOS Safari lets the dashboard keep rubber-band-scrolling underneath the
+  // semi-transparent overlay while the mobile drawer is open, since the overlay itself isn't
+  // a scroll container — only the drawer's own list should scroll while it's open.
+  document.body.style.overflow=open?'hidden':'';
 }
 
 /* ═══════════ TOP BAR — greeting (real name + time-of-day) and search ═══════════ */
