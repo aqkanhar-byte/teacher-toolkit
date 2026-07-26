@@ -1743,11 +1743,30 @@ function rowsToStudents(rows){
   }
   return{students,skipped};
 }
+/* G.R Number is the real unique student identifier in Sindh school records — trust it over
+   name-matching whenever both sides have one. Falls back to name+father+class only when a G.R
+   Number is missing, since that's the next-strongest real-world signal of "same student". */
+function studentKey(s){
+  const gr=String(s.grNumber||'').trim().toLowerCase();
+  if(gr)return 'gr:'+gr;
+  return 'nc:'+String(s.name||'').trim().toLowerCase()+'|'+String(s.fatherName||'').trim().toLowerCase()+'|'+String(s.className||'').trim().toLowerCase();
+}
 function finishImport(result){
   if(!result.students.length){alert('No valid students found! Make sure the sheet has a "Student Name" or "Name" column.'+(result.skipped?'\n('+result.skipped+' rows skipped)':''));return;}
-  const db=getDB().concat(result.students);
+  const existingKeys=new Set(getDB().map(studentKey));
+  const seenInBatch=new Set();
+  const toAdd=[],duplicates=[];
+  result.students.forEach(s=>{
+    const key=studentKey(s);
+    if(existingKeys.has(key)||seenInBatch.has(key)){duplicates.push(s);return;}
+    seenInBatch.add(key);toAdd.push(s);
+  });
+  const db=getDB().concat(toAdd);
   setDBData(db);renderDB();scheduleSync();
-  alert('✅ '+result.students.length+' students imported!'+(result.skipped?'\n('+result.skipped+' empty/invalid rows skipped)':''));
+  let msg='✅ '+toAdd.length+' student'+(toAdd.length===1?'':'s')+' imported!';
+  if(duplicates.length)msg+='\n⚠️ '+duplicates.length+' duplicate'+(duplicates.length===1?'':'s')+' skipped (matched by G.R Number, or Name+Father+Class): '+duplicates.slice(0,5).map(s=>s.name).join(', ')+(duplicates.length>5?', ...':'');
+  if(result.skipped)msg+='\n('+result.skipped+' empty/invalid rows skipped)';
+  alert(msg);
 }
 function dbImportFile(ev){
   const file=ev.target.files[0];ev.target.value='';
