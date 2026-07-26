@@ -125,6 +125,15 @@ ALTER TABLE tt_transactions ADD COLUMN IF NOT EXISTS metadata jsonb;
 -- once a real gateway (or an admin-supplied order reference) starts populating the column.
 CREATE UNIQUE INDEX IF NOT EXISTS uq_tt_transactions_gateway_txn ON tt_transactions(gateway, gateway_transaction_id) WHERE gateway_transaction_id IS NOT NULL;
 
+-- Full audit trail (enterprise-upgrade prompt Section 15): every credits-affecting event should
+-- record what the balance was before and after, and what kind of event caused it — previously
+-- only payments/admin-actions/referral-bonuses wrote a row here at all; day-to-day generation
+-- usage and refunds (by far the most frequent credit events) wrote straight to tt_users.credits
+-- with no ledger trace. before_balance/after_balance are nullable since old rows predate this.
+ALTER TABLE tt_transactions ADD COLUMN IF NOT EXISTS before_balance integer;
+ALTER TABLE tt_transactions ADD COLUMN IF NOT EXISTS after_balance integer;
+ALTER TABLE tt_transactions ADD COLUMN IF NOT EXISTS entry_type text; -- purchase|referral_bonus|generation_usage|refund|manual_adjustment
+
 -- Subscription lifecycle fields on tt_users (extends the existing plan/plan_quota/plan_used/plan_expires,
 -- doesn't replace them) — ready for renew/cancel/upgrade/downgrade/grace-period logic once a gateway
 -- can actually notify this app of recurring billing events.

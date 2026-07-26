@@ -126,6 +126,18 @@ async function userFromReq(req) {
   }
   return data;
 }
+/* Full audit trail for every credits-affecting event (enterprise-upgrade prompt Section 15) —
+   fire-and-forget, same non-blocking pattern as the token-expiry touch in userFromReq() above, so
+   a logging hiccup can never fail (or even slow down) the actual generation/refund request. Only
+   ever called for the pure-credits branches below, never the plan-quota ones — plan usage is a
+   separate quota system with no "balance" concept in this sense. */
+function logCreditTx(userId, delta, before, after, entryType, note) {
+  if (!sb) return;
+  sb.from('tt_transactions').insert({
+    user_id: userId, credits: delta, amount_rs: 0, before_balance: before, after_balance: after,
+    entry_type: entryType, note: note || ''
+  }).then(() => {}, (e) => logError('logCreditTx', e, { userId, entryType }));
+}
 async function takeCredit(req, res) {
   if (!sb) return { user: null, free: true };  // free mode when Supabase not configured
   const user = await userFromReq(req);
@@ -150,10 +162,11 @@ async function takeCredit(req, res) {
     }
     if (fresh && fresh.credits > 0) {
       const { data: retry } = await sb.from('tt_users').update({ credits: fresh.credits - 1 }).eq('id', user.id).eq('credits', fresh.credits).select().maybeSingle();
-      if (retry) return { user: retry };
+      if (retry) { logCreditTx(user.id, -1, fresh.credits, fresh.credits - 1, 'generation_usage', 'AI document generated'); return { user: retry }; }
     }
     res.json({ success: false, error: 'NO_CREDITS' }); return null;
   }
+  logCreditTx(user.id, -1, user.credits, user.credits - 1, 'generation_usage', 'AI document generated');
   return { user: data };
 }
 async function refundCredit(gateUser, viaPlan) {
@@ -167,7 +180,7 @@ async function refundCredit(gateUser, viaPlan) {
         ? sb.from('tt_users').update({ plan_used: Math.max(0, (u.plan_used || 1) - 1) }).eq('id', u.id).eq('plan_used', u.plan_used || 0)
         : sb.from('tt_users').update({ credits: u.credits + 1 }).eq('id', u.id).eq('credits', u.credits);
       const { data } = await q.select().maybeSingle();
-      if (data) return;
+      if (data) { if (!viaPlan) logCreditTx(u.id, 1, u.credits, u.credits + 1, 'refund', 'Generation failed — credit returned'); return; }
     }
     logError('refundCredit', new Error('all 3 optimistic-lock retries exhausted'), { userId: gateUser.id, viaPlan });
   } catch (e) { logError('refundCredit', e, { userId: gateUser.id, viaPlan }); }
@@ -186,7 +199,7 @@ async function takeCreditsN(user, n) {
     }
     if (fresh.credits >= n) {
       const { data } = await sb.from('tt_users').update({ credits: fresh.credits - n }).eq('id', fresh.id).eq('credits', fresh.credits).select().maybeSingle();
-      if (data) return { user: data, viaPlan: false };
+      if (data) { logCreditTx(fresh.id, -n, fresh.credits, fresh.credits - n, 'generation_usage', 'Weekly Pack generated'); return { user: data, viaPlan: false }; }
       continue;
     }
     return null;
@@ -203,7 +216,7 @@ async function refundCreditsN(gateUser, n, viaPlan) {
         ? sb.from('tt_users').update({ plan_used: Math.max(0, (u.plan_used || n) - n) }).eq('id', u.id).eq('plan_used', u.plan_used || 0)
         : sb.from('tt_users').update({ credits: u.credits + n }).eq('id', u.id).eq('credits', u.credits);
       const { data } = await q.select().maybeSingle();
-      if (data) return;
+      if (data) { if (!viaPlan) logCreditTx(u.id, n, u.credits, u.credits + n, 'refund', 'Weekly Pack generation failed — credits returned'); return; }
     }
     logError('refundCreditsN', new Error('all 3 optimistic-lock retries exhausted'), { userId: gateUser.id, n, viaPlan });
   } catch (e) { logError('refundCreditsN', e, { userId: gateUser.id, n, viaPlan }); }
@@ -238,11 +251,11 @@ async function saveDoc(user, docType, title, content) {
 async function bumpCreditsWithRetry(userId, delta) {
   for (let i = 0; i < 3; i++) {
     const { data: u } = await sb.from('tt_users').select('id,credits').eq('id', userId).maybeSingle();
-    if (!u) return false;
+    if (!u) return { success: false };
     const { data: updated } = await sb.from('tt_users').update({ credits: u.credits + delta }).eq('id', u.id).eq('credits', u.credits).select().maybeSingle();
-    if (updated) return true;
+    if (updated) return { success: true, before: u.credits, after: u.credits + delta };
   }
-  return false;
+  return { success: false };
 }
 async function maybeRewardReferral(user) {
   if (!sb || !user || !user.referred_by || user.referral_rewarded) return;
@@ -258,12 +271,12 @@ async function maybeRewardReferral(user) {
   if (!claimed) return; /* another concurrent request already claimed this reward */
   const { data: referrer } = await sb.from('tt_users').select('id').eq('phone', user.referred_by).maybeSingle();
   if (!referrer) return;
-  await bumpCreditsWithRetry(referrer.id, REFERRAL_CREDITS);
-  await bumpCreditsWithRetry(user.id, REFERRAL_CREDITS);
-  await sb.from('tt_transactions').insert([
-    { user_id: referrer.id, credits: REFERRAL_CREDITS, amount_rs: 0, note: 'Referral bonus (invited a teacher)' },
-    { user_id: user.id, credits: REFERRAL_CREDITS, amount_rs: 0, note: 'Referral bonus (signed up via invite)' }
-  ]);
+  const referrerBump = await bumpCreditsWithRetry(referrer.id, REFERRAL_CREDITS);
+  const userBump = await bumpCreditsWithRetry(user.id, REFERRAL_CREDITS);
+  const rows = [];
+  if (referrerBump.success) rows.push({ user_id: referrer.id, credits: REFERRAL_CREDITS, amount_rs: 0, before_balance: referrerBump.before, after_balance: referrerBump.after, entry_type: 'referral_bonus', note: 'Referral bonus (invited a teacher)' });
+  if (userBump.success) rows.push({ user_id: user.id, credits: REFERRAL_CREDITS, amount_rs: 0, before_balance: userBump.before, after_balance: userBump.after, entry_type: 'referral_bonus', note: 'Referral bonus (signed up via invite)' });
+  if (rows.length) await sb.from('tt_transactions').insert(rows);
 }
 
 /* ── Auth routes ── */
@@ -475,7 +488,8 @@ app.post('/admin/add-subscription', async (req, res) => {
   if (!user) return res.json({ success: false, error: 'This number is not registered: ' + phone });
   const { duplicate } = await recordPayment(sb, {
     userId: user.id, gateway: 'manual', gatewayTransactionId: orderId, orderId,
-    amountRs: amount, credits: quota, note: 'Monthly Pro ' + days + 'd (' + (req.body.note || 'Easypaisa') + ')'
+    amountRs: amount, credits: quota, note: 'Monthly Pro ' + days + 'd (' + (req.body.note || 'Easypaisa') + ')',
+    entryType: 'purchase' /* subscription grants plan_quota, not tt_users.credits — no before/after balance applies here */
   });
   if (duplicate) return res.json({ success: false, error: 'This order/reference was already processed — no changes made (idempotency protection).' });
   const expires = new Date(Date.now() + days * 86400000).toISOString();
@@ -511,7 +525,8 @@ app.post('/admin/add-credits', async (req, res) => {
   if (!user) return res.json({ success: false, error: 'This number is not registered: ' + phone });
   const { duplicate } = await recordPayment(sb, {
     userId: user.id, gateway: 'manual', gatewayTransactionId: orderId, orderId,
-    amountRs: amount, credits, note: req.body.note || 'Easypaisa manual'
+    amountRs: amount, credits, note: req.body.note || 'Easypaisa manual',
+    beforeBalance: user.credits, afterBalance: user.credits + credits, entryType: 'purchase'
   });
   if (duplicate) return res.json({ success: false, error: 'This order/reference was already processed — no changes made (idempotency protection).' });
   await sb.from('tt_users').update({ credits: user.credits + credits }).eq('id', user.id);
@@ -528,7 +543,7 @@ app.post('/admin/remove-credits', async (req, res) => {
   if (!user) return res.json({ success: false, error: 'This number is not registered: ' + phone });
   const newBalance = Math.max(0, user.credits - credits);
   await sb.from('tt_users').update({ credits: newBalance }).eq('id', user.id);
-  await sb.from('tt_transactions').insert({ user_id: user.id, credits: -(user.credits - newBalance), amount_rs: 0, note: req.body.note || 'Manual correction' });
+  await sb.from('tt_transactions').insert({ user_id: user.id, credits: -(user.credits - newBalance), amount_rs: 0, before_balance: user.credits, after_balance: newBalance, entry_type: 'manual_adjustment', note: req.body.note || 'Manual correction' });
   logAdminAction('remove-credits', req, phone, { credits, newBalance });
   res.json({ success: true, name: user.name, newBalance });
 });
