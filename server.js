@@ -226,10 +226,14 @@ function refundForGeneration(gate, n) {
   return refundCreditsN(gate.user, n, gate.viaPlan);
 }
 async function saveDoc(user, docType, title, content) {
-  if (!sb || !user) return;
-  try { await sb.from('tt_documents').insert({ user_id: user.id, doc_type: docType, title: (title || docType).slice(0, 120), content }); }
-  catch (e) { logError('saveDoc', e, { userId: user.id }); }
+  if (!sb || !user) return null;
+  let id = null;
+  try {
+    const { data } = await sb.from('tt_documents').insert({ user_id: user.id, doc_type: docType, title: (title || docType).slice(0, 120), content }).select('id').maybeSingle();
+    id = data ? data.id : null;
+  } catch (e) { logError('saveDoc', e, { userId: user.id }); }
   maybeRewardReferral(user).catch(e => logError('maybeRewardReferral', e, { userId: user.id }));
+  return id;
 }
 async function bumpCreditsWithRetry(userId, delta) {
   for (let i = 0; i < 3; i++) {
@@ -1062,6 +1066,19 @@ app.post('/documents/delete', async (req, res) => {
   await sb.from('tt_documents').delete().eq('id', req.body.id).eq('user_id', user.id);
   res.json({ success: true });
 });
+/* Autosave — the result box is editable, but until now an edit only ever reached the saved copy
+   if the teacher explicitly downloaded/copied/shared it (see syncEdits() call sites in
+   index.html). Fires repeatedly while typing (debounced client-side), so it's rate-limited
+   per-user rather than per-IP. */
+app.post('/documents/:id/update', async (req, res) => {
+  const user = await userFromReq(req);
+  if (!user) return res.json({ success: false, error: 'LOGIN_REQUIRED' });
+  if (!rateLimit('docupdate:' + user.id, 40, 10 * 60 * 1000)) return tooMany(res);
+  const content = String(req.body.content || '');
+  const { data } = await sb.from('tt_documents').update({ content }).eq('id', req.params.id).eq('user_id', user.id).select('id').maybeSingle();
+  if (!data) return res.json({ success: false, error: 'Document not found.' });
+  res.json({ success: true });
+});
 
 /* ─── Version (frontend isse check karta hai ke server nayi hai ya nahi) ── */
 app.get('/version', (req, res) => res.json({ v: '3.4', features: ['generate-with-file', 'streaming', 'pdf-books', 'paid-system', 'book-bank', 'slo-bank', 'verify', 'documents', 'assistant', 'premium-tools', 'seo-pwa'] }));
@@ -1308,8 +1325,13 @@ async function streamToRes(res, params, onDone, onFail, route) {
       const final = await s.finalMessage();
       if (!started) { res.json({ success: false, error: 'AI returned an empty response — please try again.' }); if (onFail) onFail(); return; }
       logUsage(route || 'streamToRes', final.usage);
+      /* onDone (saveDoc) now runs BEFORE res.end() so its returned row id can ride along on the
+         same stream as a trailing marker — same convention as [[GENERATION-ERROR]] below — which
+         is how the client learns which tt_documents row to autosave edits back into. */
+      let docId = null;
+      if (onDone) { try { docId = await onDone(full); } catch (e) { logError('streamToRes-onDone', e); } }
+      if (docId) res.write('\n[[DOC-ID:' + docId + ']]');
       res.end();
-      if (onDone) onDone(full);
       return;
     } catch (error) {
       /* Only safe to retry if nothing has streamed to the client yet (no partial content sent) */
@@ -1622,9 +1644,10 @@ RULES:
       parts.push(header + docText);
     }
     logUsage('generate-pack', usageTotal);
-    res.end();
     const combined = parts.join('\n\n[[PAGEBREAK]]\n\n');
-    if (sb && gate.user) saveDoc(gate.user, 'Weekly Pack', subject + ' ' + unitName, combined);
+    const docId = (sb && gate.user) ? await saveDoc(gate.user, 'Weekly Pack', subject + ' ' + unitName, combined) : null;
+    if (docId) res.write('\n[[DOC-ID:' + docId + ']]');
+    res.end();
   } catch (error) {
     logError('generate-pack', error, { userId: gate.user && gate.user.id });
     if (sb && gate.user && !gate.free) refundCreditsN(gate.user, 3, gate.viaPlan);
