@@ -25,9 +25,6 @@
 <meta name="twitter:description" content="Free AI-powered lesson plans, worksheets, exam papers, result cards &amp; certificates for Sindh government school teachers.">
 <meta name="twitter:image" content="https://www.teachertoolkitsindh.com/icon-512.png">
 
-<!-- Google Search Console — GSC se milne wala verification code yahan paste karen (Settings > Ownership verification > HTML tag) -->
-<meta name="google-site-verification" content="PASTE_YOUR_GOOGLE_SEARCH_CONSOLE_CODE_HERE">
-
 <!-- Structured data — rich snippets ke liye (schema.org) -->
 <script type="application/ld+json">
 {
@@ -2598,7 +2595,16 @@ let AUTH_MODE='login', CFG=null;
 function token(){return localStorage.getItem('tt_token')||'';}
 function authHeaders(){const t=token();return t?{'X-Auth-Token':t}:{};}
 function openAuth(msg){
-  if(token()&&!msg){if(confirm('Sign out?')){localStorage.removeItem('tt_token');updateAuthUI();}return;}
+  if(token()&&!msg){
+    if(confirm('Sign out?')){
+      // Fire-and-forget: invalidate the token server-side too, not just locally — otherwise a
+      // leaked/old token (browser history, a shared school computer) keeps working after
+      // "logout" since the server never heard about it.
+      fetch('/auth/logout',{method:'POST',headers:authHeaders()}).catch(()=>{});
+      localStorage.removeItem('tt_token');updateAuthUI();
+    }
+    return;
+  }
   document.getElementById('authMsg').textContent=msg||'';
   document.getElementById('authOverlay').classList.add('open');
 }

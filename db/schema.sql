@@ -1,6 +1,18 @@
 -- Teacher Toolkit — Supabase schema (retroactively documented, then version-controlled from here on)
 -- Safe to re-run: every statement uses IF NOT EXISTS / ADD COLUMN IF NOT EXISTS.
 -- Run new statements in the Supabase SQL Editor whenever this file changes.
+--
+-- AUTHORIZATION MODEL — READ BEFORE ADDING A NEW TABLE OR ROUTE.
+-- server.js talks to Supabase exclusively with the SERVICE-ROLE key (see `createClient` in
+-- server.js), which bypasses Postgres Row Level Security entirely. RLS policies on these tables
+-- are therefore NOT the enforcement boundary, even if some exist in the Supabase dashboard —
+-- authorization happens entirely in application code: every route resolves the caller via
+-- userFromReq() (token -> tt_users row) and every query on user-owned data filters explicitly
+-- with .eq('user_id', user.id) (see /documents, /documents/:id, /documents/delete, /wallet,
+-- /students-sync in server.js for the pattern). Verified consistent across those routes as of
+-- 2026-07-19. If you add a new table holding per-teacher data, the .eq('user_id', ...) filter on
+-- every read/write is what actually protects it — an RLS policy alone would do nothing here
+-- since the server never authenticates to Postgres as the end user.
 
 -- ═══════════════ tt_users — teacher accounts ═══════════════
 CREATE TABLE IF NOT EXISTS tt_users (

@@ -307,6 +307,16 @@ app.post('/auth/login', async (req, res) => {
   await sb.from('tt_users').update({ token, token_expires_at }).eq('id', user.id);
   res.json({ success: true, token, user: { name: user.name, phone: user.phone, credits: user.credits } });
 });
+/* Single-token-per-account model — a fresh login already invalidates whatever token existed
+   before it, but until now there was no way for a teacher to kill their OWN current session on
+   demand (e.g. after using a shared school computer) short of logging in again from elsewhere.
+   Clearing the token server-side makes it unusable immediately, not just on the client. */
+app.post('/auth/logout', async (req, res) => {
+  const user = await userFromReq(req);
+  if (!user) return res.json({ success: true }); /* already invalid/expired — nothing to do */
+  await sb.from('tt_users').update({ token: null, token_expires_at: null }).eq('id', user.id);
+  res.json({ success: true });
+});
 app.get('/wallet', async (req, res) => {
   const user = await userFromReq(req);
   if (!user) return res.json({ success: false, error: 'LOGIN_REQUIRED' });
@@ -594,6 +604,33 @@ const uploadBook = multer({
     cb(ok ? null : new Error('Only PDF or image files (JPG, PNG, WEBP, GIF) are allowed.'), ok);
   }
 });
+/* multer's fileFilter only ever sees the client-declared filename/mimetype (it runs before the
+   file body is streamed to disk), so a file named "x.pdf" with arbitrary content sails straight
+   through it — real content has to be checked once the bytes are actually on disk. Drop this in
+   right after every upload.single()/uploadBook.single() call. */
+const MAGIC_BYTES = {
+  '.pdf': buf => buf.slice(0, 5).toString('latin1') === '%PDF-',
+  '.png': buf => buf.slice(0, 8).equals(Buffer.from([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A])),
+  '.jpg': buf => buf.slice(0, 3).equals(Buffer.from([0xFF, 0xD8, 0xFF])),
+  '.jpeg': buf => buf.slice(0, 3).equals(Buffer.from([0xFF, 0xD8, 0xFF])),
+  '.gif': buf => ['GIF87a', 'GIF89a'].includes(buf.slice(0, 6).toString('latin1')),
+  '.webp': buf => buf.slice(0, 4).toString('latin1') === 'RIFF' && buf.slice(8, 12).toString('latin1') === 'WEBP'
+};
+function verifyMagicBytes(req, res, next) {
+  if (!req.file) return next();
+  const ext = path.extname(req.file.originalname || '').toLowerCase();
+  const check = MAGIC_BYTES[ext];
+  if (!check) return next(); // extension not in our allow-list at all — fileFilter already rejected it
+  try {
+    const fd = fs.openSync(req.file.path, 'r');
+    const buf = Buffer.alloc(12);
+    fs.readSync(fd, buf, 0, 12, 0);
+    fs.closeSync(fd);
+    if (check(buf)) return next();
+  } catch (e) { /* fall through to rejection below */ }
+  try { fs.unlinkSync(req.file.path); } catch (e) {}
+  res.status(400).json({ success: false, error: 'File content does not match its extension — upload rejected.' });
+}
 
 /* ═══════════════ BOOK BANK (Supabase Storage — curated STBB books) ═══════════════ */
 app.get('/books', async (req, res) => {
@@ -647,7 +684,7 @@ app.get('/books/:id/drive-stream', async (req, res) => {
     if (!res.headersSent) res.status(502).json({ success: false, error: 'Could not fetch this book from Google Drive.' });
   }
 });
-app.post('/admin/upload-book', uploadBook.single('file'), async (req, res) => {
+app.post('/admin/upload-book', uploadBook.single('file'), verifyMagicBytes, async (req, res) => {
   if (!adminGate(req, res)) { if (req.file) { try { fs.unlinkSync(req.file.path); } catch(e) {} } return; }
   if (!req.file) return res.json({ success: false, error: 'No file' });
   /* Trim + normalize — teacher UI dropdown se exact match zaroori hai */
@@ -1378,7 +1415,7 @@ async function detectClassSubject(filePath, originalName, route) {
   const j = JSON.parse(txt.slice(txt.indexOf('{'), txt.lastIndexOf('}') + 1));
   return { className: j.className || '', subject: j.subject || '', unitName: j.unitName || '', confidence: j.confidence || 'low' };
 }
-app.post('/detect-book', upload.single('file'), async (req, res) => {
+app.post('/detect-book', upload.single('file'), verifyMagicBytes, async (req, res) => {
   if (!req.file) return res.json({ success: false, error: 'No file uploaded' });
   if (!rateLimit('detect:' + req.ip, 15, 10 * 60 * 1000)) { try { fs.unlinkSync(req.file.path); } catch (e) {} return tooMany(res); }
   try {
@@ -1408,7 +1445,7 @@ app.get('/admin/drive-file-stream', async (req, res) => {
 /* Same detection as /detect-book, but admin-gated (no per-teacher rate limit needed) — the
    admin panel calls this once per file, right after "List Files", with just that file's
    extracted page 1. */
-app.post('/admin/drive-detect', upload.single('file'), async (req, res) => {
+app.post('/admin/drive-detect', upload.single('file'), verifyMagicBytes, async (req, res) => {
   if (!adminGate(req, res)) { if (req.file) { try { fs.unlinkSync(req.file.path); } catch (e) {} } return; }
   if (!req.file) return res.json({ success: false, error: 'No file uploaded' });
   try {
@@ -1425,7 +1462,7 @@ app.post('/admin/drive-detect', upload.single('file'), async (req, res) => {
 /* ─── GENERATE WITH UPLOADED BOOK/DOCUMENT ─────────────────────────────────
    Lesson Plan, Worksheet, Exam Paper, Rubric, Annual/Monthly Plan —
    AI uploaded book/PDF/image ko deeply parh kar EXACTLY usi se banata hai */
-app.post('/generate-with-file', upload.single('file'), async (req, res) => {
+app.post('/generate-with-file', upload.single('file'), verifyMagicBytes, async (req, res) => {
   const { documentType, language, bookId } = req.body;
   let fields = {};
   try { fields = JSON.parse(req.body.fieldsJson || '{}'); } catch (e) {}
@@ -1476,7 +1513,7 @@ RULES:
 });
 
 /* ─── GENERATE CRQ ───────────────────────────────────────────────────────── */
-app.post('/generate-crq', upload.single('file'), async (req, res) => {
+app.post('/generate-crq', upload.single('file'), verifyMagicBytes, async (req, res) => {
   const { schoolName, teacherName, className, subject, unitName, difficulty, bloomLevels, mcqCount, shortCount, longCount, includeAnswerKey, language } = req.body;
   let bl; try { bl = JSON.parse(bloomLevels || '[]'); } catch (e) { bl = []; }
   if (!Array.isArray(bl) || !bl.length) bl = ['Remember', 'Understand', 'Apply'];
@@ -1523,7 +1560,7 @@ Generate a complete, professional exam paper with all sections and marks distrib
    Charges 3 credits total (checked upfront, refunded together if anything fails
    before all three are produced), saved as a single combined document. */
 const PACK_DOC_TYPES = ['Lesson Plan', 'Worksheet', 'Homework Sheet'];
-app.post('/generate-pack', upload.single('file'), async (req, res) => {
+app.post('/generate-pack', upload.single('file'), verifyMagicBytes, async (req, res) => {
   const { schoolName, teacherName, className, subject, unitName, language, bookId } = req.body;
   if (!className || !subject || !unitName) { try { if (req.file) fs.unlinkSync(req.file.path); } catch (e) {} return res.json({ success: false, error: 'Class, subject and unit name are required' }); }
   if (!rateLimit('pack:' + req.ip, 5, 10 * 60 * 1000)) { try { if (req.file) fs.unlinkSync(req.file.path); } catch (e) {} return tooMany(res); }
@@ -1598,7 +1635,7 @@ RULES:
 });
 
 /* ─── UPLOAD & GENERATE ──────────────────────────────────────────────────── */
-app.post('/upload-generate', upload.single('file'), async (req, res) => {
+app.post('/upload-generate', upload.single('file'), verifyMagicBytes, async (req, res) => {
   if (!req.file) return res.json({ success: false, error: 'No file uploaded' });
   const { documentType, schoolName, teacherName, className, subject, language } = req.body;
   try {
