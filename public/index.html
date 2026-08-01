@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Teacher Toolkit — Sindh Education Department</title>
-<meta name="description" content="Free AI-powered Teacher Toolkit for Sindh government school teachers — instantly generate lesson plans, worksheets, exam papers, result cards, certificates and school documents in English, Urdu &amp; Sindhi. ECCE to Class 12.">
-<meta name="keywords" content="teacher toolkit, sindh teacher toolkit, lesson plan generator, worksheet generator, result card maker, school certificate generator, sindh education department, AI lesson plan, exam paper generator pakistan">
+<meta name="description" content="Free AI-powered Teacher Toolkit for Sindh government school teachers — instantly generate lesson plans, worksheets, exam papers, result cards, certificates and school documents in English, Urdu &amp; Sindhi. ECCE to Class 12. Also browse free official STBB (Sindh Textbook Board) PDF textbook downloads.">
+<meta name="keywords" content="teacher toolkit, sindh teacher toolkit, lesson plan generator, worksheet generator, result card maker, school certificate generator, sindh education department, AI lesson plan, exam paper generator pakistan, STBB books, sindh textbook board pdf, free textbook download sindh">
 <meta name="author" content="Teacher Toolkit — Sindh Education">
 <link rel="canonical" href="https://www.teachertoolkitsindh.com/">
 <!-- Open Graph — WhatsApp/Facebook share preview card -->
@@ -635,6 +635,13 @@ button{cursor:pointer;border:none;background:none}
     <div class="trust-item"><div class="trust-ico">⏱️</div><div><div class="trust-name">Time Saving</div><div class="trust-sub">Minimize your workload</div></div></div>
     <div class="trust-item"><div class="trust-ico">✅</div><div><div class="trust-name">Curriculum Aligned</div><div class="trust-sub">Sindh textbook board</div></div></div>
     <div class="trust-item"><div class="trust-ico">🔒</div><div><div class="trust-name">Secure &amp; Private</div><div class="trust-sub">Your data is protected</div></div></div>
+  </div>
+
+  <div class="widget-card" id="stbbPromo" style="margin-bottom:18px">
+    <div class="widget-head"><span class="widget-title">📚 Free STBB Textbook Downloads</span></div>
+    <div style="padding:4px 2px 10px;font-size:12.5px;color:var(--g600)">Official Sindh Textbook Board PDF textbooks, ECCE to Class 12 — free to browse and download, no login needed.</div>
+    <button class="btn-dl" id="stbbToggleBtn" onclick="toggleStbbPicker()">Browse &amp; Download →</button>
+    <select id="stbbClassSel" style="display:none;margin-top:8px" onchange="if(this.value)location.href=this.value"></select>
   </div>
 
   <!-- ══ VIEW: DOCUMENT FORM ══ -->
@@ -1331,6 +1338,20 @@ function renderSidebar(){
 /* A handful of shortcuts to the most-used tools, surfaced above the fold instead of making
    every teacher hunt through the full sidebar for them — reuses the same SIDEBAR data and
    sbClick() navigation as the sidebar itself, so there's no separate logic to keep in sync. */
+/* Reuses shared-data.js's CLASS_LIST (same 13 classes server.js's CLASS_ORDER produces /library
+   pages for) so this can never drift out of sync with what the library actually has. */
+function stbbSlug(className){return String(className).toLowerCase().trim().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');}
+function populateStbbPicker(){
+  const sel=document.getElementById('stbbClassSel');if(!sel||typeof CLASS_LIST==='undefined')return;
+  sel.innerHTML='<option value="">— Select your class —</option>'+CLASS_LIST.map(c=>'<option value="/library/class/'+stbbSlug(c)+'">'+c+'</option>').join('');
+}
+function toggleStbbPicker(){
+  const sel=document.getElementById('stbbClassSel'),btn=document.getElementById('stbbToggleBtn');
+  if(!sel||!btn)return;
+  const show=sel.style.display==='none';
+  sel.style.display=show?'block':'none';
+  btn.style.display=show?'none':'inline-block';
+}
 function renderQuickTiles(){
   const box=document.getElementById('quickTiles');if(!box)return;
   const featured=['Weekly Pack','Lesson Plan','CRQ Generator','Worksheet'];
@@ -3454,6 +3475,7 @@ function applyShortcutParams() {
   renderQuickTiles();
   renderGreeting();
   renderProfile();
+  populateStbbPicker();
   /* Upload selects */
   const cls=CLASS_LIST.map(c=>'<option'+(c==='Class 1'?' selected':'')+'>'+c+'</option>').join('');
   document.getElementById('upClass').innerHTML=cls;
