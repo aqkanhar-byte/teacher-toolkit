@@ -385,22 +385,82 @@ app.post('/students-sync', async (req, res) => {
   res.json({ success: true, count: students.length });
 });
 
-/* ── Admin (sirf tumhare liye — ADMIN_PASSWORD .env mein) ── */
-function isAdmin(req) {
-  const pw = process.env.ADMIN_PASSWORD, k = req.headers['x-admin-key'];
-  if (!pw || typeof k !== 'string' || !k) return false;
-  const a = Buffer.from(k), b = Buffer.from(pw);
-  if (a.length !== b.length) return false; /* length leak is unavoidable; content compare is constant-time */
-  return crypto.timingSafeEqual(a, b);
+/* ── Admin (sirf tumhare liye — ADMIN_PASSWORD + ADMIN_TOTP_SECRET .env mein) ──
+   Admin auth is a two-step login (password + TOTP code) that issues a session token, not a raw
+   password sent on every request. isAdmin() below only ever checks that token — the password/code
+   check happens once, in /admin/login. This keeps every existing /admin/* route and every
+   admin.html call site unchanged: they still just send whatever's in the x-admin-key header,
+   which used to be the password and is now a session token instead. */
+const adminSessions = new Map(); /* token -> expiresAt (ms). In-memory by design — a redeploy just logs the admin out. */
+const ADMIN_SESSION_MS = 12 * 60 * 60 * 1000;
+const TOTP_STEP_MS = 30 * 1000;
+const BASE32_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+function base32Decode(str) {
+  str = String(str || '').replace(/=+$/, '').toUpperCase();
+  let bits = '';
+  for (const c of str) {
+    const v = BASE32_ALPHABET.indexOf(c);
+    if (v < 0) continue;
+    bits += v.toString(2).padStart(5, '0');
+  }
+  const bytes = [];
+  for (let i = 0; i + 8 <= bits.length; i += 8) bytes.push(parseInt(bits.slice(i, i + 8), 2));
+  return Buffer.from(bytes);
 }
-/* Har admin route ka common gate: brute-force lockout + password + Supabase check */
+/* RFC 6238 TOTP (HMAC-SHA1, 30s step, 6 digits) — the same algorithm Google Authenticator/Authy
+   use by default, implemented with Node's built-in crypto so no new dependency is needed. */
+function totpAt(secretBase32, timeStep) {
+  const key = base32Decode(secretBase32);
+  const buf = Buffer.alloc(8);
+  buf.writeBigUInt64BE(BigInt(timeStep));
+  const hmac = crypto.createHmac('sha1', key).update(buf).digest();
+  const offset = hmac[hmac.length - 1] & 0xf;
+  const bin = ((hmac[offset] & 0x7f) << 24) | ((hmac[offset + 1] & 0xff) << 16) | ((hmac[offset + 2] & 0xff) << 8) | (hmac[offset + 3] & 0xff);
+  return String(bin % 1e6).padStart(6, '0');
+}
+function verifyTotp(secretBase32, code) {
+  const c = String(code || '').trim();
+  if (!secretBase32 || !/^\d{6}$/.test(c)) return false;
+  const step = Math.floor(Date.now() / TOTP_STEP_MS);
+  return [0, -1, 1].some(d => totpAt(secretBase32, step + d) === c);
+}
+function isAdmin(req) {
+  const token = req.headers['x-admin-key'];
+  if (typeof token !== 'string' || !token) return false;
+  const exp = adminSessions.get(token);
+  if (!exp || exp < Date.now()) { adminSessions.delete(token); return false; }
+  return true;
+}
+/* Har admin route ka common gate: brute-force lockout + valid session + Supabase check */
 function adminGate(req, res) {
   const rk = 'adminfail:' + req.ip;
   if (rlBlocked(rk, 10, 10 * 60 * 1000)) { tooMany(res); return false; }
-  if (!isAdmin(req)) { rlHit(rk, 10 * 60 * 1000); res.status(403).json({ success: false, error: 'Wrong admin password' }); return false; }
+  if (!isAdmin(req)) { rlHit(rk, 10 * 60 * 1000); res.status(403).json({ success: false, error: 'Session expired — please log in again' }); return false; }
   if (!sb) { res.json({ success: false, error: 'Database is not configured on the server.' }); return false; }
   return true;
 }
+app.post('/admin/login', (req, res) => {
+  const rk = 'adminlogin:' + req.ip;
+  if (rlBlocked(rk, 8, 15 * 60 * 1000)) return tooMany(res);
+  const pw = process.env.ADMIN_PASSWORD, totpSecret = process.env.ADMIN_TOTP_SECRET;
+  const { password, code } = req.body || {};
+  let pwOk = false;
+  if (pw && typeof password === 'string' && password) {
+    const a = Buffer.from(password), b = Buffer.from(pw);
+    pwOk = a.length === b.length && crypto.timingSafeEqual(a, b); /* length leak unavoidable; content compare constant-time */
+  }
+  const codeOk = pwOk && verifyTotp(totpSecret, code); /* skip TOTP compute entirely on a wrong password */
+  if (!pwOk || !codeOk) { rlHit(rk, 15 * 60 * 1000); res.status(401).json({ success: false, error: 'Invalid password or code' }); return; }
+  const token = crypto.randomBytes(32).toString('hex');
+  adminSessions.set(token, Date.now() + ADMIN_SESSION_MS);
+  logAdminAction('login', req, null, null);
+  res.json({ success: true, token });
+});
+app.post('/admin/logout', (req, res) => {
+  const token = req.headers['x-admin-key'];
+  if (typeof token === 'string') adminSessions.delete(token);
+  res.json({ success: true });
+});
 /* Fire-and-forget audit trail for sensitive admin actions (money, PINs, deletions) — a single
    shared admin password can't attribute an action to a specific person, but this still answers
    "what happened, to whom, when, from where" after the fact, which matters more for catching a

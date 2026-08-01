@@ -36,13 +36,14 @@ td{padding:8px 10px;border-bottom:1px solid var(--g100)}
 </style>
 </head>
 <body>
-<div class="top"><span>🔐 Teacher Toolkit — Admin Panel</span><span id="who"></span></div>
+<div class="top"><span>🔐 Teacher Toolkit — Admin Panel</span><span id="who" style="display:flex;align-items:center;gap:10px"></span></div>
 <div class="wrap">
 
 <div class="card" id="loginCard">
   <h3>Admin Login</h3>
-  <div class="row" style="grid-template-columns:2fr 1fr">
+  <div class="row" style="grid-template-columns:2fr 1fr 1fr">
     <input type="password" id="pw" placeholder="Admin password (ADMIN_PASSWORD from .env)">
+    <input type="text" id="totpCode" placeholder="6-digit code" inputmode="numeric" maxlength="6">
     <button onclick="login()">Login</button>
   </div>
   <div id="loginMsg" class="err"></div>
@@ -959,9 +960,23 @@ async function loadAuditLog(){
   }catch(e){tbody.innerHTML='<tr><td colspan="5" class="err">'+esc(e.message)+'</td></tr>';}
 }
 async function login(){
-  localStorage.setItem('tt_admin',document.getElementById('pw').value.trim());
-  const ok=await load();
-  document.getElementById('loginMsg').textContent=ok?'':'Wrong password.';
+  const msg=document.getElementById('loginMsg');msg.textContent='';
+  try{
+    const r=await fetch('/admin/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+      password:document.getElementById('pw').value.trim(),
+      code:document.getElementById('totpCode').value.trim()
+    })});
+    const d=await r.json();
+    if(!d.success){msg.textContent=d.error||'Invalid password or code.';return;}
+    localStorage.setItem('tt_admin',d.token);
+    const ok=await load();
+    msg.textContent=ok?'':'Login succeeded but data failed to load — try refreshing.';
+  }catch(e){msg.textContent='Network error — try again.';}
+}
+async function adminLogout(){
+  try{await fetch('/admin/logout',{method:'POST',headers:hdr()});}catch(e){}
+  localStorage.removeItem('tt_admin');
+  location.reload();
 }
 async function load(){
   try{
@@ -972,7 +987,7 @@ async function load(){
     USERS=d.users;
     document.getElementById('loginCard').style.display='none';
     document.getElementById('panel').style.display='block';
-    document.getElementById('who').textContent='✅ Logged in';
+    document.getElementById('who').innerHTML='✅ Logged in <button onclick="adminLogout()" style="padding:5px 12px;font-size:11px;background:#fff;color:var(--navy-dark)">Log out</button>';
     document.getElementById('revenue').textContent=d.revenue.toLocaleString();
     document.getElementById('txCount').textContent=d.txCount;
     document.getElementById('userCount').textContent=d.teacherCount;
