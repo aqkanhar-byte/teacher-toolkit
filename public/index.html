@@ -1738,28 +1738,30 @@ function cleanCell(v){
 }
 /* Rows (2D array) → students, header auto-detect — CSV aur Excel dono ke liye common */
 function rowsToStudents(rows){
-  rows=rows.filter(r=>r&&r.some(c=>String(c==null?'':c).trim()));
-  if(!rows.length)return{students:[],skipped:0};
-  const head=rows[0].map(h=>String(h==null?'':h).toLowerCase());
+  /* Keep each row's original 1-based line number (matching the source file) before dropping
+     blank rows, so the error report below can point a teacher back to the right line. */
+  const tagged=rows.map((r,i)=>({r,origRow:i+1})).filter(x=>x.r&&x.r.some(c=>String(c==null?'':c).trim()));
+  if(!tagged.length)return{students:[],skipped:0,skippedRows:[]};
+  const head=tagged[0].r.map(h=>String(h==null?'':h).toLowerCase());
   const find=(...keys)=>head.findIndex(h=>keys.some(k=>h.includes(k)));
   let idx={name:find('student','name'),father:find('father'),gr:find('g.r','gr'),roll:find('roll','seat'),cls:find('class'),dob:find('birth','dob'),addr:find('address'),phone:find('phone','contact','mobile')};
   let start=1;
   if(idx.name<0){idx={gr:0,roll:1,name:2,father:3,cls:4,dob:5,addr:7,phone:8};start=0;}
   if(idx.name===idx.father){const alt=head.findIndex(h=>h.includes('name')&&!h.includes('father'));if(alt>=0)idx.name=alt;}
-  const students=[];let skipped=0;
-  for(let i=start;i<rows.length;i++){
-    const c=rows[i];const g=j=>j>=0&&c[j]!=null?cleanCell(c[j]):'';
+  const students=[];let skipped=0;const skippedRows=[];
+  for(let i=start;i<tagged.length;i++){
+    const c=tagged[i].r,origRow=tagged[i].origRow;const g=j=>j>=0&&c[j]!=null?cleanCell(c[j]):'';
     const name=idx.name>=0?cleanName(c[idx.name]):'';
-    if(!name){skipped++;continue;}
+    if(!name){skipped++;skippedRows.push({row:origRow,reason:'Missing or unreadable student name'});continue;}
     /* Excel serial date → readable */
     let dob=g(idx.dob);
     if(idx.dob>=0&&typeof c[idx.dob]==='number'&&c[idx.dob]>20000&&c[idx.dob]<60000){
       const d=new Date(Math.round((c[idx.dob]-25569)*86400000));
       dob=d.toISOString().slice(0,10);
     }
-    students.push({name,fatherName:g(idx.father),grNumber:g(idx.gr),rollNumber:g(idx.roll),className:g(idx.cls),dob,address:g(idx.addr),phone:g(idx.phone)});
+    students.push({name,fatherName:g(idx.father),grNumber:g(idx.gr),rollNumber:g(idx.roll),className:g(idx.cls),dob,address:g(idx.addr),phone:g(idx.phone),row:origRow});
   }
-  return{students,skipped};
+  return{students,skipped,skippedRows};
 }
 /* G.R Number is the real unique student identifier in Sindh school records — trust it over
    name-matching whenever both sides have one. Falls back to name+father+class only when a G.R
@@ -1768,6 +1770,17 @@ function studentKey(s){
   const gr=String(s.grNumber||'').trim().toLowerCase();
   if(gr)return 'gr:'+gr;
   return 'nc:'+String(s.name||'').trim().toLowerCase()+'|'+String(s.fatherName||'').trim().toLowerCase()+'|'+String(s.className||'').trim().toLowerCase();
+}
+/* Same CSV-safety convention as server.js's /download-excel (csvSafe there): a cell starting with
+   =, +, -, or @ would otherwise be executed as a formula when opened in Excel/Sheets. */
+function csvSafeCell(v){const s=String(v==null?'':v);return /^[=+\-@\t\r]/.test(s)?"'"+s:s;}
+function downloadImportErrorReport(issues){
+  const rows=[['Row','Student Name','Reason']].concat(issues.map(i=>[i.row,i.name||'',i.reason]));
+  const csv=rows.map(r=>r.map(c=>'"'+csvSafeCell(c).replace(/"/g,'""')+'"').join(',')).join('\r\n');
+  const blob=new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download='student-import-issues.csv';a.click();
+  URL.revokeObjectURL(url);
 }
 function finishImport(result){
   if(!result.students.length){alert('No valid students found! Make sure the sheet has a "Student Name" or "Name" column.'+(result.skipped?'\n('+result.skipped+' rows skipped)':''));return;}
@@ -1779,11 +1792,18 @@ function finishImport(result){
     if(existingKeys.has(key)||seenInBatch.has(key)){duplicates.push(s);return;}
     seenInBatch.add(key);toAdd.push(s);
   });
-  const db=getDB().concat(toAdd);
+  const db=getDB().concat(toAdd.map(({row,...rest})=>rest));
   setDBData(db);renderDB();scheduleSync();
   let msg='✅ '+toAdd.length+' student'+(toAdd.length===1?'':'s')+' imported!';
   if(duplicates.length)msg+='\n⚠️ '+duplicates.length+' duplicate'+(duplicates.length===1?'':'s')+' skipped (matched by G.R Number, or Name+Father+Class): '+duplicates.slice(0,5).map(s=>s.name).join(', ')+(duplicates.length>5?', ...':'');
   if(result.skipped)msg+='\n('+result.skipped+' empty/invalid rows skipped)';
+  const issues=(result.skippedRows||[]).map(r=>({row:r.row,name:'',reason:r.reason}))
+    .concat(duplicates.map(s=>({row:s.row,name:s.name,reason:'Duplicate — matched by G.R Number, or Name+Father+Class'})))
+    .sort((a,b)=>a.row-b.row);
+  if(issues.length){
+    msg+='\n📄 Detailed CSV report of skipped/duplicate rows downloaded.';
+    downloadImportErrorReport(issues);
+  }
   alert(msg);
 }
 function dbImportFile(ev){
