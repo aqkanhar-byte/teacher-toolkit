@@ -611,6 +611,12 @@ button{cursor:pointer;border:none;background:none}
   <div class="dash-grid">
     <div class="dash-left">
       <div class="hero" id="hero"></div>
+      <div class="widget-card" id="stbbPromo" style="margin-bottom:18px">
+        <div class="widget-head"><span class="widget-title">📚 Free STBB Textbook Downloads</span></div>
+        <div style="padding:4px 2px 10px;font-size:12.5px;color:var(--g600)">Official Sindh Textbook Board PDF textbooks, ECCE to Class 12 — free to browse and download, no login needed.</div>
+        <button class="btn-dl" id="stbbToggleBtn" onclick="toggleStbbPicker()">Browse &amp; Download →</button>
+        <select id="stbbClassSel" style="display:none;margin-top:8px" onchange="if(this.value)location.href=this.value"></select>
+      </div>
       <div class="quick-head">What would you like to create?</div>
       <div class="quick-tiles" id="quickTiles"></div>
       <div id="dashRecentDocsWrap" style="display:none">
@@ -635,13 +641,6 @@ button{cursor:pointer;border:none;background:none}
     <div class="trust-item"><div class="trust-ico">⏱️</div><div><div class="trust-name">Time Saving</div><div class="trust-sub">Minimize your workload</div></div></div>
     <div class="trust-item"><div class="trust-ico">✅</div><div><div class="trust-name">Curriculum Aligned</div><div class="trust-sub">Sindh textbook board</div></div></div>
     <div class="trust-item"><div class="trust-ico">🔒</div><div><div class="trust-name">Secure &amp; Private</div><div class="trust-sub">Your data is protected</div></div></div>
-  </div>
-
-  <div class="widget-card" id="stbbPromo" style="margin-bottom:18px">
-    <div class="widget-head"><span class="widget-title">📚 Free STBB Textbook Downloads</span></div>
-    <div style="padding:4px 2px 10px;font-size:12.5px;color:var(--g600)">Official Sindh Textbook Board PDF textbooks, ECCE to Class 12 — free to browse and download, no login needed.</div>
-    <button class="btn-dl" id="stbbToggleBtn" onclick="toggleStbbPicker()">Browse &amp; Download →</button>
-    <select id="stbbClassSel" style="display:none;margin-top:8px" onchange="if(this.value)location.href=this.value"></select>
   </div>
 
   <!-- ══ VIEW: DOCUMENT FORM ══ -->
