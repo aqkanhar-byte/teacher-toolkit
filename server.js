@@ -1276,6 +1276,25 @@ function breadcrumbLd(items) {
   return { '@context': 'https://schema.org', '@type': 'BreadcrumbList',
     itemListElement: items.map((it, i) => ({ '@type': 'ListItem', position: i + 1, name: it.name, item: SITE_URL + it.path })) };
 }
+/* Every answer here is a true, generic statement about the service itself — never fabricated
+   claims about any specific book's contents (tt_books only stores class/subject/title/size, not
+   a table of contents, so per-book claims would just be invented). One shared array feeds both
+   the visible HTML and the FAQPage JSON-LD so the two can never drift out of sync. */
+const LIBRARY_FAQ = [
+  { q: 'Are these STBB books really free to download?', a: 'Yes — every book in this library is completely free to download as a PDF, with no login, signup, or payment required.' },
+  { q: 'Are these the official Sindh Textbook Board (STBB) books?', a: 'Yes — every book here is an official Sindh Textbook Board curriculum textbook, covering ECCE (Katchi) through Class 12 in English, Urdu, and Sindhi medium.' },
+  { q: 'What format are the books in?', a: 'All books are provided as PDF files, ready to view on any device or print.' },
+  { q: 'Can I use these books to create a Lesson Plan or Worksheet?', a: 'Yes — Teacher Toolkit can generate a Lesson Plan, Worksheet, Exam Paper, or other classroom document directly from any of these books’ content.' }
+];
+function libraryFaqHtml() {
+  return '<h2>Frequently Asked Questions</h2>' + LIBRARY_FAQ.map(f =>
+    `<div class="card"><b>${escHtml(f.q)}</b><p style="margin-top:6px">${escHtml(f.a)}</p></div>`
+  ).join('');
+}
+function libraryFaqLd() {
+  return { '@context': 'https://schema.org', '@type': 'FAQPage',
+    mainEntity: LIBRARY_FAQ.map(f => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })) };
+}
 app.get('/library', async (req, res) => {
   if (!sb) return res.status(503).send('Not configured');
   const { data: books } = await sb.from('tt_books').select('class_name').not('slug', 'is', null);
@@ -1289,11 +1308,13 @@ app.get('/library', async (req, res) => {
   const jsonLd = [
     { '@context': 'https://schema.org', '@type': 'CollectionPage', name: 'Free STBB Textbook Downloads', url: SITE_URL + '/library',
       hasPart: activeClasses.map(c => ({ '@type': 'WebPage', name: c, url: SITE_URL + '/library/class/' + classSlugOf(c) })) },
-    breadcrumbLd([{ name: 'Home', path: '/' }, { name: 'Free Textbook Library', path: '/library' }])
+    breadcrumbLd([{ name: 'Home', path: '/' }, { name: 'Free Textbook Library', path: '/library' }]),
+    libraryFaqLd()
   ];
   const body = `<h1>Free STBB Textbook Downloads — Sindh Textbook Board Books (PDF)</h1>
 <p>Official Sindh Textbook Board (STBB) textbooks, free to download as PDF — ${totalBooks} book${totalBooks === 1 ? '' : 's'} across ${activeClasses.length} classes, ECCE to Class 12. Pick a class to browse its books.</p>
-<div class="grid">${classesHtml || '<p>No books published yet — check back soon.</p>'}</div>`;
+<div class="grid">${classesHtml || '<p>No books published yet — check back soon.</p>'}</div>
+${libraryFaqHtml()}`;
   res.send(libraryPageShell(
     'Free STBB Textbook PDF Downloads — All Classes | Teacher Toolkit',
     `Download ${totalBooks} official Sindh Textbook Board (STBB) books for free — Class 1 to Class 12, English/Urdu/Sindhi medium, PDF format.`,
@@ -1321,7 +1342,7 @@ app.get('/library/class/:classSlug', async (req, res) => {
   ];
   const body = `<p style="font-size:12px;margin-bottom:14px"><a href="/library">← All Classes</a></p>
 <h1>${escHtml(className)} — Free STBB Textbook PDF Downloads</h1>
-<p>${list.length} official Sindh Textbook Board (STBB) textbook${list.length === 1 ? '' : 's'} for ${escHtml(className)} — ${subjects.map(escHtml).join(', ') || 'no subjects yet'} — free to download as PDF.</p>
+<p>${list.length} official Sindh Textbook Board (STBB) textbook${list.length === 1 ? '' : 's'} for ${escHtml(className)} — ${subjects.map(escHtml).join(', ') || 'no subjects yet'} — free to download as PDF, no login required. These are the current official curriculum books used in Sindh government schools, published by the Sindh Textbook Board (STBB), Jamshoro.</p>
 ${subjectsHtml || '<p>No books published yet for this class — check back soon.</p>'}`;
   res.send(libraryPageShell(
     `${className} STBB Textbooks — Free PDF Download | Teacher Toolkit`,
@@ -1349,7 +1370,8 @@ app.get('/library/:slug', async (req, res) => {
 <p><b>Class:</b> ${escHtml(book.class_name)}<br><b>Subject:</b> ${escHtml(book.subject)}${book.unit_label ? '<br><b>Unit:</b> ' + escHtml(book.unit_label) : ''}<br><b>Size:</b> ${escHtml(book.size_mb)}MB<br><b>Publisher:</b> Sindh Textbook Board (STBB)</p>
 <a class="dl-btn" href="/library/${escHtml(book.slug)}/download">⬇ Download PDF Free</a>
 </div>
-<p>This is an official Sindh Textbook Board (STBB) curriculum textbook, free for students and teachers. Need a lesson plan, worksheet, or exam paper built from this exact book? <a href="/">Try Teacher Toolkit</a> — built for Sindh government school teachers.</p>
+<p>This is the official ${escHtml(book.subject)} textbook for ${escHtml(book.class_name)}, published by the Sindh Textbook Board (STBB) — free to download, print, and use in class or at home.</p>
+<p>Need to build a document from this book? Teacher Toolkit can generate a <a href="/?doc=Lesson+Plan">Lesson Plan</a>, <a href="/?doc=Worksheet">Worksheet</a>, or <a href="/?doc=Exam+Paper">Exam Paper</a> directly from this book's content — built for Sindh government school teachers.</p>
 <p><a href="/library">← Browse all STBB books</a></p>`;
   res.send(libraryPageShell(title, description, '/library/' + book.slug, body, jsonLd));
 });
