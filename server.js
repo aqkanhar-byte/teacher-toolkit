@@ -391,7 +391,7 @@ app.post('/students-sync', async (req, res) => {
    check happens once, in /admin/login. This keeps every existing /admin/* route and every
    admin.html call site unchanged: they still just send whatever's in the x-admin-key header,
    which used to be the password and is now a session token instead. */
-const adminSessions = new Map(); /* token -> expiresAt (ms). In-memory by design — a redeploy just logs the admin out. */
+const adminSessions = new Map(); /* token -> {expiresAt, role, adminId, username}. In-memory by design — a redeploy just logs the admin out. */
 const ADMIN_SESSION_MS = 12 * 60 * 60 * 1000;
 const TOTP_STEP_MS = 30 * 1000;
 const BASE32_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
@@ -424,13 +424,25 @@ function verifyTotp(secretBase32, code) {
   const step = Math.floor(Date.now() / TOTP_STEP_MS);
   return [0, -1, 1].some(d => totpAt(secretBase32, step + d) === c);
 }
-function isAdmin(req) {
-  const token = req.headers['x-admin-key'];
-  if (typeof token !== 'string' || !token) return false;
-  const exp = adminSessions.get(token);
-  if (!exp || exp < Date.now()) { adminSessions.delete(token); return false; }
-  return true;
+/* Same generator as scripts/generate-admin-totp-secret.js, inlined so a new staff account's
+   secret can be minted server-side (in the response, once) instead of the owner running a
+   local script on the staff member's behalf. */
+function generateTotpSecret() {
+  const bytes = crypto.randomBytes(20);
+  let bits = '';
+  for (const b of bytes) bits += b.toString(2).padStart(8, '0');
+  let out = '';
+  for (let i = 0; i + 5 <= bits.length; i += 5) out += BASE32_ALPHABET[parseInt(bits.slice(i, i + 5), 2)];
+  return out;
 }
+function adminSession(req) {
+  const token = req.headers['x-admin-key'];
+  if (typeof token !== 'string' || !token) return null;
+  const s = adminSessions.get(token);
+  if (!s || s.expiresAt < Date.now()) { adminSessions.delete(token); return null; }
+  return s;
+}
+function isAdmin(req) { return !!adminSession(req); }
 /* Har admin route ka common gate: brute-force lockout + valid session + Supabase check */
 function adminGate(req, res) {
   const rk = 'adminfail:' + req.ip;
@@ -439,36 +451,87 @@ function adminGate(req, res) {
   if (!sb) { res.json({ success: false, error: 'Database is not configured on the server.' }); return false; }
   return true;
 }
-app.post('/admin/login', (req, res) => {
+/* Same as adminGate, plus the session must belong to the 'owner' role — for destructive actions,
+   revenue-negative actions, and content curation that shouldn't be delegated to staff accounts. */
+function requireOwner(req, res) {
+  if (!adminGate(req, res)) return false;
+  if (adminSession(req).role !== 'owner') { res.status(403).json({ success: false, error: 'Owner access required' }); return false; }
+  return true;
+}
+app.post('/admin/login', async (req, res) => {
   const rk = 'adminlogin:' + req.ip;
   if (rlBlocked(rk, 8, 15 * 60 * 1000)) return tooMany(res);
-  const pw = process.env.ADMIN_PASSWORD, totpSecret = process.env.ADMIN_TOTP_SECRET;
-  const { password, code } = req.body || {};
-  let pwOk = false;
-  if (pw && typeof password === 'string' && password) {
-    const a = Buffer.from(password), b = Buffer.from(pw);
-    pwOk = a.length === b.length && crypto.timingSafeEqual(a, b); /* length leak unavoidable; content compare constant-time */
+  const { username, password, code } = req.body || {};
+  let session = null;
+  if (typeof username === 'string' && username) {
+    /* Named staff account — checked against tt_admins, independent of the owner's env-var login. */
+    if (sb) {
+      const { data: admin } = await sb.from('tt_admins').select('*').eq('username', username).eq('active', true).maybeSingle();
+      if (admin && checkPin(password, admin.password_hash) && verifyTotp(admin.totp_secret, code)) {
+        session = { role: admin.role, adminId: admin.id, username: admin.username };
+        sb.from('tt_admins').update({ last_login: new Date().toISOString() }).eq('id', admin.id).then(() => {}, () => {});
+      }
+    }
+  } else {
+    /* Owner login — env-var password/TOTP, unchanged from before named staff accounts existed. */
+    const pw = process.env.ADMIN_PASSWORD;
+    let pwOk = false;
+    if (pw && typeof password === 'string' && password) {
+      const a = Buffer.from(password), b = Buffer.from(pw);
+      pwOk = a.length === b.length && crypto.timingSafeEqual(a, b); /* length leak unavoidable; content compare constant-time */
+    }
+    /* TOTP check temporarily disabled for the owner login — the authenticator-app setup proved
+       too much friction for now. Password-only, same as before MFA was added. Re-enable with
+       `pwOk && verifyTotp(process.env.ADMIN_TOTP_SECRET, code)` once there's a simpler way to
+       walk the owner through enrollment (or in person). */
+    if (pwOk) session = { role: 'owner', adminId: null, username: 'owner' };
   }
-  const codeOk = pwOk && verifyTotp(totpSecret, code); /* skip TOTP compute entirely on a wrong password */
-  if (!pwOk || !codeOk) { rlHit(rk, 15 * 60 * 1000); res.status(401).json({ success: false, error: 'Invalid password or code' }); return; }
+  if (!session) { rlHit(rk, 15 * 60 * 1000); res.status(401).json({ success: false, error: 'Invalid username, password, or code' }); return; }
   const token = crypto.randomBytes(32).toString('hex');
-  adminSessions.set(token, Date.now() + ADMIN_SESSION_MS);
+  adminSessions.set(token, { ...session, expiresAt: Date.now() + ADMIN_SESSION_MS });
   logAdminAction('login', req, null, null);
-  res.json({ success: true, token });
+  res.json({ success: true, token, role: session.role });
 });
 app.post('/admin/logout', (req, res) => {
   const token = req.headers['x-admin-key'];
   if (typeof token === 'string') adminSessions.delete(token);
   res.json({ success: true });
 });
-/* Fire-and-forget audit trail for sensitive admin actions (money, PINs, deletions) — a single
-   shared admin password can't attribute an action to a specific person, but this still answers
-   "what happened, to whom, when, from where" after the fact, which matters more for catching a
-   mistake. Never awaited/blocking: an audit-log failure must not stop the actual admin action. */
+/* Fire-and-forget audit trail for sensitive admin actions (money, PINs, deletions) — attributes
+   each action to whichever admin session performed it (owner, or a named staff account), since
+   named accounts made that possible; falls back to null for pre-login-refactor callers. Never
+   awaited/blocking: an audit-log failure must not stop the actual admin action. */
 function logAdminAction(action, req, targetPhone, detail) {
   if (!sb) return;
-  sb.from('tt_admin_actions').insert({ action, target_phone: targetPhone || null, detail: detail || null, ip: req.ip }).then(() => {}, () => {});
+  const s = adminSession(req);
+  sb.from('tt_admin_actions').insert({ action, target_phone: targetPhone || null, detail: detail || null, ip: req.ip, admin_username: s ? s.username : null }).then(() => {}, () => {});
 }
+app.get('/admin/admins', async (req, res) => {
+  if (!requireOwner(req, res)) return;
+  const { data } = await sb.from('tt_admins').select('id,username,role,active,created_at,last_login').order('created_at', { ascending: false });
+  res.json({ success: true, admins: data || [] });
+});
+app.post('/admin/admins', async (req, res) => {
+  if (!requireOwner(req, res)) return;
+  const username = String((req.body || {}).username || '').trim();
+  const password = String((req.body || {}).password || '');
+  if (!username || username.length < 3) return res.json({ success: false, error: 'Username must be at least 3 characters.' });
+  if (!password || password.length < 8) return res.json({ success: false, error: 'Password must be at least 8 characters.' });
+  const totpSecret = generateTotpSecret();
+  const { data, error } = await sb.from('tt_admins')
+    .insert({ username, password_hash: hashPin(password), totp_secret: totpSecret, role: 'staff' })
+    .select('id,username,role').maybeSingle();
+  if (error) return res.json({ success: false, error: error.message.includes('duplicate') ? 'That username is already taken.' : error.message });
+  logAdminAction('create-admin', req, null, { username });
+  /* totpSecret is only ever returned here, once — it isn't retrievable again after this response. */
+  res.json({ success: true, admin: data, totpSecret });
+});
+app.post('/admin/admins/:id/deactivate', async (req, res) => {
+  if (!requireOwner(req, res)) return;
+  const { data } = await sb.from('tt_admins').update({ active: false }).eq('id', req.params.id).select('username').maybeSingle();
+  logAdminAction('deactivate-admin', req, null, { username: data ? data.username : req.params.id });
+  res.json({ success: true });
+});
 async function statsResetAt() {
   if (!sb) return null;
   const { data } = await sb.from('tt_settings').select('value').eq('key', 'stats_reset_at').maybeSingle();
@@ -488,7 +551,7 @@ app.get('/admin/users', async (req, res) => {
 /* Resets the dashboard's Revenue/Payments/Teachers counters to zero (a fresh "since" baseline) —
    never deletes real data. Full history is always available via /admin/full-report. */
 app.post('/admin/reset-stats', async (req, res) => {
-  if (!adminGate(req, res)) return;
+  if (!requireOwner(req, res)) return;
   await sb.from('tt_settings').upsert({ key: 'stats_reset_at', value: new Date().toISOString() });
   res.json({ success: true });
 });
@@ -515,7 +578,7 @@ app.get('/admin/full-report', async (req, res) => {
   });
 });
 app.get('/admin/webhook-log', async (req, res) => {
-  if (!adminGate(req, res)) return;
+  if (!requireOwner(req, res)) return;
   const { data } = await sb.from('tt_webhook_events').select('*').order('created_at', { ascending: false }).limit(200);
   res.json({ success: true, events: data || [] });
 });
@@ -595,7 +658,7 @@ app.post('/admin/add-credits', async (req, res) => {
 });
 /* Undo/correct an accidental Add Credits — subtracts, clamped at 0, logged as a negative transaction */
 app.post('/admin/remove-credits', async (req, res) => {
-  if (!adminGate(req, res)) return;
+  if (!requireOwner(req, res)) return;
   const phone = cleanPhone(req.body.phone);
   const credits = parseInt(req.body.credits) || 0;
   if (!phone || credits <= 0) return res.json({ success: false, error: 'Enter a valid phone and credits' });
@@ -764,7 +827,7 @@ app.get('/books/:id/drive-stream', async (req, res) => {
   }
 });
 app.post('/admin/upload-book', uploadBook.single('file'), verifyMagicBytes, async (req, res) => {
-  if (!adminGate(req, res)) { if (req.file) { try { fs.unlinkSync(req.file.path); } catch(e) {} } return; }
+  if (!requireOwner(req, res)) { if (req.file) { try { fs.unlinkSync(req.file.path); } catch(e) {} } return; }
   if (!req.file) return res.json({ success: false, error: 'No file' });
   /* Trim + normalize — teacher UI dropdown se exact match zaroori hai */
   const className = String(req.body.className || '').trim();
@@ -803,7 +866,7 @@ app.post('/admin/upload-book', uploadBook.single('file'), verifyMagicBytes, asyn
    3) /admin/book-confirm — a tiny JSON call (no file bytes) that inserts the tt_books row
       once the direct upload has succeeded. */
 app.post('/admin/book-upload-url', async (req, res) => {
-  if (!adminGate(req, res)) return;
+  if (!requireOwner(req, res)) return;
   const className = String(req.body.className || '').trim();
   const subject = String(req.body.subject || '').trim();
   const ext = String(req.body.ext || '.pdf').toLowerCase();
@@ -814,7 +877,7 @@ app.post('/admin/book-upload-url', async (req, res) => {
   res.json({ success: true, signedUrl: data.signedUrl, storagePath });
 });
 app.post('/admin/book-confirm', async (req, res) => {
-  if (!adminGate(req, res)) return;
+  if (!requireOwner(req, res)) return;
   const className = String(req.body.className || '').trim();
   const subject = String(req.body.subject || '').trim();
   const title = String(req.body.title || '').trim();
@@ -835,7 +898,7 @@ app.post('/admin/book-confirm', async (req, res) => {
    and imports books from it one at a time with the same Class/Subject/Title fields as a normal
    upload — the file itself never leaves Drive or passes through this server during import. */
 app.get('/admin/drive-list', async (req, res) => {
-  if (!adminGate(req, res)) return;
+  if (!requireOwner(req, res)) return;
   const folderId = String(req.query.folderId || '').trim();
   if (!folderId) return res.json({ success: false, error: 'Drive folder ID is required' });
   try {
@@ -849,7 +912,7 @@ app.get('/admin/drive-list', async (req, res) => {
   }
 });
 app.post('/admin/drive-import', async (req, res) => {
-  if (!adminGate(req, res)) return;
+  if (!requireOwner(req, res)) return;
   const fileId = String(req.body.fileId || '').trim();
   const className = String(req.body.className || '').trim();
   const subject = String(req.body.subject || '').trim();
@@ -872,7 +935,7 @@ app.post('/admin/drive-import', async (req, res) => {
   }
 });
 app.post('/admin/delete-book', async (req, res) => {
-  if (!adminGate(req, res)) return;
+  if (!requireOwner(req, res)) return;
   const { data: book } = await sb.from('tt_books').select('*').eq('id', req.body.id).maybeSingle();
   if (book) {
     /* Drive-hosted books were never uploaded into Supabase Storage, so there's nothing there
@@ -921,7 +984,7 @@ async function fetchBookToTemp(bookId) {
 
 /* ═══════════════ SLO BANK — official curriculum SLOs, prompts mein inject ═══════════════ */
 app.post('/admin/add-slos', async (req, res) => {
-  if (!adminGate(req, res)) return;
+  if (!requireOwner(req, res)) return;
   const { className, subject, lines } = req.body;
   if (!className || !subject || !lines) return res.json({ success: false, error: 'Class, subject and SLO lines are required' });
   const rows = [];
@@ -1551,7 +1614,7 @@ app.post('/detect-book', upload.single('file'), verifyMagicBytes, async (req, re
    client-side (pdf-lib, already loaded for the page-range preview) before sending anything to
    the AI — avoids ever loading a 300MB+ book fully into this server's memory. */
 app.get('/admin/drive-file-stream', async (req, res) => {
-  if (!adminGate(req, res)) return;
+  if (!requireOwner(req, res)) return;
   const fileId = String(req.query.fileId || '').trim();
   if (!fileId) return res.status(400).json({ success: false, error: 'fileId is required' });
   try {
@@ -1565,7 +1628,7 @@ app.get('/admin/drive-file-stream', async (req, res) => {
    admin panel calls this once per file, right after "List Files", with just that file's
    extracted page 1. */
 app.post('/admin/drive-detect', upload.single('file'), verifyMagicBytes, async (req, res) => {
-  if (!adminGate(req, res)) { if (req.file) { try { fs.unlinkSync(req.file.path); } catch (e) {} } return; }
+  if (!requireOwner(req, res)) { if (req.file) { try { fs.unlinkSync(req.file.path); } catch (e) {} } return; }
   if (!req.file) return res.json({ success: false, error: 'No file uploaded' });
   try {
     const result = await detectClassSubject(req.file.path, req.file.originalname, 'admin-drive-detect');

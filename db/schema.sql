@@ -173,3 +173,22 @@ CREATE TABLE IF NOT EXISTS tt_admin_actions (
 );
 CREATE INDEX IF NOT EXISTS idx_tt_admin_actions_created ON tt_admin_actions(created_at);
 CREATE INDEX IF NOT EXISTS idx_tt_admin_actions_phone ON tt_admin_actions(target_phone);
+-- The extension the comment above predicted: named admin accounts now exist (tt_admins below),
+-- so every action can finally be attributed to whoever actually did it, not just "the admin".
+ALTER TABLE tt_admin_actions ADD COLUMN IF NOT EXISTS admin_username text;
+
+-- ═══════════════ tt_admins — named staff accounts (owner stays env-var-only, see ADMIN_PASSWORD) ═══════════════
+-- The 'owner' login (ADMIN_PASSWORD + ADMIN_TOTP_SECRET env vars) is untouched by this table — it
+-- is a SEPARATE, parallel login path. This table only ever holds delegated staff accounts the
+-- owner creates from the admin panel, each with their own password + TOTP secret and a role that
+-- gates which /admin/* routes they can reach (see requireOwner() in server.js).
+CREATE TABLE IF NOT EXISTS tt_admins (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  username text UNIQUE NOT NULL,
+  password_hash text NOT NULL,
+  totp_secret text NOT NULL,
+  role text NOT NULL DEFAULT 'staff', -- 'owner' | 'staff' — rows here are only ever created as 'staff'
+  active boolean NOT NULL DEFAULT true,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  last_login timestamptz
+);

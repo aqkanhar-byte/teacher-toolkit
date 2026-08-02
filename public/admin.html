@@ -41,8 +41,9 @@ td{padding:8px 10px;border-bottom:1px solid var(--g100)}
 
 <div class="card" id="loginCard">
   <h3>Admin Login</h3>
-  <div class="row" style="grid-template-columns:2fr 1fr 1fr">
-    <input type="password" id="pw" placeholder="Admin password (ADMIN_PASSWORD from .env)">
+  <div class="row" style="grid-template-columns:1.4fr 1.4fr 1fr 1fr">
+    <input type="text" id="un" placeholder="Username (blank = owner)">
+    <input type="password" id="pw" placeholder="Password">
     <input type="text" id="totpCode" placeholder="6-digit code" inputmode="numeric" maxlength="6">
     <button onclick="login()">Login</button>
   </div>
@@ -56,7 +57,7 @@ td{padding:8px 10px;border-bottom:1px solid var(--g100)}
     <span class="stat">🧾 Payments: <span id="txCount">0</span></span>
     <span class="stat">👥 Teachers: <span id="userCount">0</span></span>
     <div style="margin-top:10px">
-      <button onclick="resetStats()" style="background:var(--red);font-size:11px;padding:8px 14px">🔄 Reset Dashboard Counters</button>
+      <button onclick="resetStats()" class="owner-only" style="background:var(--red);font-size:11px;padding:8px 14px">🔄 Reset Dashboard Counters</button>
       <button onclick="showFullReport()" style="background:var(--navy);font-size:11px;padding:8px 14px;margin-left:6px">📊 Full All-Time Report</button>
     </div>
     <div style="font-size:10.5px;color:var(--g400);margin-top:6px">Reset only zeroes these 3 counters for a fresh view — real payment/teacher records are <b>never deleted</b> and always available in the Full Report.</div>
@@ -90,14 +91,14 @@ td{padding:8px 10px;border-bottom:1px solid var(--g100)}
     <div class="row" style="grid-template-columns:2fr 1fr 1fr;margin-top:10px">
       <input type="text" id="c_note" placeholder="Note (optional)">
       <button onclick="addCredits()" style="background:var(--green)">➕ Add Credits</button>
-      <button onclick="removeCredits()" style="background:var(--red)">➖ Remove / Undo</button>
+      <button onclick="removeCredits()" class="owner-only" style="background:var(--red)">➖ Remove / Undo</button>
     </div>
     <input type="text" id="c_orderId" placeholder="Easypaisa/JazzCash transaction ID (optional — prevents double-processing)" style="margin-top:8px">
     <div style="font-size:11px;color:var(--g600);margin-top:6px">💡 Made a mistake adding credits? Use <b>Remove / Undo</b> with the same phone + credit amount to reverse it — it never goes below 0 (check the balance shown above after clicking, to confirm it changed).</div>
     <div id="addMsg" style="margin-top:6px"></div>
   </div>
 
-  <div class="card">
+  <div class="card owner-only">
     <h3>🛡️ Payment Audit Log (every gateway webhook this app has ever received)</h3>
     <div style="font-size:11px;color:var(--g600);margin-bottom:8px">Currently empty by design — no payment gateway is wired in yet. Once one is, every webhook (accepted, rejected, or forged) will be logged here first, before any processing.</div>
     <button onclick="loadWebhookLog()" style="background:var(--navy);font-size:11px;padding:8px 14px">↻ Refresh</button>
@@ -111,7 +112,7 @@ td{padding:8px 10px;border-bottom:1px solid var(--g100)}
     <div style="overflow-x:auto;margin-top:10px"><table><thead><tr><th>Action</th><th>Teacher</th><th>Detail</th><th>IP</th><th>When</th></tr></thead><tbody id="auditRows"><tr><td colspan="5" style="color:var(--g400)">Not loaded yet</td></tr></tbody></table></div>
   </div>
 
-  <div class="card">
+  <div class="card owner-only">
     <h3>📚 Book Bank — Upload curated STBB books (teachers select these, no upload needed)</h3>
     <div style="font-size:11px;color:var(--g600);margin-bottom:8px">Class aur Subject <b>dropdown se hi</b> chunein — teacher app mein book tabhi dikhegi jab class + subject bilkul match karein.</div>
     <div class="row">
@@ -137,7 +138,7 @@ td{padding:8px 10px;border-bottom:1px solid var(--g100)}
     <div style="overflow-x:auto;margin-top:10px"><table><thead><tr><th>Class</th><th>Subject</th><th>Title</th><th>Unit</th><th>Size</th><th></th></tr></thead><tbody id="bookRows"></tbody></table></div>
   </div>
 
-  <div class="card">
+  <div class="card owner-only">
     <h3>📁 Bulk Upload — many books at once (AI detects Class/Subject for each)</h3>
     <div style="font-size:11px;color:var(--g600);margin-bottom:10px">Click the box below, navigate into your books folder, then press <b>Ctrl+A</b> (Windows) or <b>Cmd+A</b> (Mac) to select every file in it, then Open. For each one, the AI reads the first page to detect Class + Subject, and the title comes from the filename — then it's compressed/split/uploaded automatically, one after another, no clicking per book. Anything the AI can't confidently match to your Class/Subject lists is skipped and listed at the end for manual upload.</div>
     <div class="row" style="grid-template-columns:2fr 1fr">
@@ -155,7 +156,7 @@ td{padding:8px 10px;border-bottom:1px solid var(--g100)}
     <div id="bulkResults" style="margin-top:10px;overflow-x:auto"></div>
   </div>
 
-  <div class="card">
+  <div class="card owner-only">
     <h3>🗂️ Import from Google Drive — when Supabase Storage runs out of space</h3>
     <div style="font-size:11px;color:var(--g600);margin-bottom:8px">Share a Drive folder (Viewer access) with <code id="driveSaEmail">the service account</code>, paste the folder ID from its URL below, then import books one at a time — the file stays in Drive, it never gets uploaded anywhere.</div>
     <div class="row" style="grid-template-columns:2fr 1fr">
@@ -166,7 +167,7 @@ td{padding:8px 10px;border-bottom:1px solid var(--g100)}
     <div id="driveFileList" style="margin-top:10px;overflow-x:auto"></div>
   </div>
 
-  <div class="card">
+  <div class="card owner-only">
     <h3>🎯 SLO Bank — official curriculum SLOs (AI in par lock hota hai)</h3>
     <div class="row" style="grid-template-columns:1fr 1fr">
       <select id="sl_class" onchange="fillSloSubjects()"></select>
@@ -196,6 +197,18 @@ td{padding:8px 10px;border-bottom:1px solid var(--g100)}
     <h3>Registered Teachers</h3>
     <input type="text" id="search" placeholder="Search name / phone..." oninput="renderUsers()" style="margin-bottom:10px">
     <div style="overflow-x:auto"><table><thead><tr><th>Name</th><th>Phone</th><th>School</th><th>Credits</th><th>Joined</th></tr></thead><tbody id="rows"></tbody></table></div>
+  </div>
+
+  <div class="card owner-only">
+    <h3>👥 Manage Admins — give a staff member their own limited-access login</h3>
+    <div style="font-size:11px;color:var(--g600);margin-bottom:8px">Staff accounts can view teachers/reports/audit log and manage credits, subscriptions &amp; PIN resets — they <b>cannot</b> upload/delete books, manage SLOs, import from Drive, remove credits, or reset dashboard counters, and can't see this section.</div>
+    <div class="row" style="grid-template-columns:2fr 2fr 1fr">
+      <input type="text" id="na_username" placeholder="New username (3+ chars)">
+      <input type="password" id="na_password" placeholder="New password (8+ chars)">
+      <button onclick="createAdmin()">➕ Create Staff Login</button>
+    </div>
+    <div id="adminCreateMsg" style="margin-top:6px"></div>
+    <div style="overflow-x:auto;margin-top:10px"><table><thead><tr><th>Username</th><th>Role</th><th>Status</th><th>Last Login</th><th></th></tr></thead><tbody id="adminRows"><tr><td colspan="5" style="color:var(--g400)">Not loaded yet</td></tr></tbody></table></div>
   </div>
 </div>
 
@@ -963,12 +976,14 @@ async function login(){
   const msg=document.getElementById('loginMsg');msg.textContent='';
   try{
     const r=await fetch('/admin/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+      username:document.getElementById('un').value.trim(),
       password:document.getElementById('pw').value.trim(),
       code:document.getElementById('totpCode').value.trim()
     })});
     const d=await r.json();
-    if(!d.success){msg.textContent=d.error||'Invalid password or code.';return;}
+    if(!d.success){msg.textContent=d.error||'Invalid username, password, or code.';return;}
     localStorage.setItem('tt_admin',d.token);
+    localStorage.setItem('tt_admin_role',d.role||'staff');
     const ok=await load();
     msg.textContent=ok?'':'Login succeeded but data failed to load — try refreshing.';
   }catch(e){msg.textContent='Network error — try again.';}
@@ -976,7 +991,42 @@ async function login(){
 async function adminLogout(){
   try{await fetch('/admin/logout',{method:'POST',headers:hdr()});}catch(e){}
   localStorage.removeItem('tt_admin');
+  localStorage.removeItem('tt_admin_role');
   location.reload();
+}
+/* Server-side requireOwner() is the actual enforcement — this just avoids showing a staff member
+   a button that would only ever 403 for them. */
+function applyRoleUI(){
+  const isStaff=localStorage.getItem('tt_admin_role')==='staff';
+  document.querySelectorAll('.owner-only').forEach(el=>{el.style.display=isStaff?'none':'';});
+}
+async function loadAdmins(){
+  const tbody=document.getElementById('adminRows');
+  try{
+    const r=await fetch('/admin/admins',{headers:hdr()});const d=await r.json();
+    if(!d.success){tbody.innerHTML='<tr><td colspan="5" class="err">Could not load</td></tr>';return;}
+    tbody.innerHTML=d.admins.map(a=>'<tr><td><b>'+esc(a.username)+'</b></td><td>'+esc(a.role)+'</td><td>'+(a.active?'<span class="ok">Active</span>':'<span class="err">Deactivated</span>')+'</td><td style="font-size:11px;color:var(--g400)">'+(a.last_login?new Date(a.last_login).toLocaleString():'never')+'</td><td>'+(a.active?'<button style="background:var(--red);padding:5px 12px;font-size:11px" onclick="deactivateAdmin(\''+esc(a.id)+'\')">Deactivate</button>':'')+'</td></tr>').join('')||'<tr><td colspan="5" style="color:var(--g400)">No staff accounts yet.</td></tr>';
+  }catch(e){tbody.innerHTML='<tr><td colspan="5" class="err">'+esc(e.message)+'</td></tr>';}
+}
+async function createAdmin(){
+  const msg=document.getElementById('adminCreateMsg');msg.textContent='';
+  const username=document.getElementById('na_username').value.trim();
+  const password=document.getElementById('na_password').value;
+  try{
+    const r=await fetch('/admin/admins',{method:'POST',headers:hdr(),body:JSON.stringify({username,password})});
+    const d=await r.json();
+    if(!d.success){msg.innerHTML='<span class="err">❌ '+esc(d.error)+'</span>';return;}
+    document.getElementById('na_username').value='';document.getElementById('na_password').value='';
+    alert('Staff login created for "'+d.admin.username+'".\n\nTOTP setup key (SAVE THIS NOW — it cannot be shown again):\n\n'+d.totpSecret+'\n\nGive this to them to enter into their authenticator app (Google Authenticator/Authy — "Enter a setup key"), along with the password you just set. They log in on this same page with their username filled in.');
+    loadAdmins();
+  }catch(e){msg.innerHTML='<span class="err">❌ Network error</span>';}
+}
+async function deactivateAdmin(id){
+  if(!confirm('Deactivate this staff login? They will not be able to log in again (existing sessions expire naturally within 12h).'))return;
+  try{
+    await fetch('/admin/admins/'+encodeURIComponent(id)+'/deactivate',{method:'POST',headers:hdr()});
+    loadAdmins();
+  }catch(e){alert('Network error');}
 }
 async function load(){
   try{
@@ -993,7 +1043,9 @@ async function load(){
     document.getElementById('userCount').textContent=d.teacherCount;
     document.getElementById('resetNote').textContent=d.statsResetAt?('(since '+new Date(d.statsResetAt).toLocaleDateString()+')'):'';
     renderUsers();
+    applyRoleUI();
     fillCls();loadBooks();loadSlos();loadPackages();
+    if(localStorage.getItem('tt_admin_role')==='owner')loadAdmins();
     document.getElementById('driveSaEmail').textContent='teachertoolkitbooks@teachertoolkit-502612.iam.gserviceaccount.com';
     try{
       const savedFolder=localStorage.getItem('tt_drive_folder_id');
